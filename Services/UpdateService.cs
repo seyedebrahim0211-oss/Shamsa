@@ -184,7 +184,7 @@ public static class UpdateService
         if (!full.Equals(Path.GetFullPath(Path.Combine(UpdatesDirectory, release.FileName)),
                          StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
             throw new InvalidOperationException("مسیر نصب‌کننده معتبر نیست.");
-        Process.Start(new ProcessStartInfo
+        var installerProcess = Process.Start(new ProcessStartInfo
         {
             FileName = full,
             Arguments = "/CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /NORESTART",
