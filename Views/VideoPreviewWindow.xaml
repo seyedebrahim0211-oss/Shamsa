@@ -103,6 +103,12 @@
                             <ScaleTransform x:Name="ImageScale" ScaleX="1" ScaleY="1"/>
                         </Image.RenderTransform>
                     </Image>
+                    <!-- Read-only folder storyboard. No file is opened or executed. -->
+                    <TextBlock x:Name="FolderMessageText" Visibility="Collapsed"
+                               IsHitTestVisible="False" Text="در حال بررسی پوشه…"
+                               TextAlignment="Center" TextWrapping="Wrap" VerticalAlignment="Center"
+                               HorizontalAlignment="Center" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextBrush}" Margin="12"/>
                 </Grid>
             </Border>
 

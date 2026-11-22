@@ -35,6 +35,7 @@ public class ExplorerHoverService
     private (IntPtr Hwnd, IntPtr Tab, string Path, DateTime At) _folderCache;
 
     public bool IncludeImages { get; set; } = true;
+    public bool IncludeFolders { get; set; } = true;
 
     public HoverTarget? GetHoveredFile()
     {
@@ -455,6 +456,8 @@ public class ExplorerHoverService
         if (string.IsNullOrEmpty(clean) || clean.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return null;
 
         string direct = Path.Combine(folder, clean);
+        // Folder view is read-only. It never opens items or recursively scans them.
+        if (IncludeFolders && Directory.Exists(direct)) return direct;
         if (File.Exists(direct) && IsPreviewable(direct)) return direct;
 
         foreach (var ext in FileKinds.ExtensionsOf(FileKind.Video))

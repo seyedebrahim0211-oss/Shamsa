@@ -261,6 +261,7 @@ public partial class ToolsDashboardWindow : Window
 
         LoadSettingsIntoUi();
         UpdateFfmpegStatus();
+        RefreshUpdateStatus();
         _loading = false;
 
         RefreshOrganizerPreview();
@@ -953,6 +954,10 @@ public partial class ToolsDashboardWindow : Window
         GlassEffectsCheck.IsChecked = s.GlassEffectsEnabled;
         ThemeAccentError.Text = string.Empty;
         HoverCheck.IsChecked = s.HoverPreviewEnabled;
+        FolderPreviewCheck.IsChecked = s.FolderPreviewEnabled;
+        AutoUpdateCheck.IsChecked = s.AutoCheckUpdates;
+        AutoDownloadUpdateCheck.IsChecked = s.AutoDownloadUpdates;
+        AutoDownloadUpdateCheck.IsEnabled = s.AutoCheckUpdates;
         PreviewImagesCheck.IsChecked = s.PreviewImages;
         SmartScrubCheck.IsChecked = s.SmartScrub;
         HoverDelaySlider.Value = s.HoverDelayMs;
@@ -1037,6 +1042,9 @@ public partial class ToolsDashboardWindow : Window
         SettingsService.Update(s =>
         {
             s.HoverPreviewEnabled = HoverCheck.IsChecked == true;
+            s.FolderPreviewEnabled = FolderPreviewCheck.IsChecked == true;
+            s.AutoCheckUpdates = AutoUpdateCheck.IsChecked == true;
+            s.AutoDownloadUpdates = s.AutoCheckUpdates && AutoDownloadUpdateCheck.IsChecked == true;
             s.PreviewImages = PreviewImagesCheck.IsChecked == true;
             s.SmartScrub = SmartScrubCheck.IsChecked == true;
             s.DonutEnabled = DonutCheck.IsChecked == true;
@@ -1207,6 +1215,76 @@ public partial class ToolsDashboardWindow : Window
             MessageBox.Show(this, "تغییر تنظیم اجرای خودکار ممکن نشد.", "Shamsa", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         SettingsService.Save(); // notify listeners (tray menu)
+    }
+
+    public void RefreshUpdateStatus()
+    {
+        if (UpdateStatusText == null || InstallUpdateBtn == null) return;
+        var release = UpdateService.Latest;
+        if (release == null)
+        {
+            UpdateStatusText.Text = UpdateService.LastError != null
+                ? "بررسی به‌روزرسانی ناموفق بود: " + UpdateService.LastError
+                : $"نسخه فعلی: {UpdateService.CurrentVersion.ToString(3)} · برای بررسی جدید دکمه پایین را بزنید.";
+            InstallUpdateBtn.IsEnabled = false;
+        }
+        else
+        {
+            UpdateStatusText.Text = $"نسخه جدید {release.Version} آماده است · " +
+                (UpdateService.HasVerifiedDownload(release)
+                    ? "فایل دریافت شده، هنگام نصب مجدداً بررسی خواهد شد."
+                    : $"حجم فایل نصب: {FileKinds.FormatSize(release.SizeBytes)}");
+            InstallUpdateBtn.IsEnabled = true;
+        }
+    }
+
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdateBtn.IsEnabled = false;
+        UpdateStatusText.Text = "در حال بررسی GitHub Releases…";
+        try
+        {
+            var release = await UpdateService.CheckAsync(force: true);
+            RefreshUpdateStatus();
+            if (release == null) UpdateStatusText.Text = "✅ نسخه فعلی شمسا به‌روز است.";
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = "امکان دریافت اطلاعات نسخه جدید وجود ندارد: " + ex.Message;
+        }
+        finally { CheckUpdateBtn.IsEnabled = true; }
+    }
+
+    private async void InstallUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        var release = UpdateService.Latest;
+        if (release == null) return;
+        string size = FileKinds.FormatSize(release.SizeBytes);
+        var question = $"نسخه {release.Version} شمسا ({size}) از GitHub دریافت و با SHA-256 بررسی می‌شود. سپس نصب‌کننده اجرا شده و برنامه بسته می‌شود. ادامه می‌دهید؟";
+        if (MessageBox.Show(this, question, "به‌روزرسانی شمسا",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+
+        InstallUpdateBtn.IsEnabled = false;
+        CheckUpdateBtn.IsEnabled = false;
+        try
+        {
+            var progress = new Progress<string>(msg => UpdateStatusText.Text = msg);
+            string installer = await UpdateService.DownloadVerifiedAsync(release, progress);
+            UpdateStatusText.Text = "فایل تأیید شد؛ نصب‌کننده ویندوز در حال اجراست…";
+            UpdateService.LaunchInstaller(installer, release);
+            Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = "خطای دریافت یا اجرای نسخه جدید: " + ex.Message;
+            MessageBox.Show(this, UpdateStatusText.Text, "شمسا", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            InstallUpdateBtn.IsEnabled = true;
+            CheckUpdateBtn.IsEnabled = true;
+        }
     }
 
     private void UpdateFfmpegStatus()

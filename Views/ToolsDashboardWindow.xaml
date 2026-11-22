@@ -627,11 +627,32 @@
                             </StackPanel>
                         </Border>
 
+                        <Border Style="{StaticResource PersianHighlightCard}">
+                            <StackPanel>
+                                <TextBlock Text="↻ به‌روزرسانی امن شمسا" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="نسخه‌های جدید از GitHub Releases دریافت می‌شوند. فایل نصب با SHA-256 رسمی مطابقت داده می‌شود؛ نصب تنها با تأیید شما آغاز می‌شود."
+                                           Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                <CheckBox x:Name="AutoUpdateCheck" Content="بررسی خودکار نسخه جدید هنگام اجرا و هر ۶ ساعت" Click="Setting_Changed"/>
+                                <CheckBox x:Name="AutoDownloadUpdateCheck" Content="دانلود خودکار نسخه جدید در پس‌زمینه (نصب همچنان با تأیید من)" Click="Setting_Changed"/>
+                                <TextBlock x:Name="UpdateStatusText" Foreground="{DynamicResource GoldBrush}"
+                                           TextWrapping="Wrap" Margin="0,8,0,10"/>
+                                <WrapPanel>
+                                    <Button x:Name="CheckUpdateBtn" Content="بررسی نسخه جدید" Click="CheckUpdate_Click" Margin="0,0,8,5"/>
+                                    <Button x:Name="InstallUpdateBtn" Content="دریافت و نصب به‌روزرسانی" Click="InstallUpdate_Click" Style="{StaticResource AccentButton}" Margin="0,0,8,5" IsEnabled="False"/>
+                                </WrapPanel>
+                                <TextBlock Text="نصب روی سیستم‌های دیگر: بسته ویندوز x64 شامل .NET Desktop Runtime و موتور پخش VLC است. برای تبدیل ویدیو/صدا می‌توانید FFmpeg را با دکمه بالا دریافت کنید؛ اینترنت فقط برای نصب ابزار اختیاری یا به‌روزرسانی نیاز است."
+                                           Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
                         <Border Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="پیش‌نمایش کنار موس" Style="{StaticResource SectionTitle}"/>
                                 <CheckBox x:Name="HoverCheck" Content="پیش‌نمایش ویدیو هنگام مکث موس در Explorer و دسکتاپ" Click="Setting_Changed"/>
                                 <CheckBox x:Name="PreviewImagesCheck" Content="پیش‌نمایش تصاویر هم نمایش داده شود" Click="Setting_Changed"/>
+                                <CheckBox x:Name="FolderPreviewCheck" Content="پیش‌نمایش اسلایدی پوشه‌ها در Explorer و دسکتاپ (حداکثر ۶ تصویر یا ویدیو)" Click="Setting_Changed"/>
+                                <TextBlock Text="نمایش سریع فقط از ۱۰۰ مورد اول پوشه؛ بدون بازکردن یا اجرای فایل، پیمایش زیرپوشه، دانلود ابری یا دسترسی به شبکه."
+                                           Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                 <CheckBox x:Name="SmartScrubCheck" Content="مرور هوشمند ویدیو (پرش خودکار برای دیدن کل محتوا)" Click="Setting_Changed"/>
                                 <DockPanel Margin="0,6,0,0">
                                     <TextBlock Text="تأخیر نمایش:" VerticalAlignment="Center" Margin="0,0,8,0"/>

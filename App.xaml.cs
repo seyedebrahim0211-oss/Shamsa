@@ -32,6 +32,7 @@ public partial class App : Application
     private DropShelfWindow? _shelfWindow;
     private ToolsDashboardWindow? _dashboardWindow;
     private DispatcherTimer? _pollTimer;
+    private DispatcherTimer? _updateTimer;
 
     // tray menu items kept for syncing with settings
     private Forms.ToolStripMenuItem? _menuPreview, _menuDonut, _menuAutoOrganize, _menuStartup;
@@ -111,6 +112,12 @@ public partial class App : Application
         _pollTimer.Tick += PollTimer_Tick;
         _pollTimer.Start();
 
+        // Network checks run asynchronously. Installation always needs user consent.
+        _ = CheckForUpdatesInBackgroundAsync(initial: true);
+        _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(6) };
+        _updateTimer.Tick += (_, _) => _ = CheckForUpdatesInBackgroundAsync(initial: false);
+        _updateTimer.Start();
+
         RunSelfTestIfRequested(e.Args);
 
         bool silent = e.Args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
@@ -125,6 +132,36 @@ public partial class App : Application
         }
         else if (!silent)
             ShowNotification("شمسا فعال شد! روی ویدیوها و تصاویر مکث کنید یا شورتکات منوی دایره‌ای را بزنید.");
+    }
+
+    private async Task CheckForUpdatesInBackgroundAsync(bool initial)
+    {
+        if (!SettingsService.Current.AutoCheckUpdates) return;
+        if (initial) await Task.Delay(TimeSpan.FromSeconds(8));
+        try
+        {
+            var release = await UpdateService.CheckAsync();
+            if (release == null) return;
+            if (SettingsService.Current.AutoDownloadUpdates)
+            {
+                try
+                {
+                    await UpdateService.DownloadVerifiedAsync(release);
+                    ShowNotification($"نسخه {release.Version} شمسا دریافت و بررسی شد. برای نصب به تنظیمات بروید.");
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Warn("Automatic update download failed: " + ex.Message);
+                    ShowNotification($"نسخه {release.Version} منتشر شده؛ دانلود خودکار ناموفق بود. از تنظیمات بررسی کنید.");
+                }
+            }
+            else ShowNotification($"نسخه جدید شمسا {release.Version} آماده است؛ برای نصب به تنظیمات بروید.");
+            _dashboardWindow?.RefreshUpdateStatus();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Background update check: " + ex.Message);
+        }
     }
 
     private void RunSelfTestIfRequested(string[] args)
@@ -174,6 +211,7 @@ public partial class App : Application
     {
         var s = SettingsService.Current;
         _hoverService.IncludeImages = s.PreviewImages;
+        _hoverService.IncludeFolders = s.FolderPreviewEnabled;
         _previewWindow?.ApplySize();
         if (!s.HoverPreviewEnabled) HideHoverPreview(releaseFileNow: true);
 
@@ -611,6 +649,7 @@ public partial class App : Application
         try
         {
             _pollTimer?.Stop();
+            _updateTimer?.Stop();
             _autoOrganizer.Dispose();
             _hotkeyService.Dispose();
             _hoverWorker.Dispose();

@@ -34,7 +34,7 @@ public sealed class CompressionSettings
 
 public sealed class AppSettings
 {
-    public int SettingsVersion { get; set; } = 4;
+    public int SettingsVersion { get; set; } = 5;
     /// <summary>PersianTurquoise, LapisGlass, EmeraldGlass, AmethystGlass</summary>
     public string ThemeId { get; set; } = "PersianTurquoise";
     /// <summary>Custom accent in #RRGGBB format; empty = palette default.</summary>
@@ -43,6 +43,12 @@ public sealed class AppSettings
     public int GlassOpacityPercent { get; set; } = 83;
     /// <summary>Use gradients and surface highlights; disabling reduces effects on slower PCs.</summary>
     public bool GlassEffectsEnabled { get; set; } = true;
+    /// <summary>Explore the first 100 local entries, show at most six media previews.</summary>
+    public bool FolderPreviewEnabled { get; set; } = true;
+    /// <summary>Automatic release checks do not install or run downloaded executables.</summary>
+    public bool AutoCheckUpdates { get; set; } = true;
+    /// <summary>Optionally stage verified EXE automatically; installation always needs consent.</summary>
+    public bool AutoDownloadUpdates { get; set; } = false;
     public bool HoverPreviewEnabled { get; set; } = true;
     public bool PreviewImages { get; set; } = true;
     public bool SmartScrub { get; set; } = true;
@@ -106,6 +112,7 @@ public static class SettingsService
                         loaded.SettingsVersion = 3;
                     }
                     if (loaded.SettingsVersion < 4) loaded.SettingsVersion = 4;
+                    if (loaded.SettingsVersion < 5) loaded.SettingsVersion = 5;
                     loaded.ThemeId = ThemeService.IsKnownTheme(loaded.ThemeId) ? loaded.ThemeId : "PersianTurquoise";
                     loaded.GlassOpacityPercent = Math.Clamp(loaded.GlassOpacityPercent, 45, 97);
                     loaded.ThemeAccentHex = ThemeService.TryParseAccent(loaded.ThemeAccentHex, out _) ? loaded.ThemeAccentHex : string.Empty;

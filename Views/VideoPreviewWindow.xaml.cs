@@ -44,6 +44,9 @@ public partial class VideoPreviewWindow : Window
     private readonly object _vlcGate = new();
     private readonly DispatcherTimer _scrubTimer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private readonly DispatcherTimer _idleStopTimer = new() { Interval = TimeSpan.FromMilliseconds(1400) };
+    private readonly DispatcherTimer _folderSlideTimer = new() { Interval = TimeSpan.FromMilliseconds(1350) };
+    private readonly List<BitmapSource> _folderSlides = new();
+    private int _folderSlideIndex;
 
     public bool VideoAvailable => _mediaPlayer != null;
     public IntPtr PreviewHwnd => _hwnd;
@@ -91,6 +94,12 @@ public partial class VideoPreviewWindow : Window
             _mediaPlayer = null;
         }
 
+        _folderSlideTimer.Tick += (_, _) =>
+        {
+            if (_folderSlides.Count < 2 || !IsVisible) return;
+            _folderSlideIndex = (_folderSlideIndex + 1) % _folderSlides.Count;
+            ImagePreview.Source = _folderSlides[_folderSlideIndex];
+        };
         _scrubTimer.Tick += ScrubTimer_Tick;
         _idleStopTimer.Tick += (_, _) =>
         {
@@ -342,7 +351,19 @@ public partial class VideoPreviewWindow : Window
             FileNameText.Text = Path.GetFileName(target.FilePath);
             FileInfoText.Text = SafeSize(target.FilePath);
 
-            if (target.Kind == FileKind.Video)
+            _folderSlideTimer.Stop();
+            _folderSlides.Clear();
+            FolderMessageText.Visibility = Visibility.Collapsed;
+            if (target.Kind == FileKind.Folder)
+            {
+                PauseVideoFast();
+                VlcVideoView.Visibility = Visibility.Collapsed;
+                ScrubBar.Visibility = Visibility.Collapsed;
+                ImagePreview.Source = null;
+                ImagePreview.Visibility = Visibility.Collapsed;
+                StartFolderPreviewAsync(target, request);
+            }
+            else if (target.Kind == FileKind.Video)
             {
                 if (_mediaPlayer == null || !_videoReady || _libVlc == null) return;
                 MediaTypeDot.Fill = VideoDotBrush;
@@ -376,6 +397,81 @@ public partial class VideoPreviewWindow : Window
                 _scrubTimer.Start();
             }
         }
+    }
+
+    private async void StartFolderPreviewAsync(HoverTarget target, long request)
+    {
+        _waitingForFirstFrame = false;
+        _pendingShow = false;
+        _currentMediaW = 480;
+        _currentMediaH = 270;
+        _currentHasScrub = false;
+        MediaTypeDot.Fill = ImageDotBrush;
+        FolderMessageText.Text = "📁  در حال بررسی کوتاه محتویات پوشه…";
+        FolderMessageText.Visibility = Visibility.Visible;
+        FileInfoText.Text = "فقط نمایش · بدون بازکردن فایل‌ها";
+        var (width, height) = ComputeWindowSizeForAspect(480, 270, false);
+        var pos = ApplyBoundsAtomic(target, width, height);
+        if (!IsVisible) { Show(); PlayEntranceAnimation(pos.Y); }
+
+        try
+        {
+            var snapshot = await Task.Run(() => FolderPreviewService.Inspect(target.FilePath));
+            if (_requestId != request || _currentFile != target.FilePath) return;
+            FileInfoText.Text = snapshot.Warning ?? $"📁 {snapshot.Folders} پوشه · {snapshot.Files} فایل" +
+                (snapshot.IsTruncated ? " (نمایش بخشی از پوشه)" : "");
+            if (snapshot.VisualFiles.Count == 0)
+            {
+                FolderMessageText.Text = snapshot.Warning ??
+                    "در این پوشه تصویر یا ویدیوی قابل پیش‌نمایش وجود ندارد.";
+                return;
+            }
+            foreach (string file in snapshot.VisualFiles)
+            {
+                if (_requestId != request || _currentFile != target.FilePath) return;
+                var bitmap = await _thumbWorker.RunAsync(() => TryFolderFrame(file));
+                if (_requestId != request || _currentFile != target.FilePath) return;
+                if (bitmap == null) continue;
+                _folderSlides.Add(bitmap);
+                if (_folderSlides.Count == 1)
+                {
+                    ImagePreview.Source = bitmap;
+                    ImagePreview.Visibility = Visibility.Visible;
+                    FolderMessageText.Visibility = Visibility.Collapsed;
+                }
+            }
+            if (_folderSlides.Count == 0)
+                FolderMessageText.Text = "تصاویر این پوشه قابل نمایش نبودند.";
+            else if (_folderSlides.Count > 1 && IsVisible)
+                _folderSlideTimer.Start();
+        }
+        catch (Exception ex)
+        {
+            if (_requestId != request) return;
+            AppLog.Warn("Folder hover preview failed: " + ex.Message);
+            FolderMessageText.Text = "امکان نمایش سریع این پوشه وجود ندارد.";
+            FolderMessageText.Visibility = Visibility.Visible;
+        }
+    }
+
+    private static BitmapSource? TryFolderFrame(string path)
+    {
+        try
+        {
+            if (FileKinds.IsVideo(path))
+                return ShellThumbnailService.TryGetVideoThumbnail(path, 440);
+            if (!FileKinds.IsPreviewableImage(path)) return null;
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 32768);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.DecodePixelWidth = 440;
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+        catch { return null; }
     }
 
     private async void StartVideoPreviewAsync(HoverTarget target, long request)
@@ -778,6 +874,9 @@ public partial class VideoPreviewWindow : Window
         }
 
         _requestId++;
+        _folderSlideTimer.Stop();
+        _folderSlides.Clear();
+        FolderMessageText.Visibility = Visibility.Collapsed;
         _pendingShow = false;
         _waitingForFirstFrame = false;
         _currentFile = null;
@@ -862,6 +961,8 @@ public partial class VideoPreviewWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _scrubTimer.Stop();
+        _folderSlideTimer.Stop();
+        _folderSlides.Clear();
         _idleStopTimer.Stop();
         _thumbWorker.Dispose();
         _isPausedOrStopping = true;
