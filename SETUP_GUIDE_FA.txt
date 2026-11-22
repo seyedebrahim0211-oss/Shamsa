@@ -1,0 +1,30 @@
+============================================================
+راهنمای کامل اجرا و انتشار «شمسا (Shamsa) v2.9» روی گیت‌هاب
+============================================================
+
+۱. پیش‌نیازها (فقط یک بار روی ویندوز نصب کنید):
+   در PowerShell دستور زیر را بزنید تا .NET 8 و Git خودکار نصب شوند:
+   winget install -e --id Microsoft.DotNet.SDK.8; winget install -e --id Git.Git
+
+۲. اجرای برنامه روی سیستم خودتان:
+   - فایل ZIP را اکسترکت کنید و وارد پوشه Shamsa شوید.
+   - روی run.bat دابل‌کلیک کنید (یا در ترمینال بزنید: dotnet run).
+   - آیکون اختصاصی شمسا روی پنجره، نوار وظیفه و کنار ساعت ویندوز (System Tray) نمایش داده می‌شود.
+
+۳. آپلود روی گیت‌هاب + ساخت خودکار فایل EXE:
+   - یک مخزن جدید به نام Shamsa در github.com بسازید (تیک README نزنید).
+   - داخل پوشه Shamsa ترمینال (PowerShell) باز کنید و بزنید:
+
+     git init
+     git add .
+     git commit -m "feat: Shamsa v2.9 — Persian smart file utility with custom icon"
+     git branch -M main
+     git remote add origin https://github.com/YOUR_USERNAME/Shamsa.git
+     git push -u origin main
+
+   - برای ساخت خودکار فایل پرتابل ویندوز (Shamsa-win-x64.zip) در بخش Releases گیت‌هاب:
+
+     git tag v2.9.0
+     git push origin v2.9.0
+
+   بعد از حدود ۲ دقیقه، در بخش Releases مخزن شما نسخه آماده دانلود قرار می‌گیرد!

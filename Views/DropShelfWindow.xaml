@@ -1,0 +1,88 @@
+<Window x:Class="Shamsa.Views.DropShelfWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Icon="/Assets/Shamsa.ico"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="CanResizeWithGrip"
+        FontFamily="{StaticResource UiFont}"
+        MinWidth="230" MinHeight="250"
+        Width="270" Height="370"
+        AllowDrop="True"
+        DragEnter="Window_DragOver"
+        DragOver="Window_DragOver"
+        DragLeave="Window_DragLeave"
+        Drop="Window_Drop"
+        KeyDown="Window_KeyDown"
+        FlowDirection="RightToLeft"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+
+    <Border x:Name="Shell" Background="#F40B1324" CornerRadius="14" BorderBrush="#88E5B85B" BorderThickness="1.3" Padding="11">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <DockPanel FlowDirection="LeftToRight" MouseLeftButtonDown="Header_MouseLeftButtonDown" Cursor="SizeAll" Margin="0,0,0,6" Background="Transparent">
+                <Button Content="✕" DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Foreground="#FDA4AF" FontWeight="Bold"
+                        Click="Close_Click" ToolTip="بستن (فایل‌ها حفظ می‌شوند)"/>
+                <TextBlock x:Name="HeaderText" FlowDirection="RightToLeft" Text="🧺 قفسه موقت" Foreground="#F6D379"
+                           FontWeight="Bold" FontSize="12.5" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+            </DockPanel>
+
+            <Rectangle Grid.Row="1" Height="1.5" Fill="{StaticResource PersianDividerBrush}" Margin="0,0,0,8"/>
+
+            <Grid Grid.Row="2">
+                <ListBox x:Name="FilesList" Background="#080F1E" BorderBrush="#263E63" BorderThickness="1" FontSize="11"
+                         SelectionMode="Extended" FlowDirection="LeftToRight"
+                         PreviewMouseLeftButtonDown="FilesList_PreviewMouseLeftButtonDown"
+                         MouseMove="FilesList_MouseMove"
+                         MouseDoubleClick="FilesList_MouseDoubleClick"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="2" ToolTip="{Binding FullPath}">
+                                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0" DockPanel.Dock="Left"/>
+                                <TextBlock Text="{Binding Detail}" Foreground="#E5B85B" DockPanel.Dock="Right" Margin="6,0,0,0"/>
+                                <TextBlock Text="{Binding FileName}" Foreground="#F3F6FA" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ContextMenu>
+                        <ContextMenu FlowDirection="RightToLeft"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+                            <MenuItem Header="باز کردن" Click="Open_Click"/>
+                            <MenuItem Header="نمایش در پوشه" Click="Reveal_Click"/>
+                            <MenuItem Header="کپی مسیر" Click="CopyPath_Click"/>
+                            <Separator/>
+                            <MenuItem Header="حذف از قفسه (Delete)" Click="RemoveSelected_Click"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
+
+                <TextBlock x:Name="EmptyHint" Text="فایل یا پوشه را اینجا رها کنید&#x0a;سپس همه را یکجا به مقصد بکشید"
+                           Foreground="#93A7C4" TextAlignment="Center" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" IsHitTestVisible="False" FontSize="11" LineHeight="18"/>
+            </Grid>
+
+            <TextBlock x:Name="HintText" Grid.Row="3" Foreground="#93A7C4" FontSize="10" Margin="0,6,0,0" TextWrapping="Wrap"
+                       Text="بکشید: موارد انتخاب‌شده (یا همه) · دابل‌کلیک: باز کردن"/>
+
+            <WrapPanel Grid.Row="4" Margin="0,8,0,0">
+                <Button Content="ZIP" Click="ZipAll_Click" Style="{StaticResource AccentButton}" Margin="0,0,6,4" Padding="10,4"/>
+                <Button Content="کپی به..." Click="CopyTo_Click" Margin="0,0,6,4" Padding="10,4"/>
+                <Button Content="انتقال به..." Click="MoveTo_Click" Margin="0,0,6,4" Padding="10,4"/>
+                <Button Content="پاک کردن" Click="Clear_Click" Margin="0,0,0,4" Padding="10,4"/>
+            </WrapPanel>
+        </Grid>
+    </Border>
+</Window>

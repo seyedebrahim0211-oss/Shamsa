@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#142C58"/>
+      <stop offset="100%" stop-color="#070F22"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="50%" cy="50%" r="45%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#14B8A6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFECAD"/>
+      <stop offset="50%" stop-color="#E5B85B"/>
+      <stop offset="100%" stop-color="#BD842A"/>
+    </linearGradient>
+    <radialGradient id="turq" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#38E8D0"/>
+      <stop offset="100%" stop-color="#0A7672"/>
+    </radialGradient>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bg)" stroke="url(#gold)" stroke-width="8"/>
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#aura)"/>
+  <!-- Eight-pointed Persian Shamsa -->
+  <g transform="translate(256,256)">
+    <rect x="-124" y="-124" width="248" height="248" fill="url(#gold)"/>
+    <rect x="-124" y="-124" width="248" height="248" transform="rotate(45)" fill="url(#gold)"/>
+    <rect x="-108" y="-108" width="216" height="216" fill="#0B1936"/>
+    <rect x="-108" y="-108" width="216" height="216" transform="rotate(45)" fill="#0B1936"/>
+    <rect x="-95" y="-95" width="190" height="190" fill="none" stroke="#14B8A6" stroke-width="6"/>
+    <rect x="-95" y="-95" width="190" height="190" transform="rotate(45)" fill="none" stroke="#14B8A6" stroke-width="6"/>
+    <circle r="88" fill="url(#gold)"/>
+    <circle r="77" fill="url(#turq)"/>
+    <path d="M-20,-36 L44,0 L-20,36 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/>
+  </g>
+</svg>

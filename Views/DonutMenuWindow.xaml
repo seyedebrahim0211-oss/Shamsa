@@ -1,0 +1,208 @@
+<Window x:Class="Shamsa.Views.DonutMenuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="NoResize"
+        FlowDirection="RightToLeft"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        Width="360" Height="360"
+        AllowDrop="True"
+        DragEnter="Window_DragEnter"
+        DragOver="Window_DragOver"
+        KeyDown="Window_KeyDown"
+        MouseWheel="Window_MouseWheel"
+        Deactivated="Window_Deactivated">
+
+    <Window.Resources>
+        <RadialGradientBrush x:Key="DonutBackdropBrush" Center="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+            <GradientStop Color="#F2122240" Offset="0"/>
+            <GradientStop Color="#EB0C172D" Offset="0.72"/>
+            <GradientStop Color="#E2070F1F" Offset="1"/>
+        </RadialGradientBrush>
+
+        <RadialGradientBrush x:Key="CenterHubBrush" Center="0.45,0.35" RadiusX="0.65" RadiusY="0.65">
+            <GradientStop Color="#FF1A2F57" Offset="0"/>
+            <GradientStop Color="#FF0E1B36" Offset="0.72"/>
+            <GradientStop Color="#FF081022" Offset="1"/>
+        </RadialGradientBrush>
+
+        <LinearGradientBrush x:Key="GoldRimBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFFFECA8" Offset="0"/>
+            <GradientStop Color="#FFE5B85B" Offset="0.5"/>
+            <GradientStop Color="#FFB98229" Offset="1"/>
+        </LinearGradientBrush>
+
+        <Style x:Key="SliceStyle" TargetType="Border">
+            <Setter Property="Width" Value="84"/>
+            <Setter Property="Height" Value="84"/>
+            <Setter Property="CornerRadius" Value="42"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="AllowDrop" Value="True"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#000000" BlurRadius="14" ShadowDepth="3" Opacity="0.45"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SliceIcon" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+        </Style>
+
+        <Style x:Key="SliceLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="NoWrap"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+    </Window.Resources>
+
+    <!-- بدون BitmapCache تا متون فارسی و انگلیسی با وضوح کامل ClearType رندر شوند -->
+    <Canvas x:Name="Root" RenderTransformOrigin="0.5,0.5" Width="360" Height="360">
+        <Canvas.RenderTransform>
+            <ScaleTransform x:Name="RootScale" ScaleX="1" ScaleY="1"/>
+        </Canvas.RenderTransform>
+
+        <!-- لایه منوی حلقه‌ای شمسا -->
+        <Canvas x:Name="MenuLayer" Width="360" Height="360">
+            <!-- حلقه پس‌زمینه لاجوردی با حاشیه طلایی (خوانا روی هر پس‌زمینه روشن یا تیره) -->
+            <Ellipse Canvas.Left="16" Canvas.Top="16" Width="328" Height="328"
+                     Fill="{StaticResource DonutBackdropBrush}"
+                     Stroke="#8CE5B85B" StrokeThickness="1.6" IsHitTestVisible="False">
+                <Ellipse.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="22" ShadowDepth="4" Opacity="0.55"/>
+                </Ellipse.Effect>
+            </Ellipse>
+
+            <!-- نقش هندسی شمسه هشت‌پر بسیار ظریف در پس‌زمینه -->
+            <Canvas Canvas.Left="80" Canvas.Top="80" Width="200" Height="200" IsHitTestVisible="False" Opacity="0.14">
+                <Rectangle Canvas.Left="32" Canvas.Top="32" Width="136" Height="136" Stroke="#FFE5B85B" StrokeThickness="1.4"/>
+                <Rectangle Canvas.Left="32" Canvas.Top="32" Width="136" Height="136" Stroke="#FF2DD4BF" StrokeThickness="1.4" RenderTransformOrigin="0.5,0.5">
+                    <Rectangle.RenderTransform>
+                        <RotateTransform Angle="45"/>
+                    </Rectangle.RenderTransform>
+                </Rectangle>
+            </Canvas>
+
+            <!-- حلقه اتصال داخلی نقطه‌چین فیروزه‌ای -->
+            <Ellipse Canvas.Left="62" Canvas.Top="62" Width="236" Height="236"
+                     Fill="Transparent" Stroke="#452DD4BF" StrokeThickness="1.2" StrokeDashArray="4 5" IsHitTestVisible="False"/>
+
+            <!-- هسته مرکزی جادار (114×114) با خوانایی کامل -->
+            <Border x:Name="CenterHub" Canvas.Left="123" Canvas.Top="123" Width="114" Height="114" CornerRadius="57"
+                    Background="{StaticResource CenterHubBrush}" BorderBrush="{StaticResource GoldRimBrush}" BorderThickness="2.2"
+                    Padding="8" AllowDrop="True" Cursor="Hand"
+                    DragEnter="Center_DragEnter" DragLeave="Center_DragLeave" DragOver="Center_DragOver" Drop="Center_Drop"
+                    MouseEnter="Center_MouseEnter" MouseLeave="Center_MouseLeave" MouseLeftButtonUp="Center_MouseUp">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="2" Opacity="0.55"/>
+                </Border.Effect>
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False">
+                    <TextBlock x:Name="CenterTitle" Text="تبدیل فرمت" Foreground="#FFF6D379" FontSize="13.5"
+                               FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <Border x:Name="CenterCountBadge" Background="#2814B8A6" BorderBrush="#662DD4BF" BorderThickness="1"
+                            CornerRadius="8" Padding="7,1.5" Margin="0,5,0,0" HorizontalAlignment="Center" Visibility="Collapsed">
+                        <TextBlock x:Name="CenterCount" Foreground="#FF5EEAD4" FontSize="10.5" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="CenterHint" Text="Tab ⟳ چرخش" Foreground="#FFE2E8F0" FontSize="10"
+                               HorizontalAlignment="Center" TextAlignment="Center" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ۵ دایره پیرامونی (فاصله دقیق ۷۲ درجه روی شعاع ۱۱۸ پیکسل) -->
+            <Border x:Name="Slice0" Style="{StaticResource SliceStyle}" Canvas.Left="138" Canvas.Top="20"
+                    Drop="Slice_Drop" DragEnter="Slice_DragEnter" DragLeave="Slice_DragLeave" DragOver="Slice_DragOver"
+                    MouseEnter="Slice_MouseEnter" MouseLeave="Slice_MouseLeave" MouseLeftButtonUp="Slice_MouseLeftButtonUp">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="Slice0Icon" Style="{StaticResource SliceIcon}"/>
+                    <TextBlock x:Name="Slice0Text" Style="{StaticResource SliceLabel}"/>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="Slice1" Style="{StaticResource SliceStyle}" Canvas.Left="250.2" Canvas.Top="101.5"
+                    Drop="Slice_Drop" DragEnter="Slice_DragEnter" DragLeave="Slice_DragLeave" DragOver="Slice_DragOver"
+                    MouseEnter="Slice_MouseEnter" MouseLeave="Slice_MouseLeave" MouseLeftButtonUp="Slice_MouseLeftButtonUp">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="Slice1Icon" Style="{StaticResource SliceIcon}"/>
+                    <TextBlock x:Name="Slice1Text" Style="{StaticResource SliceLabel}"/>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="Slice2" Style="{StaticResource SliceStyle}" Canvas.Left="207.4" Canvas.Top="233.5"
+                    Drop="Slice_Drop" DragEnter="Slice_DragEnter" DragLeave="Slice_DragLeave" DragOver="Slice_DragOver"
+                    MouseEnter="Slice_MouseEnter" MouseLeave="Slice_MouseLeave" MouseLeftButtonUp="Slice_MouseLeftButtonUp">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="Slice2Icon" Style="{StaticResource SliceIcon}"/>
+                    <TextBlock x:Name="Slice2Text" Style="{StaticResource SliceLabel}"/>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="Slice3" Style="{StaticResource SliceStyle}" Canvas.Left="68.6" Canvas.Top="233.5"
+                    Drop="Slice_Drop" DragEnter="Slice_DragEnter" DragLeave="Slice_DragLeave" DragOver="Slice_DragOver"
+                    MouseEnter="Slice_MouseEnter" MouseLeave="Slice_MouseLeave" MouseLeftButtonUp="Slice_MouseLeftButtonUp">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="Slice3Icon" Style="{StaticResource SliceIcon}"/>
+                    <TextBlock x:Name="Slice3Text" Style="{StaticResource SliceLabel}"/>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="Slice4" Style="{StaticResource SliceStyle}" Canvas.Left="25.8" Canvas.Top="101.5"
+                    Drop="Slice_Drop" DragEnter="Slice_DragEnter" DragLeave="Slice_DragLeave" DragOver="Slice_DragOver"
+                    MouseEnter="Slice_MouseEnter" MouseLeave="Slice_MouseLeave" MouseLeftButtonUp="Slice_MouseLeftButtonUp">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="Slice4Icon" Style="{StaticResource SliceIcon}"/>
+                    <TextBlock x:Name="Slice4Text" Style="{StaticResource SliceLabel}"/>
+                </StackPanel>
+            </Border>
+        </Canvas>
+
+        <!-- حلقه پیشرفت زنده بزرگ و خوانا (136×136) دقیقاً روی نقطه رها کردن فایل -->
+        <Grid x:Name="ProgressRingOverlay" Canvas.Left="112" Canvas.Top="112" Width="136" Height="136"
+              Visibility="Collapsed" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+            <Grid.RenderTransform>
+                <ScaleTransform x:Name="ProgressScale" ScaleX="1" ScaleY="1"/>
+            </Grid.RenderTransform>
+
+            <Ellipse Fill="#F50B1426" Stroke="#44263E63" StrokeThickness="8">
+                <Ellipse.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="3" Opacity="0.6"/>
+                </Ellipse.Effect>
+            </Ellipse>
+            <Path x:Name="ProgressArcPath" Stroke="#2DD4BF" StrokeThickness="8" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                <Path.Data>
+                    <PathGeometry>
+                        <PathFigure StartPoint="68,6" IsClosed="False">
+                            <ArcSegment x:Name="ProgressArcSegment" Point="68,6" Size="62,62"
+                                        SweepDirection="Clockwise" IsLargeArc="False"/>
+                        </PathFigure>
+                    </PathGeometry>
+                </Path.Data>
+            </Path>
+
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="106">
+                <TextBlock x:Name="ProgressPercentText" Text="0٪" Foreground="#FFF6D379" FontSize="22"
+                           FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock x:Name="ProgressLabelText" Text="در حال تبدیل" Foreground="#FFE2E8F0" FontSize="11"
+                           FontWeight="SemiBold" HorizontalAlignment="Center" TextAlignment="Center"
+                           TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+            </StackPanel>
+        </Grid>
+    </Canvas>
+</Window>

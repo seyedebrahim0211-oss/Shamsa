@@ -1,0 +1,54 @@
+<p align="center">
+  <img src="Assets/Shamsa-logo.png" alt="Shamsa Logo" width="128" height="128"/>
+</p>
+
+<h1 align="center">شمسا · Shamsa</h1>
+
+<p align="center">
+  <strong>دستیار هوشمند، سبک و آفلاین مدیریت فایل در ویندوز</strong><br/>
+  <em>A lightweight, offline, open-source Windows file utility inspired by Filee — crafted with a Persian Turquoise, Lapis &amp; Gold UI.</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/.NET-8.0-14B8A6?style=flat-square" alt=".NET 8"/>
+  <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0B1324?style=flat-square" alt="Windows"/>
+  <img src="https://img.shields.io/badge/Version-2.9.0-F6D379?style=flat-square" alt="Version 2.9.0"/>
+  <img src="https://img.shields.io/badge/License-MIT-E5B85B?style=flat-square" alt="MIT License"/>
+</p>
+
+---
+
+## ✨ قابلیت‌ها / Features
+
+- **🎬 پیش‌نمایش شناور ویدیو و تصویر کنار موس (Smart Adaptive Hover Preview):**
+  - **تشخیص خودکار ابعاد عمودی / افقی / مربعی:** عکس‌ها و ویدیوهای عمودی (مثل عکس‌های گوشی با EXIF و Reels) در پنجره عمودی، و فایل‌های افقی در پنجره افقی نمایش داده می‌شوند.
+  - **ثابت و بدون لرزش:** تا زمانی که موس داخل محدوده همان فایل است، پیش‌نمایش ثابت می‌ماند و با خروج از محدوده فایل بسته می‌شود.
+  - پخش روان با موتور **LibVLC** در ترد پس‌زمینه (بدون تیک و فریز) و مرور هوشمند ویدیو.
+- **🔄 منوی دایره‌ای هوشمند مشابه Filee (هم با شورتکات و هم با `Ctrl + Drag`):**
+  - **شورتکات قابل شخصی‌سازی (پیش‌فرض `Alt + Q`):** کافی است فایل یا پوشه‌ای را انتخاب کنید (یا موس را رویش ببرید) و کلید میانبر را بزنید تا منوی دایره‌ای دقیقاً کنار موس باز شود و با یک کلیک تبدیل یا پردازش انجام شود.
+  - **انیمیشن‌های روان Filee:** شکوفایی تدریجی ۵ دایره، چرخش سکه‌ای دو مرحله‌ای با `Tab` یا اسکرول موس (بدون چرخش ناخواسته خودکار) و **حلقه پیشرفت زنده (Live Progress Ring)**.
+- **📖 راهنمای شروع سریع تعاملی:** آزمایش زنده منوی دایره‌ای و نصب یک‌کلیکه FFmpeg در اولین اجرا.
+- **🧺 قفسه موقت شناور (Drop Shelf):** جمع‌آوری فایل‌ها و پوشه‌ها از مسیرهای مختلف و انتقال یا ZIP یکجا.
+- **🗂 مرتب‌سازی هوشمند پوشه‌ها + خودکارسازی Downloads:** دسته‌بندی بر اساس نوع/تاریخ با پیش‌نمایش و دکمه **بازگردانی (Undo)**.
+- **✏️ تغییر نام گروهی پیشرفته (Batch Rename):** پیش‌نمایش زنده، Regex، مرتب‌سازی طبیعی، جلوگیری از تداخل و بازگردانی.
+- **♻️ یافتن فایل‌های تکراری (Duplicate Finder):** اسکن ۳ مرحله‌ای فوق‌سریع (اندازه ← هش جزئی ← SHA-256) با انتقال امن به Recycle Bin.
+
+---
+
+## 🚀 اجرا و ساخت (Quick Start)
+
+```powershell
+dotnet restore
+dotnet run
+```
+
+### ساخت نسخه پرتابل ویندوز (Publish)
+```powershell
+dotnet publish Shamsa.csproj -c Release -r win-x64 --self-contained true -o ./publish
+```
+
+### انتشار خودکار روی گیت‌هاب (GitHub Releases)
+```powershell
+git tag v2.9.0
+git push origin v2.9.0
+```
