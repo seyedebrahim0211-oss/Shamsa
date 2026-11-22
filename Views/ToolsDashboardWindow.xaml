@@ -4,11 +4,11 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="شمسا (Shamsa) — دستیار هوشمند فایل ویندوز"
         Icon="/Assets/Shamsa.ico"
-        Width="940" Height="660" MinWidth="780" MinHeight="530"
+        Width="1020" Height="700" MinWidth="820" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         WindowStyle="SingleBorderWindow"
-        Background="{StaticResource BgBrush}"
-        Foreground="{StaticResource TextBrush}"
+        Background="{DynamicResource BgBrush}"
+        Foreground="{DynamicResource TextBrush}"
         FontFamily="{StaticResource UiFont}"
         FontSize="12.5"
         FlowDirection="LeftToRight"
@@ -110,7 +110,7 @@
         </Style>
     </Window.Resources>
 
-    <Border x:Name="WindowOuterBorder" BorderBrush="#44E5B85B" BorderThickness="1" Background="{StaticResource BgBrush}">
+    <Border x:Name="WindowOuterBorder" BorderBrush="#44E5B85B" BorderThickness="1" Background="{DynamicResource BgBrush}">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="42"/>
@@ -118,7 +118,7 @@
             </Grid.RowDefinitions>
 
             <!-- نوار عنوان اختصاصی شمسا: دکمه‌های ضربدر، بزرگ‌نمایی، کوچک‌نمایی و خروج کامل کاملاً در سمت راست -->
-            <Border Grid.Row="0" Background="#070E1C" BorderBrush="#22E5B85B" BorderThickness="0,0,0,1" Padding="10,0,6,0">
+            <Border Grid.Row="0" Background="{DynamicResource GlassHeaderBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,0,6,0">
                 <DockPanel FlowDirection="LeftToRight" LastChildFill="True">
                     <!-- سمت راست: خروج کامل + کوچک‌نمایی + بزرگ‌نمایی + ضربدر -->
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
@@ -134,8 +134,8 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Image Source="/Assets/Shamsa-logo.png" Width="22" Height="22" Margin="2,0,8,0"
                                RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="شمسا" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource GoldBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Shamsa" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="6,1,0,0"/>
+                        <TextBlock Text="شمسا" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Shamsa" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="6,1,0,0"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
@@ -155,7 +155,7 @@
                         <Border Background="#1D2E4E" BorderBrush="#4410B981" BorderThickness="1" CornerRadius="10" Padding="9,3" Margin="0,0,8,0" VerticalAlignment="Center">
                             <TextBlock Text="● فعال در پس‌زمینه" Foreground="#34D399" FontSize="11" FontWeight="SemiBold"/>
                         </Border>
-                        <TextBlock x:Name="VersionText" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="VersionText" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
@@ -163,8 +163,8 @@
                                RenderOptions.BitmapScalingMode="HighQuality"/>
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="شمسا" FontSize="18" FontWeight="Bold" Foreground="{StaticResource GoldBrush}"/>
-                                <TextBlock Text=" · دستیار هوشمند مدیریت فایل ویندوز" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Bottom" Margin="4,0,0,1"/>
+                                <TextBlock Text="شمسا" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
+                                <TextBlock Text=" · دستیار هوشمند مدیریت فایل ویندوز" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Bottom" Margin="4,0,0,1"/>
                             </StackPanel>
                             <TextBlock Text="پیش‌نمایش شناور ویدیو، منوی دایره‌ای تبدیل فرمت و ابزارهای نظم‌دهی آفلاین" Style="{StaticResource Muted}" FontSize="11.5"/>
                         </StackPanel>
@@ -172,7 +172,7 @@
                 </DockPanel>
 
                 <!-- خط تذهیب جداکننده -->
-                <Rectangle Grid.Row="1" Height="1.5" Fill="{StaticResource PersianDividerBrush}" Margin="0,0,0,10"/>
+                <Rectangle Grid.Row="1" Height="1.5" Fill="{DynamicResource PersianDividerBrush}" Margin="0,0,0,10"/>
 
                 <TabControl x:Name="Tabs" Grid.Row="2">
 
@@ -185,7 +185,7 @@
                                 <Button Content="✨ آزمایش زنده منوی دایره‌ای" Click="DemoDonut_Click" Style="{StaticResource GoldButton}"
                                         DockPanel.Dock="Left" Padding="14,8" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                 <StackPanel>
-                                    <TextBlock Text="خوش آمدید! کار با شمسا (Shamsa) در ۳ حرکت ساده" FontSize="15" FontWeight="Bold" Foreground="{StaticResource GoldBrush}"/>
+                                    <TextBlock Text="خوش آمدید! کار با شمسا (Shamsa) در ۳ حرکت ساده" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
                                     <TextBlock Style="{StaticResource Muted}" Margin="0,4,0,0"
                                                Text="برنامه بی‌سروصدا کنار ساعت ویندوز (System Tray) آماده است؛ هر وقت روی فایل‌ها کار می‌کنید بدون باز کردن هیچ پنجره‌ای به شما کمک می‌کند."/>
                                 </StackPanel>
@@ -289,7 +289,7 @@
                             <Button x:Name="RunOrganizerBtn" Content="✨ شروع مرتب‌سازی" Click="RunOrganizer_Click" Style="{StaticResource AccentButton}" Margin="0,0,8,0" Padding="16,8"/>
                             <Button x:Name="UndoOrganizerBtn" Content="↶ بازگردانی" Click="UndoOrganizer_Click" IsEnabled="False"/>
                         </StackPanel>
-                        <TextBlock x:Name="OrganizerStatus" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"
+                        <TextBlock x:Name="OrganizerStatus" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"
                                    ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                     </DockPanel>
                 </Grid>
@@ -352,7 +352,7 @@
                                         <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="Unchanged">
-                                        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -369,7 +369,7 @@
                             <Button x:Name="ApplyRenameBtn" Content="✓ اعمال تغییر نام" Click="ApplyRename_Click" Style="{StaticResource SuccessButton}" Margin="0,0,8,0" Padding="16,8"/>
                             <Button x:Name="UndoRenameBtn" Content="↶ بازگردانی" Click="UndoRename_Click" IsEnabled="False"/>
                         </StackPanel>
-                        <TextBlock x:Name="RenameStatusText" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="RenameStatusText" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
                     </DockPanel>
                 </Grid>
             </TabItem>
@@ -393,7 +393,7 @@
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,8">
                         <ProgressBar x:Name="DupProgress" Visibility="Collapsed" Margin="0,0,0,4"/>
-                        <TextBlock x:Name="DupStatus" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="DupStatus" Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap"/>
                     </StackPanel>
 
                     <DataGrid x:Name="DupGrid" Grid.Row="2"
@@ -440,7 +440,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- لیست فایل‌ها با نمایش زنده ابعاد و حجم فعلی ← خروجی -->
-                    <Border x:Name="ConvertDropZone" BorderBrush="{StaticResource BorderBrush}" BorderThickness="2" CornerRadius="10"
+                    <Border x:Name="ConvertDropZone" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="2" CornerRadius="10"
                             Background="#080F1F" AllowDrop="True" DragOver="ConvertDrop_DragOver" DragLeave="ConvertDrop_DragLeave" Drop="ConvertDrop_Drop">
                         <Grid>
                             <ListBox x:Name="ConvertList" Background="Transparent" BorderThickness="0" Margin="6"
@@ -550,7 +550,7 @@
                                 <Slider x:Name="CompressQualitySlider" Grid.Column="1" Minimum="15" Maximum="95" TickFrequency="5"
                                         IsSnapToTickEnabled="True" VerticalAlignment="Center" FlowDirection="LeftToRight"
                                         ValueChanged="CompressQualitySlider_ValueChanged"/>
-                                <TextBlock x:Name="CompressQualityText" Grid.Column="2" Foreground="{StaticResource GoldBrush}"
+                                <TextBlock x:Name="CompressQualityText" Grid.Column="2" Foreground="{DynamicResource GoldBrush}"
                                            FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,14,0" FlowDirection="LeftToRight"/>
                                 <TextBlock x:Name="CompressTotalEstimateText" Grid.Column="3" Foreground="#5EEAD4" FontWeight="SemiBold"
                                            VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
@@ -566,7 +566,7 @@
                         </StackPanel>
                         <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
                             <ProgressBar x:Name="ConvertProgress" Maximum="1" Margin="0,0,0,4"/>
-                            <TextBlock x:Name="ConvertStatus" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" MouseLeftButtonUp="ConvertStatus_Click" Cursor="Hand"/>
+                            <TextBlock x:Name="ConvertStatus" Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" MouseLeftButtonUp="ConvertStatus_Click" Cursor="Hand"/>
                         </StackPanel>
                     </DockPanel>
                 </Grid>
@@ -576,16 +576,54 @@
             <TabItem Header="⚙️ تنظیمات">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="16">
+                        <!-- Lightweight layered glass; instant preview, persisted in LocalAppData -->
+                        <Border Style="{StaticResource PersianHighlightCard}">
+                            <StackPanel>
+                                <TextBlock Text="✦ ظاهر و تم‌های شیشه‌ای شمسا" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="رنگ‌ها بلافاصله در پنجره‌ها تغییر می‌کنند. تنظیمات برای اجراهای بعدی حفظ می‌شود."
+                                           Style="{StaticResource Muted}" Margin="0,0,0,12"/>
+                                <WrapPanel Margin="0,0,0,10">
+                                    <Border Width="42" Height="28" CornerRadius="9" Background="{DynamicResource AccentBrush}" BorderBrush="{DynamicResource GoldBrush}" BorderThickness="1" Margin="0,0,7,0"/>
+                                    <Border Width="42" Height="28" CornerRadius="9" Background="{DynamicResource GlassCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,7,0"/>
+                                    <Border Width="42" Height="28" CornerRadius="9" Background="{DynamicResource GoldBrush}" Margin="0,0,10,0"/>
+                                    <TextBlock Text="پیش‌نمایش زنده رنگ‌ها" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}"/>
+                                </WrapPanel>
+                                <TextBlock Text="انتخاب تم" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <ComboBox x:Name="ThemePicker" SelectionChanged="ThemePicker_Changed" MinWidth="250" HorizontalAlignment="Left" Margin="0,0,0,10">
+                                    <ComboBoxItem Content="فیروزه شب · ایرانی" Tag="PersianTurquoise"/>
+                                    <ComboBoxItem Content="لاجورد شیشه‌ای · آبی" Tag="LapisGlass"/>
+                                    <ComboBoxItem Content="زمرد · سبز" Tag="EmeraldGlass"/>
+                                    <ComboBoxItem Content="آمتیست · بنفش" Tag="AmethystGlass"/>
+                                </ComboBox>
+                                <TextBlock Text="رنگ تأکیدی دلخواه (اختیاری)" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <TextBox x:Name="ThemeAccentBox" Width="140" FlowDirection="LeftToRight" Text="#14B8A6" VerticalContentAlignment="Center"/>
+                                    <Button Content="اعمال رنگ" Click="ApplyAccent_Click" Style="{StaticResource AccentButton}" Margin="8,0,8,0"/>
+                                    <Button Content="رنگ پیش‌فرض تم" Click="ResetAccent_Click"/>
+                                </WrapPanel>
+                                <TextBlock x:Name="ThemeAccentError" Foreground="{DynamicResource WarnBrush}" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <DockPanel Margin="0,2,0,8">
+                                    <TextBlock Text="شفافیت لایه‌های شیشه‌ای" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="GlassOpacityLabel" DockPanel.Dock="Right" Width="45" VerticalAlignment="Center" FlowDirection="LeftToRight"/>
+                                    <Slider x:Name="GlassOpacitySlider" Minimum="45" Maximum="97" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            ValueChanged="GlassOpacitySlider_Changed" FlowDirection="LeftToRight" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <CheckBox x:Name="GlassEffectsCheck" Content="گرادیان‌ها و جلوه‌های شیشه‌ای روشن باشند (غیرفعال برای سیستم‌های ضعیف‌تر)"
+                                          Click="GlassEffects_Changed"/>
+                                <Button Content="بازنشانی ظاهر به حالت اولیه" Click="ResetTheme_Click" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+
                         <Border Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="موتور FFmpeg" Style="{StaticResource SectionTitle}"/>
                                 <TextBlock x:Name="FfmpegStatusText" TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                <TextBlock x:Name="FfmpegPathText" Style="{StaticResource LtrCell}" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="FfmpegPathText" Style="{StaticResource LtrCell}" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="0,0,0,8"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Button x:Name="InstallFfmpegBtn" Content="⬇ دانلود و نصب خودکار FFmpeg" Click="InstallFfmpeg_Click" Style="{StaticResource AccentButton}" Margin="0,0,6,0"/>
                                     <Button Content="بررسی مجدد" Click="RecheckFfmpeg_Click"/>
                                 </StackPanel>
-                                <TextBlock x:Name="FfmpegProgressText" Foreground="{StaticResource AccentBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="FfmpegProgressText" Foreground="{DynamicResource AccentBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
@@ -604,7 +642,7 @@
                                 <StackPanel Margin="0,10,0,0">
                                     <DockPanel>
                                         <TextBlock Text="اندازه پیش‌نمایش (افقی/عمودی دقیق مطابق فیلم):" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <TextBlock x:Name="PreviewSizeText" Foreground="{StaticResource GoldBrush}" FontWeight="Bold"
+                                        <TextBlock x:Name="PreviewSizeText" Foreground="{DynamicResource GoldBrush}" FontWeight="Bold"
                                                    DockPanel.Dock="Left" Width="62" VerticalAlignment="Center" FlowDirection="LeftToRight"/>
                                         <Slider x:Name="PreviewSizeSlider" Minimum="150" Maximum="560" TickFrequency="10"
                                                 IsSnapToTickEnabled="True" VerticalAlignment="Center"
@@ -631,7 +669,7 @@
                                     <TextBlock Text="شورتکات منوی دایره‌ای:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="ShortcutBox" Width="170" IsReadOnly="True" Cursor="Hand"
                                              FlowDirection="LeftToRight" TextAlignment="Center" FontWeight="Bold"
-                                             Foreground="{StaticResource GoldBrush}" Margin="0,0,8,0"
+                                             Foreground="{DynamicResource GoldBrush}" Margin="0,0,8,0"
                                              GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus"
                                              PreviewKeyDown="ShortcutBox_PreviewKeyDown"
                                              ToolTip="اینجا کلیک کنید و کلید ترکیبی دلخواه (مثلاً Alt + Q یا Ctrl + Shift + D) را فشار دهید"/>

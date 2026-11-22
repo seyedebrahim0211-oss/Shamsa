@@ -9,7 +9,7 @@
     <AssemblyName>Shamsa</AssemblyName>
     <RootNamespace>Shamsa</RootNamespace>
     <ApplicationIcon>Assets\Shamsa.ico</ApplicationIcon>
-    <Version>2.9.0</Version>
+    <Version>2.9.1</Version>
     <Authors>Shamsa Contributors</Authors>
     <Description>شمسا (Shamsa) — دستیار هوشمند فایل ویندوز: پیش‌نمایش شناور ویدیو، منوی دایره‌ای تبدیل فرمت، قفسه موقت و ابزارهای نظم‌دهی</Description>
     <InvariantGlobalization>false</InvariantGlobalization>

@@ -68,6 +68,7 @@ public partial class App : Application
 
         RegisterGlobalExceptionHandlers();
         SettingsService.Load();
+        ThemeService.Apply(SettingsService.Current);
         AppLog.Info($"Shamsa starting (v{typeof(App).Assembly.GetName().Version}) args: {string.Join(' ', e.Args)}");
 
         var showEvent = _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
@@ -93,7 +94,11 @@ public partial class App : Application
         _donutWindow.BusyChanged += busy => SetTrayBusy(busy);
 
         Notifier.Requested += (msg, path) => Dispatcher.BeginInvoke(() => ShowNotification(msg, path));
-        SettingsService.Changed += () => Dispatcher.BeginInvoke(ApplySettings);
+        SettingsService.Changed += () => Dispatcher.BeginInvoke(() =>
+        {
+            ThemeService.Apply(SettingsService.Current);
+            ApplySettings();
+        });
 
         _autoOrganizer.FileOrganized += (name, category, dest) =>
             Notifier.Show($"«{name}» به پوشه {category} منتقل شد.", dest);

@@ -12,7 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-14B8A6?style=flat-square" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0B1324?style=flat-square" alt="Windows"/>
-  <img src="https://img.shields.io/badge/Version-2.9.0-F6D379?style=flat-square" alt="Version 2.9.0"/>
+  <img src="https://img.shields.io/badge/Version-2.9.1-F6D379?style=flat-square" alt="Version 2.9.0"/>
   <img src="https://img.shields.io/badge/License-MIT-E5B85B?style=flat-square" alt="MIT License"/>
 </p>
 
@@ -35,6 +35,27 @@
 
 ---
 
+## 🎨 تم‌های شیشه‌ای و شخصی‌سازی (Windows 11)
+
+در تب **⚙️ تنظیمات ← ظاهر و تم‌های شیشه‌ای** چهار تم قابل انتخاب است:
+**فیروزه شب، لاجورد، زمرد و آمتیست**. می‌توانید رنگ تأکیدی را با کد HEX تعیین کنید،
+شفافیت کارت‌های لایه‌ای را تغییر دهید، جلوه‌ها را برای رایانه‌های ضعیف‌تر خاموش کنید
+و ظاهر را به حالت اولیه برگردانید. تغییرات **زنده** و در
+`%LocalAppData%\Shamsa\settings.json` ذخیره می‌شوند.
+
+> لایه‌های شیشه‌ای با قلم‌موهای سبک WPF ترسیم می‌شوند؛ برای جلوگیری از مصرف زیاد GPU، تاری سراسری روی پنجره اعمال نشده است.
+
+## ⬇️ نصب مستقیم Windows 11 x64
+
+**[دریافت آخرین نسخه در GitHub Releases](https://github.com/seyedebrahim0211-oss/Shamsa/releases/latest)**
+
+فایل `Shamsa-Setup-v2.9.1-win-x64.exe` را اجرا کنید. نسخه نصبی
+خودکفا (self-contained) است و نیاز به نصب جداگانه .NET ندارد.
+FFmpeg برای قابلیت تبدیل درصورت نیاز جداگانه نصب می‌شود.
+فایل‌ها در مسیر پروفایل کاربر نصب می‌شوند و حذف نصب از Settings ویندوز امکان‌پذیر است.
+
+> نصب‌کننده هنوز امضای دیجیتال کد ندارد. نام فایل و SHA-256 را از Release رسمی بررسی کنید.
+
 ## 🚀 اجرا و ساخت (Quick Start)
 
 ```powershell
@@ -49,6 +70,5 @@ dotnet publish Shamsa.csproj -c Release -r win-x64 --self-contained true -o ./pu
 
 ### انتشار خودکار روی گیت‌هاب (GitHub Releases)
 ```powershell
-git tag v2.9.0
-git push origin v2.9.0
+git push origin main
 ```

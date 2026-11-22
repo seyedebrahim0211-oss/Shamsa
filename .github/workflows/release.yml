@@ -1,19 +1,24 @@
-name: Build & Release Shamsa
+name: Build and publish Windows 11 installer
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: shamsa-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build:
+  windows-release:
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup .NET 8
@@ -21,27 +26,66 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore Dependencies
-        run: dotnet restore Shamsa.csproj
-
-      - name: Run Unit Tests (if present)
+      - name: Restore and compile
         shell: pwsh
         run: |
+          dotnet restore Shamsa.csproj -r win-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build Shamsa.csproj --no-restore -c Release -r win-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (Test-Path Tests/Shamsa.Tests.csproj) {
-            dotnet test Tests/Shamsa.Tests.csproj -c Release
-          } else {
-            Write-Host "No Tests project found; skipping unit tests."
+            dotnet test Tests/Shamsa.Tests.csproj -c Release --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
-      - name: Publish Portable Windows x64 Build
-        run: dotnet publish Shamsa.csproj -c Release -r win-x64 --self-contained true -o ./publish
+      - name: Publish self-contained Windows x64 application
+        shell: pwsh
+        run: |
+          dotnet publish Shamsa.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o publish
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path publish/Shamsa.exe)) { throw "Shamsa.exe missing after publishing" }
+          Compress-Archive -Path publish/* -DestinationPath Shamsa-v2.9.1-win-x64-portable.zip -Force
 
-      - name: Create Portable ZIP
-        run: Compress-Archive -Path ./publish/* -DestinationPath Shamsa-win-x64.zip -Force
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: |
+          if (!(Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
-      - name: Upload GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Compile Windows 11 setup executable
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=2.9.1" installer/Shamsa.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path dist/Shamsa-Setup-v2.9.1-win-x64.exe)) { throw "Installer missing" }
+          Get-FileHash dist/Shamsa-Setup-v2.9.1-win-x64.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower()) *Shamsa-Setup-v2.9.1-win-x64.exe" } | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Shamsa-v2.9.1-Windows11
+          path: |
+            dist/*
+            Shamsa-v2.9.1-win-x64-portable.zip
+          if-no-files-found: error
+
+      - name: Publish release on GitHub
         uses: softprops/action-gh-release@v2
         with:
-          files: Shamsa-win-x64.zip
+          tag_name: v2.9.1
+          name: شمسا ۲.۹.۱ | Windows 11
+          target_commitish: ${{ github.sha }}
+          prerelease: false
+          draft: false
           generate_release_notes: true
+          body: |
+            نصب‌کننده ویندوز ۱۱ (۶۴ بیتی)، نسخه پرتابل و فایل بررسی SHA-256.
+            رابط کاربری جدید با چهار تم شیشه‌ای فارسی و رنگ و شفافیت قابل شخصی‌سازی.
+            توجه: فایل نصب در CI ساخته می‌شود و امضای دیجیتال کد ندارد؛ SmartScreen ممکن است هشدار دهد.
+          files: |
+            dist/Shamsa-Setup-v2.9.1-win-x64.exe
+            dist/SHA256SUMS.txt
+            Shamsa-v2.9.1-win-x64-portable.zip
+          fail_on_unmatched_files: true

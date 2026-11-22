@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reflection;
 using System.Windows;
@@ -945,6 +945,13 @@ public partial class ToolsDashboardWindow : Window
     private void LoadSettingsIntoUi()
     {
         var s = SettingsService.Current;
+        ThemePicker.SelectedIndex = Math.Max(0, Array.IndexOf(ThemeService.Themes, s.ThemeId));
+        ThemeAccentBox.Text = s.ThemeAccentHex;
+        ThemeAccentBox.ToolTip = "رنگ HEX مانند #14B8A6؛ خالی = رنگ پیش‌فرض تم";
+        GlassOpacitySlider.Value = s.GlassOpacityPercent;
+        GlassOpacityLabel.Text = $"{s.GlassOpacityPercent}%";
+        GlassEffectsCheck.IsChecked = s.GlassEffectsEnabled;
+        ThemeAccentError.Text = string.Empty;
         HoverCheck.IsChecked = s.HoverPreviewEnabled;
         PreviewImagesCheck.IsChecked = s.PreviewImages;
         SmartScrubCheck.IsChecked = s.SmartScrub;
@@ -969,6 +976,59 @@ public partial class ToolsDashboardWindow : Window
         _loading = true;
         LoadSettingsIntoUi();
         _loading = false;
+    }
+
+    private void ThemePicker_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || ThemePicker.SelectedItem is not ComboBoxItem item || item.Tag is not string id)
+            return;
+        SettingsService.Update(settings => settings.ThemeId = id);
+    }
+
+    private void GlassOpacitySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        int percent = (int)Math.Round(e.NewValue);
+        if (GlassOpacityLabel != null) GlassOpacityLabel.Text = $"{percent}%";
+        if (_loading) return;
+        SettingsService.Update(settings => settings.GlassOpacityPercent = percent);
+    }
+
+    private void GlassEffects_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        SettingsService.Update(settings => settings.GlassEffectsEnabled = GlassEffectsCheck.IsChecked == true);
+    }
+
+    private void ApplyAccent_Click(object sender, RoutedEventArgs e)
+    {
+        string hex = ThemeAccentBox.Text.Trim();
+        if (!ThemeService.TryParseAccent(hex, out _))
+        {
+            ThemeAccentError.Text = "رنگ را به شکل #RRGGBB وارد کنید؛ مثال: #14B8A6";
+            return;
+        }
+        ThemeAccentError.Text = string.Empty;
+        SettingsService.Update(settings => settings.ThemeAccentHex = hex.ToUpperInvariant());
+        ThemeAccentBox.Text = hex.ToUpperInvariant();
+    }
+
+    private void ResetAccent_Click(object sender, RoutedEventArgs e)
+    {
+        ThemeAccentError.Text = string.Empty;
+        ThemeAccentBox.Text = string.Empty;
+        SettingsService.Update(settings => settings.ThemeAccentHex = string.Empty);
+    }
+
+    private void ResetTheme_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsService.Update(settings =>
+        {
+            settings.ThemeId = "PersianTurquoise";
+            settings.ThemeAccentHex = string.Empty;
+            settings.GlassOpacityPercent = 83;
+            settings.GlassEffectsEnabled = true;
+        });
+        RefreshSettings();
     }
 
     private void Setting_Changed(object sender, RoutedEventArgs e)

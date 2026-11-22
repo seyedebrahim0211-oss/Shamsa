@@ -22,6 +22,13 @@
     <SolidColorBrush x:Key="SuccessBrush" Color="#10B981"/>
     <SolidColorBrush x:Key="DangerBrush" Color="#F43F5E"/>
     <SolidColorBrush x:Key="WarnBrush" Color="#FBBF24"/>
+    <!-- Runtime-overridden surfaces for low-cost layered glass effects -->
+    <SolidColorBrush x:Key="InputBrush" Color="#080F1F"/>
+    <SolidColorBrush x:Key="PopupBrush" Color="#0D1830"/>
+    <SolidColorBrush x:Key="GlassCardBrush" Color="#DD152643"/>
+    <SolidColorBrush x:Key="GlassHighlightBrush" Color="#EE1A2C50"/>
+    <SolidColorBrush x:Key="GlassHeaderBrush" Color="#111E38"/>
+    <SolidColorBrush x:Key="ShelfGlassBrush" Color="#F40B1324"/>
 
     <!-- خط تذهیب طلایی-فیروزه‌ای ظریف برای جداکننده‌ها -->
     <LinearGradientBrush x:Key="PersianDividerBrush" StartPoint="0,0.5" EndPoint="1,0.5">
@@ -42,9 +49,9 @@
 
     <!-- دکمه‌ها -->
     <Style TargetType="Button">
-        <Setter Property="Background" Value="{StaticResource Surface2Brush}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="13,6"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -59,14 +66,14 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource GoldBrush}"/>
                             <Setter TargetName="Bd" Property="Opacity" Value="0.94"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.78"/>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
@@ -78,15 +85,15 @@
     </Style>
 
     <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Background" Value="{StaticResource AccentDarkBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}"/>
         <Setter Property="BorderBrush" Value="#2DD4BF"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
     <Style x:Key="GoldButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="#262012"/>
-        <Setter Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource GoldBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource GoldBrush}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
     <Style x:Key="SuccessButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -103,20 +110,20 @@
     <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
         <Setter Property="Padding" Value="6,2"/>
     </Style>
 
     <!-- ورودی متن -->
     <Style TargetType="TextBox">
-        <Setter Property="Background" Value="#080F1F"/>
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-        <Setter Property="CaretBrush" Value="{StaticResource GoldBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource GoldBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="8,5"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="SelectionBrush" Value="{StaticResource AccentBrush}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -126,7 +133,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
@@ -149,19 +156,19 @@
     </Style>
 
     <Style TargetType="CheckBox">
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="Margin" Value="0,4"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Cursor" Value="Hand"/>
     </Style>
 
     <Style TargetType="TextBlock" x:Key="Muted">
-        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <Style TargetType="TextBlock" x:Key="SectionTitle">
-        <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource GoldBrush}"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Margin" Value="0,0,0,8"/>
@@ -169,9 +176,9 @@
 
     <!-- ComboBox تیره و هماهنگ با تم شمسا (بدون کادر خاکستری پیش‌فرض ویندوز) -->
     <Style TargetType="ComboBox">
-        <Setter Property="Background" Value="#080F1F"/>
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="10,6"/>
         <Setter Property="MinWidth" Value="120"/>
@@ -185,7 +192,7 @@
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="Bd" Background="#080F1F" BorderBrush="#2A436B" BorderThickness="1" CornerRadius="7">
+                                    <Border x:Name="Bd" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="7">
                                         <DockPanel Margin="8,0">
                                             <Path DockPanel.Dock="Right" Data="M 0 0 L 4.5 5 L 9 0 Z" Fill="#F6D379"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="6,1,0,0"/>
@@ -213,7 +220,7 @@
                                AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
                             <Grid x:Name="DropDown" SnapsToDevicePixels="True"
                                   MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                <Border Background="#0D1830" BorderBrush="#99F6D379" BorderThickness="1" CornerRadius="8" Margin="0,3,0,0" Padding="3">
+                                <Border Background="{DynamicResource PopupBrush}" BorderBrush="{DynamicResource GoldBrush}" BorderThickness="1" CornerRadius="8" Margin="0,3,0,0" Padding="3">
                                     <ScrollViewer SnapsToDevicePixels="True">
                                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
                                     </ScrollViewer>
@@ -227,7 +234,7 @@
     </Style>
 
     <Style TargetType="ComboBoxItem">
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Padding" Value="10,6"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -299,30 +306,30 @@
 
     <Style TargetType="ProgressBar">
         <Setter Property="Height" Value="8"/>
-        <Setter Property="Background" Value="#080F1F"/>
-        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
     </Style>
 
     <Style TargetType="Slider">
-        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
     </Style>
 
     <!-- لیست‌ها -->
     <Style TargetType="ListBox">
-        <Setter Property="Background" Value="#080F1F"/>
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
     </Style>
 
     <!-- جدول‌ها -->
     <Style TargetType="DataGrid">
-        <Setter Property="Background" Value="#080F1F"/>
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="RowBackground" Value="#0B1428"/>
         <Setter Property="AlternatingRowBackground" Value="#101C36"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#1C2E50"/>
         <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
@@ -334,11 +341,11 @@
         <Setter Property="AutoGenerateColumns" Value="False"/>
     </Style>
     <Style TargetType="DataGridColumnHeader">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource GoldBrush}"/>
         <Setter Property="Padding" Value="9,7"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="0,0,0,1"/>
     </Style>
     <Style TargetType="DataGridCell">
@@ -364,13 +371,13 @@
 
     <!-- تب‌ها با نوار طلایی تذهیب -->
     <Style TargetType="TabControl">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="0"/>
     </Style>
     <Style TargetType="TabItem">
-        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -381,13 +388,13 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="#172848"/>
-                            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface2Brush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceBrush}"/>
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-                            <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource GoldBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource GoldBrush}"/>
                             <Setter Property="FontWeight" Value="Bold"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -398,8 +405,8 @@
 
     <!-- کارت‌های قاب‌دار -->
     <Style x:Key="Card" TargetType="Border">
-        <Setter Property="Background" Value="#0E1930"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource GlassCardBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="12"/>
         <Setter Property="Padding" Value="15"/>
@@ -407,14 +414,14 @@
     </Style>
 
     <Style x:Key="PersianHighlightCard" TargetType="Border" BasedOn="{StaticResource Card}">
-        <Setter Property="Background" Value="#122342"/>
+        <Setter Property="Background" Value="{DynamicResource GlassHighlightBrush}"/>
         <Setter Property="BorderBrush" Value="#77F6D379"/>
     </Style>
 
     <Style TargetType="ToolTip">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource GoldBrush}"/>
         <Setter Property="FlowDirection" Value="RightToLeft"/>
     </Style>
 </ResourceDictionary>

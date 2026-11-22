@@ -34,7 +34,15 @@ public sealed class CompressionSettings
 
 public sealed class AppSettings
 {
-    public int SettingsVersion { get; set; } = 3;
+    public int SettingsVersion { get; set; } = 4;
+    /// <summary>PersianTurquoise, LapisGlass, EmeraldGlass, AmethystGlass</summary>
+    public string ThemeId { get; set; } = "PersianTurquoise";
+    /// <summary>Custom accent in #RRGGBB format; empty = palette default.</summary>
+    public string ThemeAccentHex { get; set; } = string.Empty;
+    /// <summary>Opacity of layered glass cards, 45..97 percent.</summary>
+    public int GlassOpacityPercent { get; set; } = 83;
+    /// <summary>Use gradients and surface highlights; disabling reduces effects on slower PCs.</summary>
+    public bool GlassEffectsEnabled { get; set; } = true;
     public bool HoverPreviewEnabled { get; set; } = true;
     public bool PreviewImages { get; set; } = true;
     public bool SmartScrub { get; set; } = true;
@@ -97,6 +105,10 @@ public static class SettingsService
                         };
                         loaded.SettingsVersion = 3;
                     }
+                    if (loaded.SettingsVersion < 4) loaded.SettingsVersion = 4;
+                    loaded.ThemeId = ThemeService.IsKnownTheme(loaded.ThemeId) ? loaded.ThemeId : "PersianTurquoise";
+                    loaded.GlassOpacityPercent = Math.Clamp(loaded.GlassOpacityPercent, 45, 97);
+                    loaded.ThemeAccentHex = ThemeService.TryParseAccent(loaded.ThemeAccentHex, out _) ? loaded.ThemeAccentHex : string.Empty;
                     loaded.HoverDelayMs = Math.Clamp(loaded.HoverDelayMs, 40, 2000);
                     loaded.PreviewSize = Math.Clamp(loaded.PreviewSize, 0, 2);
                     loaded.PreviewMaxSidePx = Math.Clamp(loaded.PreviewMaxSidePx <= 0 ? 320 : loaded.PreviewMaxSidePx, 150, 560);
