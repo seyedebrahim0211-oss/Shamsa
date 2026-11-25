@@ -118,14 +118,36 @@ public static class DocumentPreviewService
 
     private static async Task<DocumentPreview?> RenderPdfAsync(string path, int maxSide)
     {
+        var (bmp, pages) = await RenderPdfPageAsync(path, 0, maxSide);
+        return bmp == null ? null : new DocumentPreview(bmp, $"PDF · {ToFa(pages)} صفحه", PdfColor);
+    }
+
+    /// <summary>Number of pages of a PDF (0 when unreadable / protected).</summary>
+    public static async Task<int> GetPdfPageCountAsync(string path)
+    {
         try
         {
             var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
             var doc = await Windows.Data.Pdf.PdfDocument.LoadFromFileAsync(file);
-            if (doc.PageCount == 0) return null;
-            using var page = doc.GetPage(0);
+            return (int)doc.PageCount;
+        }
+        catch { return 0; }
+    }
+
+    public static string PersianNumber(int n) => ToFa(n);
+
+    /// <summary>Renders one PDF page (0-based) read-only through Windows.Data.Pdf. Thread-agnostic; result is frozen.</summary>
+    public static async Task<(BitmapSource? Image, int PageCount)> RenderPdfPageAsync(string path, int pageIndex, int maxSide)
+    {
+        try
+        {
+            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
+            var doc = await Windows.Data.Pdf.PdfDocument.LoadFromFileAsync(file);
+            if (doc.PageCount == 0) return (null, 0);
+            pageIndex = (int)Math.Clamp(pageIndex, 0, doc.PageCount - 1);
+            using var page = doc.GetPage((uint)pageIndex);
             double w = page.Size.Width, h = page.Size.Height;
-            if (w <= 0 || h <= 0) return null;
+            if (w <= 0 || h <= 0) return (null, (int)doc.PageCount);
             double target = Math.Clamp(maxSide * 1.5, 320, 1400);
             double scale = target / Math.Max(w, h);
             using var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
@@ -147,13 +169,13 @@ public static class DocumentPreviewService
             bmp.StreamSource = copy;
             bmp.EndInit();
             bmp.Freeze();
-            return new DocumentPreview(bmp, $"PDF · {ToFa((int)doc.PageCount)} صفحه", PdfColor);
+            return (bmp, (int)doc.PageCount);
         }
         catch (Exception ex)
         {
             // Password-protected or damaged PDFs fall back to the shell thumbnail.
             AppLog.Warn($"PDF preview fallback for {Path.GetFileName(path)}: {ex.Message}");
-            return null;
+            return (null, 0);
         }
     }
 

@@ -724,6 +724,8 @@ public partial class VideoPreviewWindow : Window
             FileInfoText.FlowDirection = FlowDirection.RightToLeft; // Persian summary
             FileInfoText.TextAlignment = TextAlignment.Left;        // = visual right in RTL
             FileInfoText.Text = $"{doc.Summary} · {SafeSize(path)}";
+            if (path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                _ = BrowsePdfPagesAsync(target, request, side);
         }
         catch (Exception ex)
         {
@@ -731,6 +733,36 @@ public partial class VideoPreviewWindow : Window
             AppLog.Warn($"Document preview failed for {Path.GetFileName(path)}: {ex.Message}");
             HidePreview(releaseFileNow: false);
         }
+    }
+
+    /// <summary>
+    /// The hover card never takes mouse input (it is click-through over Explorer), so multi-page PDFs
+    /// "browse" themselves like the smart video scrub: while the pointer stays on the file, the next
+    /// pages (up to 12) fade in every ~1.7 s, with "صفحه n از m" in the footer.
+    /// </summary>
+    private async Task BrowsePdfPagesAsync(HoverTarget target, long request, int side)
+    {
+        try
+        {
+            string path = target.FilePath;
+            int pages = await DocumentPreviewService.GetPdfPageCountAsync(path);
+            if (pages < 2 || request != _requestId) return;
+            int last = Math.Min(pages, 12);
+            string size = SafeSize(path);
+            for (int i = 1; ; i = (i + 1) % last)
+            {
+                await Task.Delay(1700);
+                if (request != _requestId || !IsVisible) return;
+                var (bmp, _) = await DocumentPreviewService.RenderPdfPageAsync(path, i, side);
+                if (request != _requestId || !IsVisible || bmp == null) return;
+                var fade = new System.Windows.Media.Animation.DoubleAnimation(0.35, 1, TimeSpan.FromMilliseconds(260))
+                    { FillBehavior = System.Windows.Media.Animation.FillBehavior.Stop };
+                ImagePreview.Source = bmp;
+                ImagePreview.BeginAnimation(OpacityProperty, fade);
+                FileInfoText.Text = $"PDF · صفحه {DocumentPreviewService.PersianNumber(i + 1)} از {DocumentPreviewService.PersianNumber(pages)} · {size}";
+            }
+        }
+        catch (Exception ex) { AppLog.Warn("PDF page browse stopped: " + ex.Message); }
     }
 
     private void DisplayLoadedImage(HoverTarget target, BitmapSource bitmap, int w, int h)
