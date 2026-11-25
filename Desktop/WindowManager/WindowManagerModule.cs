@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Threading;
 using Shamsa.Desktop.Shell;
 using Shamsa.Services;
@@ -21,6 +21,26 @@ public sealed class WindowManagerModule : IDesktopModule
 
     /// <summary>Persian status text for the top bar (layout changes, tiling on/off).</summary>
     public static event Action<string>? StatusChanged;
+
+    private static WindowManagerModule? _instance;
+
+    /// <summary>
+    /// Switches the running window manager to a layout ("Bsp", "Columns", "Rows", "Monocle", "MainStack")
+    /// and turns tiling on. Used by saved layout profiles. Returns false when the module is not running.
+    /// </summary>
+    public static bool RequestLayout(string layout)
+    {
+        var wm = _instance;
+        if (wm == null || !wm.IsRunning || string.IsNullOrWhiteSpace(layout)) return false;
+        try
+        {
+            wm._layout = TileLayout.Parse(layout);
+            if (!wm._tiling) wm.SetTiling(true, announce: false); else wm.Relayout();
+            wm.Announce();
+            return true;
+        }
+        catch (Exception ex) { AppLog.Warn("RequestLayout failed: " + ex.Message); return false; }
+    }
 
     private WindowManagerSettings _cfg = new();
     private bool? _appliedAutoTile;
@@ -50,6 +70,7 @@ public sealed class WindowManagerModule : IDesktopModule
         {
             if (!settings.Enabled || !settings.WindowManager.Enabled) { Stop(); return; }
             _cfg = settings.WindowManager;
+            _instance = this;
             if (!IsRunning)
             {
                 IsRunning = true;
@@ -262,6 +283,7 @@ public sealed class WindowManagerModule : IDesktopModule
                 if ((Style(w.Hwnd) & WS_THICKFRAME) == 0) continue;
                 if (cfg.FloatDialogs && IsDialogLike(w.Hwnd)) continue;
                 if ((ExStyle(w.Hwnd) & WS_EX_TOPMOST) != 0) continue;           // pinned-on-top tools stay floating
+                if (Rules.RulesModule.IsFloating(w.Hwnd)) continue;             // per-app "float" rule
                 list.Add(w);
             }
             catch { }
