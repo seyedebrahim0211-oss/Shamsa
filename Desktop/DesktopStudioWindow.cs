@@ -34,6 +34,7 @@ public sealed class DesktopStudioWindow : Window
         ("dock", "", "داک"),
         ("launcher", "", "جستجوی سریع"),
         ("wm", "", "مدیر پنجره‌ها"),
+        ("rules", "", "قوانین و حالت‌های کاری"),
         ("hotkeys", "", "میانبرها و تداخل‌ها"),
     };
 
@@ -149,6 +150,8 @@ public sealed class DesktopStudioWindow : Window
                 case "launcher": BuildLauncher(); break;
                 case "wm": BuildWindowManager(); break;
                 case "hotkeys": BuildHotkeys(); break;
+                case "rules": External("قوانین و حالت‌های کاری", "برای هر برنامه قانون بگذار (شناور، همیشه رو، جای ثابت) و چیدمان پنجره‌ها را با یک کلید ذخیره و بازیابی کن.",
+                    () => Rules.RulesStudioPage.Build(_s, Changed)); break;
             }
             _scroll.ScrollToTop();
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => _scroll.ScrollToTop());
@@ -500,6 +503,18 @@ public sealed class DesktopStudioWindow : Window
     }
 
     // ------------------------------------------------------------------ building blocks
+
+    /// <summary>Hosts a page built by a feature module (its own controls edit <see cref="_s"/> and call Changed()).</summary>
+    private void External(string title, string subtitle, Func<UIElement> build)
+    {
+        Header(title, subtitle);
+        try { _page.Children.Add(build()); }
+        catch (Exception ex)
+        {
+            AppLog.Error($"Studio page {title} failed", ex);
+            _page.Children.Add(Muted("این صفحه بارگذاری نشد. جزئیات در گزارش برنامه ثبت شد."));
+        }
+    }
 
     private void ShowPageLater() => Dispatcher.BeginInvoke(DispatcherPriority.Background, () => ShowPage(_currentPage));
 
