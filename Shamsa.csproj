@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -8,30 +9,19 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Shamsa</AssemblyName>
     <RootNamespace>Shamsa</RootNamespace>
+    <Version>3.0.0</Version>
+    <Authors>Shamsa Contributors &amp; Honar Mardomi</Authors>
+    <Company>Honar Mardomi</Company>
+    <Product>Shamsa Pro — Negar Desktop Edition</Product>
     <ApplicationIcon>Assets\Shamsa.ico</ApplicationIcon>
-    <Version>2.9.2</Version>
-    <Authors>Shamsa Contributors</Authors>
-    <Description>شمسا (Shamsa) — دستیار هوشمند فایل ویندوز: پیش‌نمایش شناور ویدیو، منوی دایره‌ای تبدیل فرمت، قفسه موقت و ابزارهای نظم‌دهی</Description>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
-    <Using Remove="System.Windows.Forms" />
-    <Using Remove="System.Drawing" />
-    <Using Include="System.IO" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Resource Include="Assets\Shamsa.ico" />
-    <Resource Include="Assets\Shamsa-logo.png" />
-  </ItemGroup>
-
-  <!-- Unit tests live in their own project. -->
-  <ItemGroup>
     <Compile Remove="Tests\**" />
+    <Compile Remove="sdk\**" />
     <EmbeddedResource Remove="Tests\**" />
     <None Remove="Tests\**" />
-    <Page Remove="Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,7 +30,8 @@
 
   <ItemGroup>
     <PackageReference Include="LibVLCSharp.WPF" Version="3.9.0" />
-    <!-- PrivateAssets: don't copy ~150 MB of native VLC into referencing (test) projects -->
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" PrivateAssets="all" />
+    <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
+
 </Project>

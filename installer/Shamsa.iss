@@ -1,23 +1,20 @@
 #ifndef MyAppVersion
-#define MyAppVersion "2.9.2"
+  #define MyAppVersion "3.0.0"
 #endif
+
 #define AppName "Shamsa"
+#define AppPublisher "Honar Mardomi"
+#define AppURL "https://github.com/seyedebrahim0211-oss/Shamsa"
 
 [Setup]
 AppId={{E6C13DD9-67A1-4464-861A-F105DA49D2EF}
 AppName={#AppName}
-AppVerName=شمسا (Shamsa) نسخه {#MyAppVersion}
 AppVersion={#MyAppVersion}
-AppPublisher=Shamsa Contributors
-AppPublisherURL=https://github.com/seyedebrahim0211-oss/Shamsa
-AppSupportURL=https://github.com/seyedebrahim0211-oss/Shamsa/issues
-AppUpdatesURL=https://github.com/seyedebrahim0211-oss/Shamsa/releases
-DefaultDirName={autopf}\Shamsa
-DefaultGroupName=شمسا
-UninstallDisplayIcon={app}\Shamsa.exe
+AppPublisher={#AppPublisher}
+AppPublisherURL={#AppURL}
+DefaultDirName={autopf}\{#AppName}
 OutputDir=..\dist
 OutputBaseFilename=Shamsa-Setup-v{#MyAppVersion}-win-x64
-SetupIconFile=..\Assets\Shamsa.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -26,22 +23,25 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
 CloseApplications=yes
-RestartApplications=no
-UninstallDisplayName=شمسا (Shamsa)
+RestartApplications=yes
 SetupLogging=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "ساخت میانبر روی دسکتاپ"; GroupDescription: "میانبرها:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "autostart"; Description: "Run Shamsa automatically with Windows"; GroupDescription: "Startup"; Flags: unchecked
 
 [Files]
 Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\شمسا"; Filename: "{app}\Shamsa.exe"; WorkingDir: "{app}"
-Name: "{autodesktop}\شمسا"; Filename: "{app}\Shamsa.exe"; Tasks: desktopicon; WorkingDir: "{app}"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\Shamsa.exe"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Shamsa.exe"; Tasks: desktopicon
+
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Shamsa"; ValueData: """{app}\Shamsa.exe"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\Shamsa.exe"; Description: "اجرای شمسا"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Shamsa.exe"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent

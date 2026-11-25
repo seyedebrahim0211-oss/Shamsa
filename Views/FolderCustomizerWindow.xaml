@@ -1,0 +1,84 @@
+<Window x:Class="Shamsa.Views.FolderCustomizerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="استودیو آیکون و قفل پوشه (سبک Fold11) | شمسا"
+        Width="760" Height="540"
+        Background="{DynamicResource BgBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource ShamsaFontFamily}"
+        AllowDrop="True"
+        Drop="Window_Drop">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="شخصی‌سازی آیکون و رمزگذاری پوشه‌ها" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
+            <TextBlock Text="پوشه‌ها را بکشید و اینجا رها کنید (Drag &amp; Drop) تا هم‌زمان آیکون دلخواه بسازید یا با AES-256 قفل کنید." FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.1*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="1.2*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Target Folders List -->
+            <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="12">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="پوشه‌های انتخاب‌شده (اعمال گروهی):" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="افزودن پوشه" Click="AddFolder_Click" Padding="10,6" Margin="0,0,6,0" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"/>
+                        <Button Content="بازگردانی پیش‌فرض" Click="ResetIcons_Click" Padding="10,6" Margin="0,0,6,0" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                        <Button Content="پاک کردن لیست" Click="ClearFolders_Click" Padding="10,6" Background="Transparent" Foreground="{DynamicResource MutedBrush}" BorderThickness="0"/>
+                    </StackPanel>
+                    <ListBox x:Name="TargetFoldersList" Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Right Tabs: Icon Studio & Password Vault -->
+            <TabControl Grid.Column="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                <TabItem Header="🎨 سازنده آیکون (Fold11)">
+                    <StackPanel Margin="12">
+                        <TextBlock Text="رنگ بالای گرادیان (HEX):" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TopColorBox" Text="#14B8A6" Padding="8,5" Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}"/>
+
+                        <TextBlock Text="رنگ پایین گرادیان (HEX):" Margin="0,10,0,4"/>
+                        <TextBox x:Name="BottomColorBox" Text="#0F766E" Padding="8,5" Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}"/>
+
+                        <TextBlock Text="متن کوتاه روی پوشه (اختیاری):" Margin="0,10,0,4"/>
+                        <TextBox x:Name="BadgeTextBox" Text="پروژه" Padding="8,5" Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Button Content="ساخت و اعمال روی پوشه‌ها" Click="BuildAndApplyIcon_Click" Padding="12,8" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0" Margin="0,0,8,0"/>
+                            <Button Content="انتخاب PNG/JPG/ICO" Click="PickImageIcon_Click" Padding="12,8" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="ContextMenuCheck" Content="افزودن گزینه «شخصی‌سازی با شمسا» به منوی کلیک‌راست ویندوز" Margin="0,16,0,0" Foreground="{DynamicResource TextBrush}" Checked="ContextMenu_Toggled" Unchecked="ContextMenu_Toggled"/>
+                    </StackPanel>
+                </TabItem>
+
+                <TabItem Header="🔒 قفل و رمزگذاری پوشه">
+                    <StackPanel Margin="12">
+                        <TextBlock Text="رمز عبور (AES-256-GCM):" Margin="0,0,0,4"/>
+                        <PasswordBox x:Name="VaultPasswordBox" Padding="8,5" Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}"/>
+
+                        <CheckBox x:Name="RemoveOriginalCheck" Content="پس از تایید رمزگذاری، پوشه اصلی حذف شود" Margin="0,10,0,12" Foreground="{DynamicResource MutedBrush}"/>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="قفل کردن پوشه انتخابی" Click="LockFolder_Click" Padding="12,8" Background="{DynamicResource GoldBrush}" Foreground="#0F172A" FontWeight="Bold" BorderThickness="0" Margin="0,0,8,0"/>
+                            <Button Content="باز کردن فایل .shamsavault" Click="UnlockVault_Click" Padding="12,8" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
+        </Grid>
+
+        <TextBlock x:Name="StatusText" Grid.Row="2" Margin="0,10,0,0" Foreground="{DynamicResource AccentBrush}" FontSize="12"/>
+    </Grid>
+</Window>
