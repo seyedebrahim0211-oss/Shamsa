@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-#define MyAppVersion "2.9.2"
+#define MyAppVersion "3.0.0"
 #endif
 #define AppName "Shamsa"
 
@@ -8,6 +8,7 @@ AppId={{E6C13DD9-67A1-4464-861A-F105DA49D2EF}
 AppName={#AppName}
 AppVerName=شمسا (Shamsa) نسخه {#MyAppVersion}
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}
 AppPublisher=Shamsa Contributors
 AppPublisherURL=https://github.com/seyedebrahim0211-oss/Shamsa
 AppSupportURL=https://github.com/seyedebrahim0211-oss/Shamsa/issues
@@ -25,10 +26,13 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
+; In-app updates pass /CLOSEAPPLICATIONS; the app also exits on its own before the installer copies files.
 CloseApplications=yes
 RestartApplications=no
 UninstallDisplayName=شمسا (Shamsa)
 SetupLogging=yes
+; Updating in place keeps %LocalAppData%\Shamsa (settings, icons, recordings list) untouched.
+UsePreviousAppDir=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -43,5 +47,14 @@ Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs cr
 Name: "{autoprograms}\شمسا"; Filename: "{app}\Shamsa.exe"; WorkingDir: "{app}"
 Name: "{autodesktop}\شمسا"; Filename: "{app}\Shamsa.exe"; Tasks: desktopicon; WorkingDir: "{app}"
 
+[Registry]
+; Explorer integrations are created from inside the app (opt-in) under HKCU; remove them on uninstall only.
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\Shamsa.FolderStudio"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\Shamsa.FolderLock"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Classes\Shamsa.LockedFolder"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Classes\.shamsalock"; Flags: uninsdeletekey dontcreatekey
+
 [Run]
 Filename: "{app}\Shamsa.exe"; Description: "اجرای شمسا"; Flags: nowait postinstall skipifsilent
+; Silent in-app update: relaunch automatically so the user does not have to restart Shamsa.
+Filename: "{app}\Shamsa.exe"; Parameters: "--updated --tray"; Flags: nowait; Check: WizardSilent

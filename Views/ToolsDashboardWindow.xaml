@@ -166,7 +166,7 @@
                                 <TextBlock Text="شمسا" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
                                 <TextBlock Text=" · دستیار هوشمند مدیریت فایل ویندوز" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Bottom" Margin="4,0,0,1"/>
                             </StackPanel>
-                            <TextBlock Text="پیش‌نمایش شناور ویدیو، منوی دایره‌ای تبدیل فرمت و ابزارهای نظم‌دهی آفلاین" Style="{StaticResource Muted}" FontSize="11.5"/>
+                            <TextBlock Text="پیش‌نمایش ویدیو، تصویر، اسناد و پوشه · ضبط صفحه · آیکون و قفل پوشه · تبدیل فرمت و نظم‌دهی آفلاین" Style="{StaticResource Muted}" FontSize="11.5"/>
                         </StackPanel>
                     </StackPanel>
                 </DockPanel>
@@ -191,6 +191,49 @@
                                 </StackPanel>
                             </DockPanel>
                         </Border>
+
+                        <!-- محیط دسکتاپ (نوار بالا، داک، جستجوی سریع، مدیر پنجره) -->
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                                    <Button Content="🖥 استودیو دسکتاپ" Click="OpenDesktopStudio_Click" Style="{StaticResource AccentButton}" Padding="14,8" Margin="0,0,8,0"/>
+                                    <Button Content="🔍 جستجوی سریع" Click="OpenLauncher_Click" Padding="12,8"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="🖥 دسکتاپ و تسک‌بار به سبک خودت" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Style="{StaticResource Muted}" LineHeight="20" TextWrapping="Wrap"
+                                               Text="نوار بالای شیشه‌ای با ساعت و تاریخ شمسی، داک با آیکون‌های بزرگ‌شونده، جستجوی سریع برنامه‌ها و تنظیمات، و چیدمان خودکار پنجره‌ها. اختیاری است و با یک کلیک به دسکتاپ ویندوز برمی‌گردد."/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- ابزارهای جدید نسخه ۳ -->
+                        <UniformGrid Columns="3" Margin="0,2,0,10">
+                            <Border Style="{StaticResource Card}" Margin="0,0,6,0">
+                                <StackPanel>
+                                    <TextBlock Text="🎥 ضبط صفحه و اسکرین‌شات" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Style="{StaticResource Muted}" LineHeight="20" TextWrapping="Wrap"
+                                               Text="ضبط کل صفحه، ناحیه یا یک پنجره با صدای سیستم و میکروفون، توقف موقت، نمایش کلیک‌ها، شورتکات‌ها و فرمان صوتی."/>
+                                    <Button Content="باز کردن ضبط صفحه" Click="OpenRecorder_Click" Style="{StaticResource AccentButton}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="6,0,6,0">
+                                <StackPanel>
+                                    <TextBlock Text="🎨 استودیو پوشه" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Style="{StaticResource Muted}" LineHeight="20" TextWrapping="Wrap"
+                                               Text="آیکون دلخواه برای پوشه‌ها بسازید یا از تصویر بگذارید و پوشه‌ها را با رمز و رمزنگاری AES-256 قفل کنید."/>
+                                    <Button Content="باز کردن استودیو پوشه" Click="OpenFolderStudio_Click" Style="{StaticResource GoldButton}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="6,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="📄 پیش‌نمایش اسناد و پوشه‌ها" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Style="{StaticResource Muted}" LineHeight="20" TextWrapping="Wrap"
+                                               Text="روی Word، Excel، PowerPoint یا PDF مکث کنید تا صفحه اول را ببینید؛ روی پوشه‌ها کارت شیشه‌ای بزرگ و قابل شخصی‌سازی."/>
+                                    <Button Content="شخصی‌سازی پیش‌نمایش" Click="JumpToSettings_Click" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
 
                         <UniformGrid Columns="2" Margin="0,2,0,0">
                             <!-- کارت ۱ -->
@@ -629,16 +672,35 @@
 
                         <Border Style="{StaticResource PersianHighlightCard}">
                             <StackPanel>
-                                <TextBlock Text="↻ به‌روزرسانی امن شمسا" Style="{StaticResource SectionTitle}"/>
-                                <TextBlock Text="نسخه‌های جدید از GitHub Releases دریافت می‌شوند. فایل نصب با SHA-256 رسمی مطابقت داده می‌شود؛ نصب تنها با تأیید شما آغاز می‌شود."
+                                <DockPanel>
+                                    <TextBlock x:Name="UpdateVersionBadge" DockPanel.Dock="Left" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" FlowDirection="LeftToRight"/>
+                                    <TextBlock Text="↻ به‌روزرسانی هوشمند شمسا" Style="{StaticResource SectionTitle}"/>
+                                </DockPanel>
+                                <TextBlock Text="نسخه‌های جدید از GitHub Releases رسمی دریافت و قبل از نصب با SHA-256 همان انتشار تطبیق داده می‌شوند. تنظیمات و فایل‌های شما پس از به‌روزرسانی حفظ می‌شوند."
                                            Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                 <CheckBox x:Name="AutoUpdateCheck" Content="بررسی خودکار نسخه جدید هنگام اجرا و هر ۶ ساعت" Click="Setting_Changed"/>
-                                <CheckBox x:Name="AutoDownloadUpdateCheck" Content="دانلود خودکار نسخه جدید در پس‌زمینه (نصب همچنان با تأیید من)" Click="Setting_Changed"/>
+                                <CheckBox x:Name="AutoDownloadUpdateCheck" Content="دانلود و تأیید خودکار نسخه جدید در پس‌زمینه" Click="Setting_Changed"/>
+                                <CheckBox x:Name="AutoInstallIdleCheck" Content="نصب هوشمند: وقتی ۱۰ دقیقه با سیستم کار نکردم و شمسا مشغول ضبط/تبدیل نیست، بی‌صدا نصب و دوباره اجرا شود" Click="Setting_Changed"/>
                                 <TextBlock x:Name="UpdateStatusText" Foreground="{DynamicResource GoldBrush}"
-                                           TextWrapping="Wrap" Margin="0,8,0,10"/>
+                                           TextWrapping="Wrap" Margin="0,8,0,6"/>
+                                <ProgressBar x:Name="UpdateProgress" Height="6" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,0,0,8" FlowDirection="LeftToRight"/>
+                                <Border x:Name="UpdateNotesPanel" Visibility="Collapsed" Background="{DynamicResource InputBrush}" CornerRadius="8"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="10,8" Margin="0,0,0,10" MaxHeight="190">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel>
+                                            <TextBlock Text="تغییرات این نسخه" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,4"/>
+                                            <TextBlock x:Name="UpdateNotesText" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" FontSize="12" LineHeight="20"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
                                 <WrapPanel>
                                     <Button x:Name="CheckUpdateBtn" Content="بررسی نسخه جدید" Click="CheckUpdate_Click" Margin="0,0,8,5"/>
-                                    <Button x:Name="InstallUpdateBtn" Content="دریافت و نصب به‌روزرسانی" Click="InstallUpdate_Click" Style="{StaticResource AccentButton}" Margin="0,0,8,5" IsEnabled="False"/>
+                                    <Button x:Name="InstallUpdateBtn" Content="⚡ نصب و اجرای مجدد (یک کلیک)" Click="InstallUpdate_Click" Style="{StaticResource AccentButton}" Margin="0,0,8,5" IsEnabled="False"
+                                            ToolTip="دانلود، تأیید SHA-256، نصب بی‌صدا و اجرای دوباره خودکار شمسا"/>
+                                    <Button x:Name="InstallUpdateWizardBtn" Content="نصب با پنجره نصب‌کننده" Click="InstallUpdateWizard_Click" Margin="0,0,8,5" IsEnabled="False"/>
+                                    <Button x:Name="SkipUpdateBtn" Content="فعلاً این نسخه را رد کن" Click="SkipUpdate_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,5" Visibility="Collapsed"/>
+                                    <Button x:Name="ReleasePageBtn" Content="صفحه انتشار" Click="ReleasePage_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,5" Visibility="Collapsed"/>
                                 </WrapPanel>
                                 <TextBlock Text="نصب روی سیستم‌های دیگر: بسته ویندوز x64 شامل .NET Desktop Runtime و موتور پخش VLC است. برای تبدیل ویدیو/صدا می‌توانید FFmpeg را با دکمه بالا دریافت کنید؛ اینترنت فقط برای نصب ابزار اختیاری یا به‌روزرسانی نیاز است."
                                            Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
@@ -650,9 +712,8 @@
                                 <TextBlock Text="پیش‌نمایش کنار موس" Style="{StaticResource SectionTitle}"/>
                                 <CheckBox x:Name="HoverCheck" Content="پیش‌نمایش ویدیو هنگام مکث موس در Explorer و دسکتاپ" Click="Setting_Changed"/>
                                 <CheckBox x:Name="PreviewImagesCheck" Content="پیش‌نمایش تصاویر هم نمایش داده شود" Click="Setting_Changed"/>
-                                <CheckBox x:Name="FolderPreviewCheck" Content="پیش‌نمایش اسلایدی پوشه‌ها در Explorer و دسکتاپ (حداکثر ۶ تصویر یا ویدیو)" Click="Setting_Changed"/>
-                                <TextBlock Text="نمایش سریع فقط از ۱۰۰ مورد اول پوشه؛ بدون بازکردن یا اجرای فایل، پیمایش زیرپوشه، دانلود ابری یا دسترسی به شبکه."
-                                           Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <CheckBox x:Name="PreviewDocumentsCheck" Content="پیش‌نمایش صفحه اول اسناد: Word، Excel، PowerPoint، PDF، OpenDocument و فایل‌های متنی/کد" Click="Setting_Changed"/>
+                                <CheckBox x:Name="FolderPreviewCheck" Content="کارت شیشه‌ای بزرگ برای پوشه‌ها (نمای محتویات پوشه کنار موس)" Click="Setting_Changed"/>
                                 <CheckBox x:Name="SmartScrubCheck" Content="مرور هوشمند ویدیو (پرش خودکار برای دیدن کل محتوا)" Click="Setting_Changed"/>
                                 <DockPanel Margin="0,6,0,0">
                                     <TextBlock Text="تأخیر نمایش:" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -677,6 +738,65 @@
                                         <Button Content="خیلی بزرگ (520)" Tag="520" Click="PreviewSizePreset_Click" Padding="9,3" FontSize="11"/>
                                     </WrapPanel>
                                 </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource PersianHighlightCard}">
+                            <StackPanel>
+                                <TextBlock Text="📁 شخصی‌سازی کارت شیشه‌ای پوشه" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                                           Text="با مکث موس روی هر پوشه، کارت شیشه‌ای بزرگ با نمای واقعی محتویات (بندانگشتی تصاویر، ویدیوها، اسناد و آیکون‌های سفارشی پوشه‌ها) باز می‌شود. فقط سطح اول پوشه خوانده می‌شود؛ هیچ فایلی باز، اجرا یا جابه‌جا نمی‌شود و فایل‌های ابری آفلاین دانلود نمی‌شوند."/>
+                                <WrapPanel Margin="0,0,0,8">
+                                    <TextBlock Text="نوع نما:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="FolderStyleBox" Width="230" SelectionChanged="FolderPreviewSetting_Changed">
+                                        <ComboBoxItem Content="شبکه آیکون‌ها (مثل Explorer)"/>
+                                        <ComboBoxItem Content="گالری: موزاییک رسانه + شبکه"/>
+                                        <ComboBoxItem Content="فهرست با جزئیات"/>
+                                    </ComboBox>
+                                    <TextBlock Text="مرتب‌سازی:" VerticalAlignment="Center" Margin="16,0,8,0"/>
+                                    <ComboBox x:Name="FolderSortBox" Width="170" SelectionChanged="FolderPreviewSetting_Changed">
+                                        <ComboBoxItem Content="پوشه‌ها اول، سپس نام"/>
+                                        <ComboBoxItem Content="جدیدترین‌ها اول"/>
+                                        <ComboBoxItem Content="بر اساس نوع"/>
+                                    </ComboBox>
+                                </WrapPanel>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="پهنای کارت" Width="150" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="FolderWidthText" DockPanel.Dock="Right" Width="62" VerticalAlignment="Center" FlowDirection="LeftToRight" Foreground="{DynamicResource GoldBrush}"/>
+                                    <Slider x:Name="FolderWidthSlider" Minimum="380" Maximum="1000" TickFrequency="20" IsSnapToTickEnabled="True" FlowDirection="LeftToRight" ValueChanged="FolderPreviewSlider_Changed"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="اندازه کاشی‌ها" Width="150" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="FolderTileText" DockPanel.Dock="Right" Width="62" VerticalAlignment="Center" FlowDirection="LeftToRight" Foreground="{DynamicResource GoldBrush}"/>
+                                    <Slider x:Name="FolderTileSlider" Minimum="64" Maximum="170" TickFrequency="2" IsSnapToTickEnabled="True" FlowDirection="LeftToRight" ValueChanged="FolderPreviewSlider_Changed"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="حداکثر موارد" Width="150" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="FolderItemsText" DockPanel.Dock="Right" Width="62" VerticalAlignment="Center" FlowDirection="LeftToRight" Foreground="{DynamicResource GoldBrush}"/>
+                                    <Slider x:Name="FolderItemsSlider" Minimum="6" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True" FlowDirection="LeftToRight" ValueChanged="FolderPreviewSlider_Changed"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="تیرگی شیشه" Width="150" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="FolderTintText" DockPanel.Dock="Right" Width="62" VerticalAlignment="Center" FlowDirection="LeftToRight" Foreground="{DynamicResource GoldBrush}"/>
+                                    <Slider x:Name="FolderTintSlider" Minimum="10" Maximum="95" TickFrequency="1" IsSnapToTickEnabled="True" FlowDirection="LeftToRight" ValueChanged="FolderPreviewSlider_Changed"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="گردی گوشه کاشی‌ها" Width="150" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="FolderRadiusText" DockPanel.Dock="Right" Width="62" VerticalAlignment="Center" FlowDirection="LeftToRight" Foreground="{DynamicResource GoldBrush}"/>
+                                    <Slider x:Name="FolderRadiusSlider" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" FlowDirection="LeftToRight" ValueChanged="FolderPreviewSlider_Changed"/>
+                                </DockPanel>
+                                <WrapPanel Margin="0,8,0,4">
+                                    <TextBlock Text="رنگ شیشه:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <WrapPanel x:Name="FolderTintSwatches" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="FolderTintBox" Width="96" FlowDirection="LeftToRight" VerticalContentAlignment="Center" Margin="6,0,6,0"/>
+                                    <Button Content="اعمال" Click="ApplyFolderTint_Click" Padding="10,3"/>
+                                </WrapPanel>
+                                <CheckBox x:Name="FolderNamesCheck" Content="نام فایل‌ها زیر کاشی‌ها نمایش داده شود" Click="FolderPreviewSetting_Changed"/>
+                                <CheckBox x:Name="FolderZoomCheck" Content="انیمیشن بزرگ‌شدن شیشه‌ای هنگام باز شدن" Click="FolderPreviewSetting_Changed"/>
+                                <WrapPanel Margin="0,10,0,0">
+                                    <Button Content="👁 نمایش زنده روی یک پوشه" Click="DemoFolderPreview_Click" Style="{StaticResource GoldButton}" Margin="0,0,8,0"/>
+                                    <Button Content="بازنشانی کارت پوشه" Click="ResetFolderPreview_Click"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

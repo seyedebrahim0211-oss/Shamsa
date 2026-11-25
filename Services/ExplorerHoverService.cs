@@ -36,6 +36,7 @@ public class ExplorerHoverService
 
     public bool IncludeImages { get; set; } = true;
     public bool IncludeFolders { get; set; } = true;
+    public bool IncludeDocuments { get; set; } = true;
 
     public HoverTarget? GetHoveredFile()
     {
@@ -475,11 +476,22 @@ public class ExplorerHoverService
             }
         }
 
+        if (IncludeDocuments)
+        {
+            // Explorer hides known extensions by default ("Report" for Report.docx).
+            foreach (var ext in DocumentPreviewService.SupportedExtensions)
+            {
+                string candidate = direct + ext;
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
+
         return null;
     }
 
     private bool IsPreviewable(string path) =>
-        FileKinds.IsVideo(path) || (IncludeImages && FileKinds.IsPreviewableImage(path));
+        FileKinds.IsVideo(path) || (IncludeImages && FileKinds.IsPreviewableImage(path))
+        || (IncludeDocuments && DocumentPreviewService.IsSupported(path));
 
     private string? GetExplorerFolderPath(IntPtr explorerHwnd)
     {

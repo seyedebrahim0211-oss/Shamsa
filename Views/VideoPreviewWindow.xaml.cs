@@ -22,6 +22,8 @@ public partial class VideoPreviewWindow : Window
 
     private static readonly System.Windows.Media.Brush VideoDotBrush = CreateFrozenBrush("#2DD4BF");
     private static readonly System.Windows.Media.Brush ImageDotBrush = CreateFrozenBrush("#F6D379");
+    private static readonly System.Windows.Media.Brush DocDotBrush = CreateFrozenBrush("#60A5FA");
+    private bool _currentIsDocument;
 
     private readonly StaWorker _thumbWorker = new("Shamsa.ThumbSta");
     private LibVLC? _libVlc;
@@ -204,7 +206,8 @@ public partial class VideoPreviewWindow : Window
     {
         if (mediaW <= 0 || mediaH <= 0) return (Width, Height);
 
-        double maxSide = MaxPreviewSide;
+        // Pages carry small text: give documents ~35% more room than photos at the same setting.
+        double maxSide = _currentIsDocument ? Math.Min(760, MaxPreviewSide * 1.35) : MaxPreviewSide;
         double aspect = (double)mediaW / mediaH;
         double contentW, contentH;
 
@@ -346,6 +349,9 @@ public partial class VideoPreviewWindow : Window
         if (isNewFile)
         {
             _currentFile = target.FilePath;
+            _currentIsDocument = false;
+            FileInfoText.FlowDirection = FlowDirection.LeftToRight;
+            FileInfoText.TextAlignment = TextAlignment.Right;
             long request = ++_requestId;
 
             FileNameText.Text = Path.GetFileName(target.FilePath);
@@ -368,6 +374,16 @@ public partial class VideoPreviewWindow : Window
                 if (_mediaPlayer == null || !_videoReady || _libVlc == null) return;
                 MediaTypeDot.Fill = VideoDotBrush;
                 StartVideoPreviewAsync(target, request);
+            }
+            else if (!FileKinds.IsPreviewableImage(target.FilePath) && DocumentPreviewService.IsSupported(target.FilePath))
+            {
+                PauseVideoFast();
+                _waitingForFirstFrame = false;
+                _currentIsDocument = true;
+                MediaTypeDot.Fill = DocDotBrush;
+                VlcVideoView.Visibility = Visibility.Collapsed;
+                ScrubBar.Visibility = Visibility.Collapsed;
+                LoadDocumentAsync(target, request);
             }
             else
             {
@@ -683,6 +699,36 @@ public partial class VideoPreviewWindow : Window
         {
             if (request != _requestId) return;
             AppLog.Warn($"Image preview failed for {path}: {ex.Message}");
+            HidePreview(releaseFileNow: false);
+        }
+    }
+
+    private async void LoadDocumentAsync(HoverTarget target, long request)
+    {
+        string path = target.FilePath;
+        FileInfoText.Text = "در حال آماده‌سازی صفحه اول…";
+        try
+        {
+            int side = (int)Math.Round(Math.Min(760, MaxPreviewSide * 1.35));
+            var doc = await DocumentPreviewService.RenderAsync(path, side, _thumbWorker);
+            if (request != _requestId) return;
+            if (doc == null)
+            {
+                HidePreview(releaseFileNow: false);
+                return;
+            }
+            var dot = new System.Windows.Media.SolidColorBrush(doc.AccentColor);
+            dot.Freeze();
+            MediaTypeDot.Fill = dot;
+            DisplayLoadedImage(target, doc.Image, doc.Image.PixelWidth, doc.Image.PixelHeight);
+            FileInfoText.FlowDirection = FlowDirection.RightToLeft; // Persian summary
+            FileInfoText.TextAlignment = TextAlignment.Left;        // = visual right in RTL
+            FileInfoText.Text = $"{doc.Summary} · {SafeSize(path)}";
+        }
+        catch (Exception ex)
+        {
+            if (request != _requestId) return;
+            AppLog.Warn($"Document preview failed for {Path.GetFileName(path)}: {ex.Message}");
             HidePreview(releaseFileNow: false);
         }
     }

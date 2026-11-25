@@ -1,10 +1,15 @@
-name: Build and publish Windows 11 installer
+name: Build and publish Windows installer
 
 on:
   push:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      republish:
+        description: "Re-upload assets even if the release for this version already exists"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -26,7 +31,32 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore and compile
+      # Single source of truth: <Version> in Shamsa.csproj. Bump it to ship an update;
+      # installed copies detect the higher GitHub release and update themselves in-app.
+      - name: Read version and release notes
+        id: meta
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content Shamsa.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid <Version> '$version' in Shamsa.csproj" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          $notes = "نسخه $version شمسا"
+          if (Test-Path CHANGELOG.md) {
+            $text = Get-Content CHANGELOG.md -Raw -Encoding utf8
+            $m = [regex]::Match($text, "(?ms)^## \[?v?$([regex]::Escape($version))\]?.*?$\r?\n(.*?)(?=^## |\z)")
+            if ($m.Success) { $notes = $m.Groups[1].Value.Trim() }
+          }
+          $notes += "`n`n---`nنصب‌کننده ویندوز ۱۰/۱۱ (۶۴ بیتی)، نسخه پرتابل و فایل SHA256SUMS. نسخه‌های نصب‌شده از داخل برنامه (تنظیمات › به‌روزرسانی) به‌روز می‌شوند. فایل نصب امضای دیجیتال کد ندارد؛ SmartScreen ممکن است هشدار دهد."
+          Set-Content -Path release-notes.md -Value $notes -Encoding utf8
+          $exists = $false
+          gh release view "v$version" --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) { $exists = $true }
+          $global:LASTEXITCODE = 0
+          "exists=$exists" >> $env:GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Restore, compile and test
         shell: pwsh
         run: |
           dotnet restore Shamsa.csproj -r win-x64
@@ -34,17 +64,18 @@ jobs:
           dotnet build Shamsa.csproj --no-restore -c Release -r win-x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (Test-Path Tests/Shamsa.Tests.csproj) {
-            dotnet test Tests/Shamsa.Tests.csproj -c Release --no-restore
+            dotnet test Tests/Shamsa.Tests.csproj -c Release
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
       - name: Publish self-contained Windows x64 application
         shell: pwsh
         run: |
+          $v = "${{ steps.meta.outputs.version }}"
           dotnet publish Shamsa.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o publish
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Test-Path publish/Shamsa.exe)) { throw "Shamsa.exe missing after publishing" }
-          Compress-Archive -Path publish/* -DestinationPath Shamsa-v2.9.2-win-x64-portable.zip -Force
+          Compress-Archive -Path publish/* -DestinationPath "Shamsa-v$v-win-x64-portable.zip" -Force
 
       - name: Install Inno Setup compiler
         shell: pwsh
@@ -54,40 +85,40 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
-      - name: Compile Windows 11 setup executable
+      - name: Compile setup executable and checksums
         shell: pwsh
         run: |
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=2.9.2" installer/Shamsa.iss
+          $v = "${{ steps.meta.outputs.version }}"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$v" installer/Shamsa.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (!(Test-Path dist/Shamsa-Setup-v2.9.2-win-x64.exe)) { throw "Installer missing" }
-          Get-FileHash dist/Shamsa-Setup-v2.9.2-win-x64.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower()) *Shamsa-Setup-v2.9.2-win-x64.exe" } | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+          $setup = "dist/Shamsa-Setup-v$v-win-x64.exe"
+          if (!(Test-Path $setup)) { throw "Installer missing" }
+          Copy-Item "Shamsa-v$v-win-x64-portable.zip" dist/
+          Get-ChildItem dist -File -Exclude SHA256SUMS.txt | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()) *$($_.Name)"
+          } | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+          Get-Content dist/SHA256SUMS.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Shamsa-v2.9.2-Windows11
-          path: |
-            dist/*
-            Shamsa-v2.9.2-win-x64-portable.zip
+          name: Shamsa-v${{ steps.meta.outputs.version }}-Windows
+          path: dist/*
           if-no-files-found: error
 
+      # A release is created once per version (tag pushes or manual re-publish may replace assets).
       - name: Publish release on GitHub
+        if: steps.meta.outputs.exists != 'True' || startsWith(github.ref, 'refs/tags/') || inputs.republish
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.9.2
-          name: شمسا ۲.۹.۱ | Windows 11
+          tag_name: v${{ steps.meta.outputs.version }}
+          name: شمسا ${{ steps.meta.outputs.version }} | Windows
           target_commitish: ${{ github.sha }}
           prerelease: false
           draft: false
-          generate_release_notes: true
-          body: |
-            نصب‌کننده ویندوز ۱۱ (۶۴ بیتی)، نسخه پرتابل و فایل بررسی SHA-256.
-            چهار تم شیشه‌ای فارسی، پیش‌نمایش اسلایدی محدود و امن پوشه در Explorer،
-            بررسی و دانلود خودکار به‌روزرسانی با تأیید SHA-256، نصب با رضایت کاربر.
-            نصب‌کننده خودکفا و شامل Runtime .NET و کتابخانه VLC است؛ FFmpeg اختیاری و از داخل برنامه قابل نصب است.
-            توجه: فایل نصب در CI ساخته می‌شود و امضای دیجیتال کد ندارد؛ SmartScreen ممکن است هشدار دهد.
+          body_path: release-notes.md
           files: |
-            dist/Shamsa-Setup-v2.9.2-win-x64.exe
+            dist/Shamsa-Setup-v${{ steps.meta.outputs.version }}-win-x64.exe
+            dist/Shamsa-v${{ steps.meta.outputs.version }}-win-x64-portable.zip
             dist/SHA256SUMS.txt
-            Shamsa-v2.9.2-win-x64-portable.zip
           fail_on_unmatched_files: true

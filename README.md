@@ -12,11 +12,22 @@
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-14B8A6?style=flat-square" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0B1324?style=flat-square" alt="Windows"/>
-  <img src="https://img.shields.io/badge/Version-2.9.2-F6D379?style=flat-square" alt="Version 2.9.0"/>
+  <img src="https://img.shields.io/badge/Version-3.0.0-F6D379?style=flat-square" alt="Version 3.0.0"/>
   <img src="https://img.shields.io/badge/License-MIT-E5B85B?style=flat-square" alt="MIT License"/>
 </p>
 
 ---
+
+## 🆕 تازه‌های نسخه ۳
+
+- **🖥 محیط دسکتاپ به سبک Seelen UI (اختیاری):** نوار بالای شیشه‌ای با ساعت و تاریخ شمسی، داک مک‌مانند، جستجوی سریع (`Ctrl+Alt+Space`) و مدیر پنجره با کاشی‌کاری خودکار (`Ctrl+Alt+جهت‌ها`، `Ctrl+Alt+T`). همه از **استودیو دسکتاپ** شخصی‌سازی می‌شوند و «بازگردانی دسکتاپ ویندوز» همیشه یک کلیک فاصله دارد.
+- **⌨️ میانبرهای بدون تداخل:** همه کلیدهای سراسری در یک جدول؛ تداخل‌ها جلوگیری و نمایش داده می‌شوند.
+- **🔤 فونت وزیرمتن داخلی** برای رابط فارسی یکسان روی همه سیستم‌ها.
+- **🔄 به‌روزرسانی هوشمند داخل برنامه** با تأیید SHA-256 و نصب بی‌صدا.
+- **📄 پیش‌نمایش اسناد** (Word، Excel، PowerPoint، PDF، متن) و **کارت شیشه‌ای بزرگ پوشه**.
+- **🎥 ضبط صفحه و اسکرین‌شات** با صدا و فرمان صوتی؛ **🎨 استودیو پوشه** با آیکون دلخواه و قفل رمزدار.
+
+جزئیات کامل در [CHANGELOG.md](CHANGELOG.md).
 
 ## ✨ قابلیت‌ها / Features
 

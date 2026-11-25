@@ -1,0 +1,225 @@
+<Window x:Class="Shamsa.Recording.RecorderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ضبط صفحه شمسا"
+        Icon="/Assets/Shamsa.ico"
+        Width="900" Height="760" MinWidth="720" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        FontFamily="{StaticResource UiFont}"
+        FontSize="12.5"
+        FlowDirection="RightToLeft"
+        TextOptions.TextFormattingMode="Display">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- وضعیت و کنترل اصلی -->
+        <Border Style="{StaticResource PersianHighlightCard}" Margin="0,0,0,10">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="RecordBtn" Content="⏺ شروع ضبط" Click="Record_Click" Style="{StaticResource DangerButton}" Padding="18,9" FontSize="14" FontWeight="Bold" Margin="0,0,8,0"/>
+                    <Button x:Name="PauseBtn" Content="⏸ مکث" Click="Pause_Click" Padding="12,9" Margin="0,0,8,0" IsEnabled="False"/>
+                    <Button Content="📷 اسکرین‌شات" Click="ShotDefault_Click" Style="{StaticResource GoldButton}" Padding="12,9"/>
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="StateDot" Width="11" Height="11" Fill="#64748B" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="StateText" Text="آماده ضبط" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
+                        <TextBlock x:Name="TimerText" Text="" FontSize="16" FontWeight="Bold" Margin="12,0,0,0" FlowDirection="LeftToRight"/>
+                    </StackPanel>
+                    <TextBlock x:Name="MessageText" Style="{StaticResource Muted}" Margin="0,4,0,0" Text="ضبط تمام صفحه، ناحیه دلخواه یا یک پنجره با صدا، مکث و کلیدهای میانبر."/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- FFmpeg -->
+                <Border x:Name="FfmpegCard" Style="{StaticResource Card}" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="⚠️ موتور FFmpeg نصب نیست" Style="{StaticResource SectionTitle}" Foreground="{DynamicResource WarnBrush}"/>
+                        <TextBlock Style="{StaticResource Muted}" Text="ضبط ویدیو با FFmpeg انجام می‌شود (اسکرین‌شات بدون آن هم کار می‌کند). یک‌بار دانلود و نصب کنید."/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button x:Name="InstallFfmpegBtn" Content="⬇ دانلود و نصب خودکار FFmpeg" Click="InstallFfmpeg_Click" Style="{StaticResource AccentButton}"/>
+                            <TextBlock x:Name="FfmpegProgressText" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource AccentBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <UniformGrid Columns="2">
+                    <!-- منبع ضبط -->
+                    <Border Style="{StaticResource Card}" Margin="0,0,5,10">
+                        <StackPanel>
+                            <TextBlock Text="🖥 منبع ضبط" Style="{StaticResource SectionTitle}"/>
+                            <ComboBox x:Name="ModeBox" SelectionChanged="Mode_Changed" Margin="0,0,0,8">
+                                <ComboBoxItem Content="تمام صفحه (یک مانیتور)"/>
+                                <ComboBoxItem Content="ناحیه دلخواه (انتخاب با موس)"/>
+                                <ComboBoxItem Content="یک پنجره مشخص"/>
+                                <ComboBoxItem Content="آخرین ناحیه انتخاب‌شده"/>
+                            </ComboBox>
+                            <StackPanel x:Name="MonitorPanel">
+                                <TextBlock Text="مانیتور" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="MonitorBox" SelectionChanged="Monitor_Changed"/>
+                            </StackPanel>
+                            <StackPanel x:Name="WindowPanel" Visibility="Collapsed">
+                                <TextBlock Text="پنجره" Margin="0,0,0,4"/>
+                                <DockPanel>
+                                    <Button Content="↻" Click="RefreshWindows_Click" DockPanel.Dock="Left" Margin="0,0,6,0" ToolTip="به‌روزرسانی فهرست پنجره‌ها"/>
+                                    <ComboBox x:Name="WindowBox" SelectionChanged="Window_Changed"/>
+                                </DockPanel>
+                                <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0" Text="محدوده پنجره در لحظه شروع ضبط می‌شود؛ جابه‌جایی بعدی پنجره دنبال نمی‌شود."/>
+                            </StackPanel>
+                            <StackPanel x:Name="RegionPanel" Visibility="Collapsed">
+                                <TextBlock x:Name="LastRegionText" Style="{StaticResource Muted}" Margin="0,0,0,6"/>
+                                <Button Content="✂ انتخاب ناحیه جدید" Click="PickRegion_Click" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- صدا -->
+                    <Border Style="{StaticResource Card}" Margin="5,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="🔊 صدا" Style="{StaticResource SectionTitle}"/>
+                            <CheckBox x:Name="SystemAudioCheck" Content="صدای سیستم (هر صدایی که پخش می‌شود)" Click="Setting_Changed"/>
+                            <CheckBox x:Name="MicCheck" Content="میکروفون (گوینده)" Click="Setting_Changed"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0" Text="در صورت انتخاب هر دو، صداها با هم میکس می‌شوند. صدا با WASAPI ویندوز و بدون نصب درایور مجازی ضبط می‌شود."/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <!-- ویدیو -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="🎞 کیفیت و انکودر ویدیو" Style="{StaticResource SectionTitle}"/>
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,14,8">
+                                <TextBlock Text="فریم در ثانیه" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="FpsBox" Width="110" SelectionChanged="Setting_Changed">
+                                    <ComboBoxItem Content="15" Tag="15"/>
+                                    <ComboBoxItem Content="24" Tag="24"/>
+                                    <ComboBoxItem Content="30" Tag="30"/>
+                                    <ComboBoxItem Content="60" Tag="60"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,14,8">
+                                <TextBlock Text="فرمت فایل" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="ContainerBox" Width="130" SelectionChanged="Setting_Changed">
+                                    <ComboBoxItem Content="MP4 (پیشنهادی)" Tag="mp4"/>
+                                    <ComboBoxItem Content="MKV" Tag="mkv"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,14,8">
+                                <TextBlock Text="انکودر" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ComboBox x:Name="EncoderBox" Width="230" SelectionChanged="Setting_Changed"/>
+                                    <Button x:Name="DetectBtn" Content="تشخیص کارت گرافیک" Click="DetectEncoders_Click" Margin="6,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </WrapPanel>
+                        <DockPanel Margin="0,4,0,6">
+                            <TextBlock Text="کیفیت تصویر" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock x:Name="QualityText" DockPanel.Dock="Right" Width="48" VerticalAlignment="Center" FlowDirection="LeftToRight" Foreground="{DynamicResource GoldBrush}" FontWeight="Bold"/>
+                            <Slider x:Name="QualitySlider" Minimum="10" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="Quality_Changed" FlowDirection="LeftToRight" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <WrapPanel>
+                            <CheckBox x:Name="DrawMouseCheck" Content="نمایش نشانگر موس" Click="Setting_Changed" Margin="0,4,18,4"/>
+                            <CheckBox x:Name="ClicksCheck" Content="افکت کلیک موس (حلقه رنگی)" Click="Setting_Changed" Margin="0,4,18,4"/>
+                            <CheckBox x:Name="CountdownCheck" Content="شمارش معکوس ۳ ثانیه" Click="Setting_Changed" Margin="0,4,18,4"/>
+                            <CheckBox x:Name="ToolbarCheck" Content="نوار شناور هنگام ضبط" Click="Setting_Changed" Margin="0,4,18,4"/>
+                            <CheckBox x:Name="DdaCheck" Content="ضبط با Desktop Duplication (کم‌مصرف‌تر، فقط مانیتور اصلی)" Click="Setting_Changed" Margin="0,4,18,4"/>
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0" Text="نوار شناور و شمارش معکوس در ویندوز ۱۰ (2004 به بعد) و ۱۱ در فیلم ضبط‌شده دیده نمی‌شوند. اگر انکودر کارت گرافیک یا Desktop Duplication کار نکند، خودکار به روش استاندارد برمی‌گردد."/>
+                    </StackPanel>
+                </Border>
+
+                <UniformGrid Columns="2">
+                    <!-- اسکرین‌شات -->
+                    <Border Style="{StaticResource Card}" Margin="0,0,5,10">
+                        <StackPanel>
+                            <TextBlock Text="📷 اسکرین‌شات" Style="{StaticResource SectionTitle}"/>
+                            <WrapPanel Margin="0,0,0,8">
+                                <Button Content="تمام صفحه" Click="ShotFull_Click" Margin="0,0,6,4"/>
+                                <Button Content="ناحیه" Click="ShotRegion_Click" Margin="0,0,6,4"/>
+                                <Button Content="پنجره فعال" Click="ShotWindow_Click" Margin="0,0,6,4"/>
+                            </WrapPanel>
+                            <TextBlock Text="حالت پیش‌فرض (کلید میانبر و فرمان صوتی)" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="ShotModeBox" SelectionChanged="Setting_Changed" Margin="0,0,0,6">
+                                <ComboBoxItem Content="تمام صفحه (مانیتور زیر موس)"/>
+                                <ComboBoxItem Content="ناحیه دلخواه"/>
+                                <ComboBoxItem Content="پنجره فعال"/>
+                            </ComboBox>
+                            <CheckBox x:Name="ShotClipboardCheck" Content="کپی خودکار در کلیپ‌بورد" Click="Setting_Changed"/>
+                            <CheckBox x:Name="ShotJpgCheck" Content="ذخیره به‌صورت JPG (پیش‌فرض PNG)" Click="Setting_Changed"/>
+                            <DockPanel Margin="0,6,0,0">
+                                <Button Content="📁" Click="BrowseShotFolder_Click" DockPanel.Dock="Left" Margin="0,0,6,0"/>
+                                <Button Content="باز کردن" Click="OpenShotFolder_Click" DockPanel.Dock="Right" Margin="6,0,0,0"/>
+                                <TextBox x:Name="ShotFolderBox" Style="{StaticResource PathBox}" IsReadOnly="True"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- کلیدها و صدا -->
+                    <Border Style="{StaticResource Card}" Margin="5,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="⌨ کلیدهای میانبر سراسری" Style="{StaticResource SectionTitle}"/>
+                            <CheckBox x:Name="HotkeysCheck" Content="کلیدهای میانبر فعال باشند" Click="Hotkeys_Changed"/>
+                            <Grid Margin="0,6,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="شروع / توقف" VerticalAlignment="Center" Margin="0,0,10,4"/>
+                                <TextBox x:Name="HkRecordBox" Grid.Column="1" Tag="record" Margin="0,0,0,4" IsReadOnly="True" FlowDirection="LeftToRight" TextAlignment="Center" Cursor="Hand"
+                                         GotFocus="HotkeyBox_GotFocus" LostFocus="HotkeyBox_LostFocus" PreviewKeyDown="HotkeyBox_PreviewKeyDown"/>
+                                <TextBlock Grid.Row="1" Text="مکث / ادامه" VerticalAlignment="Center" Margin="0,0,10,4"/>
+                                <TextBox x:Name="HkPauseBox" Grid.Row="1" Grid.Column="1" Tag="pause" Margin="0,0,0,4" IsReadOnly="True" FlowDirection="LeftToRight" TextAlignment="Center" Cursor="Hand"
+                                         GotFocus="HotkeyBox_GotFocus" LostFocus="HotkeyBox_LostFocus" PreviewKeyDown="HotkeyBox_PreviewKeyDown"/>
+                                <TextBlock Grid.Row="2" Text="اسکرین‌شات" VerticalAlignment="Center" Margin="0,0,10,4"/>
+                                <TextBox x:Name="HkShotBox" Grid.Row="2" Grid.Column="1" Tag="shot" Margin="0,0,0,4" IsReadOnly="True" FlowDirection="LeftToRight" TextAlignment="Center" Cursor="Hand"
+                                         GotFocus="HotkeyBox_GotFocus" LostFocus="HotkeyBox_LostFocus" PreviewKeyDown="HotkeyBox_PreviewKeyDown"/>
+                            </Grid>
+                            <TextBlock x:Name="HotkeyStatusText" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                            <Button Content="بازنشانی کلیدها" Click="ResetHotkeys_Click" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+
+                            <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,10"/>
+                            <TextBlock Text="🎙 فرمان صوتی" Style="{StaticResource SectionTitle}"/>
+                            <CheckBox x:Name="VoiceCheck" Content="کنترل ضبط و اسکرین‌شات با صدا" Click="Voice_Changed"/>
+                            <TextBlock x:Name="VoiceStatusText" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,4"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" FlowDirection="LeftToRight" TextAlignment="Right"
+                                       Text="“start recording” · “stop recording” · “pause recording” · “resume recording” · “take screenshot”"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0" Text="ویندوز موتور تشخیص گفتار فارسی ندارد؛ فرمان‌ها انگلیسی و کاملاً آفلاین هستند."/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <!-- خروجی و ضبط‌های اخیر -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="📂 محل ذخیره و ضبط‌های اخیر" Style="{StaticResource SectionTitle}"/>
+                        <DockPanel Margin="0,0,0,8">
+                            <Button Content="📁" Click="BrowseOutput_Click" DockPanel.Dock="Left" Margin="0,0,6,0"/>
+                            <Button Content="باز کردن پوشه" Click="OpenOutput_Click" DockPanel.Dock="Right" Margin="6,0,0,0"/>
+                            <TextBox x:Name="OutputFolderBox" Style="{StaticResource PathBox}" IsReadOnly="True"/>
+                        </DockPanel>
+                        <ListBox x:Name="RecentList" Height="150" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                 Foreground="{DynamicResource TextBrush}" MouseDoubleClick="RecentOpen_Click" FlowDirection="LeftToRight"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="▶ پخش" Click="RecentOpen_Click" Margin="0,0,6,0"/>
+                            <Button Content="نمایش در پوشه" Click="RecentReveal_Click" Margin="0,0,6,0"/>
+                            <Button Content="🗑 انتقال به سطل زباله" Click="RecentDelete_Click" Style="{StaticResource DangerButton}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
