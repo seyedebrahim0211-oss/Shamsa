@@ -34,7 +34,7 @@ jobs:
 
       - name: Restore & Build
         run: |
-          dotnet restore Shamsa.csproj
+          dotnet restore Shamsa.csproj -r win-x64
           dotnet build Shamsa.csproj -c Release -r win-x64 --no-restore
 
       - name: Publish self-contained win-x64
