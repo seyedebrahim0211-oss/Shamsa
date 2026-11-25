@@ -35,6 +35,8 @@ public sealed class DesktopStudioWindow : Window
         ("launcher", "", "جستجوی سریع"),
         ("wm", "", "مدیر پنجره‌ها"),
         ("rules", "", "قوانین و حالت‌های کاری"),
+        ("widgets", "", "ویجت‌ها"),
+        ("fences", "", "گروه‌بندی دسکتاپ"),
         ("hotkeys", "", "میانبرها و تداخل‌ها"),
     };
 
@@ -152,6 +154,10 @@ public sealed class DesktopStudioWindow : Window
                 case "hotkeys": BuildHotkeys(); break;
                 case "rules": External("قوانین و حالت‌های کاری", "برای هر برنامه قانون بگذار (شناور، همیشه رو، جای ثابت) و چیدمان پنجره‌ها را با یک کلید ذخیره و بازیابی کن.",
                     () => Rules.RulesStudioPage.Build(_s, Changed)); break;
+                case "widgets": External("ویجت‌ها", "تقویم شمسی با تعطیلات، اوقات شرعی، آب‌وهوا، یادداشت و ساعت روی دسکتاپ.",
+                    () => Widgets.WidgetsStudioPage.Build(_s, Changed)); break;
+                case "fences": External("گروه‌بندی دسکتاپ", "جعبه‌های شیشه‌ای برای مرتب دیدن آیکون‌ها؛ آیکون‌های واقعی دسکتاپ حذف یا پنهان نمی‌شوند.",
+                    () => Fences.FencesStudioPage.Build(_s, Changed)); break;
             }
             _scroll.ScrollToTop();
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => _scroll.ScrollToTop());

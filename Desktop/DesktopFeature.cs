@@ -51,6 +51,8 @@ public static class DesktopFeature
         yield return () => new Launcher.LauncherModule();
         yield return () => new WindowManager.WindowManagerModule();
         yield return () => new Rules.RulesModule();
+        yield return () => new Widgets.WidgetsModule();
+        yield return () => new Fences.FencesModule();
     }
 
     public static bool IsActive => DesktopSettingsStore.Current.Enabled && Modules.Any(m => m.IsRunning);
