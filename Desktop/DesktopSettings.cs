@@ -87,6 +87,142 @@ public sealed class WindowManagerSettings
     public List<string> ExcludedProcesses { get; set; } = new() { "Taskmgr.exe", "ScreenClippingHost.exe" };
 }
 
+public sealed class ControlCenterSettings
+{
+    public bool Enabled { get; set; } = true;
+    public bool ShowWifi { get; set; } = true;
+    public bool ShowBluetooth { get; set; } = true;
+    public bool ShowBrightness { get; set; } = true;
+    public bool ShowNightLight { get; set; } = true;
+    public bool ShowFocus { get; set; } = true;          // Do-not-disturb / Focus
+    public bool ShowVolume { get; set; } = true;
+    public bool ShowMedia { get; set; } = true;
+    public bool ShowAutoTheme { get; set; } = true;
+}
+
+/// <summary>Per-application window rule (matched by exe file name, optional title substring).</summary>
+public sealed class AppRule
+{
+    public string Process { get; set; } = "";           // e.g. "notepad.exe"
+    public string? TitleContains { get; set; }
+    public bool Float { get; set; }                      // window manager never tiles it
+    public bool AlwaysOnTop { get; set; }
+    public bool StartMaximized { get; set; }
+    public bool UseFixedRect { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Width { get; set; } = 900;
+    public int Height { get; set; } = 600;
+    public int MonitorIndex { get; set; }                // 0 = primary
+    public int VirtualDesktop { get; set; }              // 0 = don't care, 1.. = desktop number
+    public bool Enabled { get; set; } = true;
+}
+
+/// <summary>A saved arrangement of apps ("حالت کار").</summary>
+public sealed class LayoutProfile
+{
+    public string Name { get; set; } = "حالت کار";
+    public List<LayoutEntry> Windows { get; set; } = new();
+    public string? WindowManagerLayout { get; set; }     // optional tiling layout to switch to
+    public uint HotkeyModifiers { get; set; }
+    public int HotkeyKey { get; set; }                   // 0 = no hotkey
+}
+
+public sealed class LayoutEntry
+{
+    public string ExePath { get; set; } = "";
+    public string? Arguments { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public bool Maximized { get; set; }
+    public bool LaunchIfNotRunning { get; set; } = true;
+}
+
+public sealed class ClipboardSettings
+{
+    public bool Enabled { get; set; } = true;
+    public int MaxItems { get; set; } = 50;              // 10..200
+    public bool KeepImages { get; set; } = true;
+    public bool PersistAcrossRestarts { get; set; } = false;  // stored DPAPI-encrypted when true
+    public List<string> IgnoredProcesses { get; set; } = new() { "KeePass.exe", "KeePassXC.exe", "1Password.exe", "Bitwarden.exe" };
+}
+
+public sealed class VoiceSettings
+{
+    public bool Enabled { get; set; } = false;           // microphone stays off until opted in
+    public string WakeWord { get; set; } = "شمسا";
+    public bool PreferPersian { get; set; } = true;      // fa-IR recogniser when installed, else Finglish phrases
+    public bool Feedback { get; set; } = true;           // small toast showing what was heard
+}
+
+public sealed class WidgetPlacement
+{
+    public string Kind { get; set; } = "calendar";       // calendar | prayer | weather | note | clock
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public double X { get; set; } = 80;
+    public double Y { get; set; } = 80;
+    public double Width { get; set; } = 300;
+    public double Height { get; set; } = 320;
+    public string? Text { get; set; }                    // notes
+    public string? ColorHex { get; set; }
+}
+
+public sealed class WidgetsSettings
+{
+    public bool Enabled { get; set; } = false;
+    public List<WidgetPlacement> Items { get; set; } = new();
+    public string City { get; set; } = "تهران";
+    public double Latitude { get; set; } = 35.6892;
+    public double Longitude { get; set; } = 51.3890;
+    public string PrayerMethod { get; set; } = "Tehran";  // Tehran | Jafari | MWL | Karachi | Egypt
+    /// <summary>Weather is fetched from Open-Meteo (no key) only when enabled — sends the city coordinates.</summary>
+    public bool WeatherOnline { get; set; } = false;
+    public bool LockPositions { get; set; } = false;
+}
+
+public sealed class FenceDefinition
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Title { get; set; } = "گروه";
+    /// <summary>"folder" = shows a folder's content (portal); "filter" = desktop items matching Extensions.</summary>
+    public string Mode { get; set; } = "filter";
+    public string? FolderPath { get; set; }
+    public List<string> Extensions { get; set; } = new();
+    public double X { get; set; } = 60;
+    public double Y { get; set; } = 60;
+    public double Width { get; set; } = 360;
+    public double Height { get; set; } = 240;
+    public bool Collapsed { get; set; }
+    public string? TintHex { get; set; }
+}
+
+public sealed class FencesSettings
+{
+    public bool Enabled { get; set; } = false;
+    public List<FenceDefinition> Fences { get; set; } = new();
+    public bool RollUpOnTitleClick { get; set; } = true;
+    public bool LockPositions { get; set; } = false;
+}
+
+public sealed class AutoThemeSettings
+{
+    public bool Enabled { get; set; } = false;
+    public string Mode { get; set; } = "Sun";             // Sun (sunrise/sunset from widgets coordinates) | Fixed
+    public string LightAt { get; set; } = "07:00";
+    public string DarkAt { get; set; } = "19:00";
+    public bool ApplyToWindows { get; set; } = true;      // HKCU AppsUseLightTheme / SystemUsesLightTheme
+    public bool ApplyToShamsa { get; set; } = true;       // Shamsa light/dark glass tint
+}
+
+public sealed class TopBarPluginSettings
+{
+    public bool Enabled { get; set; } = true;
+    /// <summary>Plugin ids (file names in %LocalAppData%\Shamsa\plugins) the user switched off.</summary>
+    public List<string> Disabled { get; set; } = new();
+}
+
 public sealed class DesktopSettings
 {
     public int Version { get; set; } = 1;
@@ -101,10 +237,26 @@ public sealed class DesktopSettings
     public DockSettings Dock { get; set; } = new();
     public LauncherSettings Launcher { get; set; } = new();
     public WindowManagerSettings WindowManager { get; set; } = new();
+    public ControlCenterSettings ControlCenter { get; set; } = new();
+    public List<AppRule> AppRules { get; set; } = new();
+    public List<LayoutProfile> Layouts { get; set; } = new();
+    public ClipboardSettings Clipboard { get; set; } = new();
+    public VoiceSettings Voice { get; set; } = new();
+    public WidgetsSettings Widgets { get; set; } = new();
+    public FencesSettings Fences { get; set; } = new();
+    public AutoThemeSettings AutoTheme { get; set; } = new();
+    public TopBarPluginSettings Plugins { get; set; } = new();
+    /// <summary>Dock: live DWM window thumbnails when hovering an app.</summary>
+    public bool DockLivePreviews { get; set; } = true;
 
     public void Normalize()
     {
         Theme ??= new(); TopBar ??= new(); Dock ??= new(); Launcher ??= new(); WindowManager ??= new();
+        ControlCenter ??= new(); AppRules ??= new(); Layouts ??= new(); Clipboard ??= new(); Voice ??= new();
+        Widgets ??= new(); Fences ??= new(); AutoTheme ??= new(); Plugins ??= new();
+        Widgets.Items ??= new(); Fences.Fences ??= new(); Plugins.Disabled ??= new(); Clipboard.IgnoredProcesses ??= new();
+        foreach (var l in Layouts) l.Windows ??= new();
+        Clipboard.MaxItems = Math.Clamp(Clipboard.MaxItems, 10, 200);
         Theme.GlassOpacity = Math.Clamp(Theme.GlassOpacity, 20, 100);
         Theme.CornerRadius = Math.Clamp(Theme.CornerRadius, 0, 24);
         TopBar.Height = Math.Clamp(TopBar.Height, 26, 56);
