@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+  # Pull requests build and test the installer (downloadable artifact) but never publish a release.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       republish:
@@ -108,7 +111,7 @@ jobs:
 
       # A release is created once per version (tag pushes or manual re-publish may replace assets).
       - name: Publish release on GitHub
-        if: steps.meta.outputs.exists != 'True' || startsWith(github.ref, 'refs/tags/') || inputs.republish
+        if: github.event_name != 'pull_request' && (steps.meta.outputs.exists != 'True' || startsWith(github.ref, 'refs/tags/') || inputs.republish)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.meta.outputs.version }}
