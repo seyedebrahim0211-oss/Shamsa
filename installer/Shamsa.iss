@@ -1,20 +1,24 @@
-#ifndef MyAppVersion
-  #define MyAppVersion "3.0.0"
+﻿#ifndef MyAppVersion
+#define MyAppVersion "3.1.0"
 #endif
-
 #define AppName "Shamsa"
-#define AppPublisher "Honar Mardomi"
-#define AppURL "https://github.com/seyedebrahim0211-oss/Shamsa"
 
 [Setup]
 AppId={{E6C13DD9-67A1-4464-861A-F105DA49D2EF}
 AppName={#AppName}
+AppVerName=شمسا (Shamsa) نسخه {#MyAppVersion}
 AppVersion={#MyAppVersion}
-AppPublisher={#AppPublisher}
-AppPublisherURL={#AppURL}
-DefaultDirName={autopf}\{#AppName}
+VersionInfoVersion={#MyAppVersion}
+AppPublisher=Shamsa Contributors
+AppPublisherURL=https://github.com/seyedebrahim0211-oss/Shamsa
+AppSupportURL=https://github.com/seyedebrahim0211-oss/Shamsa/issues
+AppUpdatesURL=https://github.com/seyedebrahim0211-oss/Shamsa/releases
+DefaultDirName={autopf}\Shamsa
+DefaultGroupName=شمسا
+UninstallDisplayIcon={app}\Shamsa.exe
 OutputDir=..\dist
 OutputBaseFilename=Shamsa-Setup-v{#MyAppVersion}-win-x64
+SetupIconFile=..\Assets\Shamsa.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -22,26 +26,35 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
+; In-app updates pass /CLOSEAPPLICATIONS; the app also exits on its own before the installer copies files.
 CloseApplications=yes
-RestartApplications=yes
+RestartApplications=no
+UninstallDisplayName=شمسا (Shamsa)
 SetupLogging=yes
+; Updating in place keeps %LocalAppData%\Shamsa (settings, icons, recordings list) untouched.
+UsePreviousAppDir=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "autostart"; Description: "Run Shamsa automatically with Windows"; GroupDescription: "Startup"; Flags: unchecked
+Name: "desktopicon"; Description: "ساخت میانبر روی دسکتاپ"; GroupDescription: "میانبرها:"; Flags: unchecked
 
 [Files]
 Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\Shamsa.exe"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Shamsa.exe"; Tasks: desktopicon
+Name: "{autoprograms}\شمسا"; Filename: "{app}\Shamsa.exe"; WorkingDir: "{app}"
+Name: "{autodesktop}\شمسا"; Filename: "{app}\Shamsa.exe"; Tasks: desktopicon; WorkingDir: "{app}"
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Shamsa"; ValueData: """{app}\Shamsa.exe"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
+; Explorer integrations are created from inside the app (opt-in) under HKCU; remove them on uninstall only.
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\Shamsa.FolderStudio"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\Shamsa.FolderLock"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Classes\Shamsa.LockedFolder"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Classes\.shamsalock"; Flags: uninsdeletekey dontcreatekey
 
 [Run]
-Filename: "{app}\Shamsa.exe"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Shamsa.exe"; Description: "اجرای شمسا"; Flags: nowait postinstall skipifsilent
+; Silent in-app update: relaunch automatically so the user does not have to restart Shamsa.
+Filename: "{app}\Shamsa.exe"; Parameters: "--updated --tray"; Flags: nowait; Check: WizardSilent

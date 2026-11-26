@@ -34,7 +34,7 @@ public sealed class CompressionSettings
 
 public sealed class AppSettings
 {
-    public int SettingsVersion { get; set; } = 5;
+    public int SettingsVersion { get; set; } = 6;
     /// <summary>PersianTurquoise, LapisGlass, EmeraldGlass, AmethystGlass</summary>
     public string ThemeId { get; set; } = "PersianTurquoise";
     /// <summary>Custom accent in #RRGGBB format; empty = palette default.</summary>
@@ -47,10 +47,30 @@ public sealed class AppSettings
     public bool FolderPreviewEnabled { get; set; } = true;
     /// <summary>Automatic release checks do not install or run downloaded executables.</summary>
     public bool AutoCheckUpdates { get; set; } = true;
-    /// <summary>Optionally stage verified EXE automatically; installation always needs consent.</summary>
-    public bool AutoDownloadUpdates { get; set; } = false;
+    /// <summary>Stage the verified installer in the background.</summary>
+    public bool AutoDownloadUpdates { get; set; } = true;
+    /// <summary>Smart install: silently install a verified update once the PC has been idle (no input) and Shamsa is not busy.</summary>
+    public bool AutoInstallWhenIdle { get; set; } = false;
+    /// <summary>Version the user chose to skip (e.g. "3.0.1"); empty = none.</summary>
+    public string SkippedUpdateVersion { get; set; } = string.Empty;
     public bool HoverPreviewEnabled { get; set; } = true;
     public bool PreviewImages { get; set; } = true;
+    /// <summary>First-page previews of Word, Excel, PowerPoint, PDF, OpenDocument and text files.</summary>
+    public bool PreviewDocuments { get; set; } = true;
+
+    // ---- large glass folder preview
+    /// <summary>0 = icon grid, 1 = gallery (media mosaic + grid), 2 = detailed list.</summary>
+    public int FolderPreviewStyle { get; set; } = 1;
+    public int FolderPreviewWidth { get; set; } = 640;      // 380..1000 DIP
+    public int FolderPreviewTileSize { get; set; } = 96;    // 64..170 DIP
+    public int FolderPreviewMaxItems { get; set; } = 24;    // 6..60
+    public string FolderPreviewTintHex { get; set; } = "#0B1324";
+    public int FolderPreviewTintOpacity { get; set; } = 58; // 10..95 percent
+    public int FolderPreviewCornerRadius { get; set; } = 12; // tile corners 0..24
+    public bool FolderPreviewShowNames { get; set; } = true;
+    /// <summary>0 = folders first then name, 1 = newest first, 2 = by type.</summary>
+    public int FolderPreviewSort { get; set; } = 0;
+    public bool FolderPreviewZoomAnimation { get; set; } = true;
     public bool SmartScrub { get; set; } = true;
     public int HoverDelayMs { get; set; } = 140;
     public int PreviewSize { get; set; } = 1; // 0 = کوچک، 1 = متوسط، 2 = بزرگ (نگهداری برای سازگاری)
@@ -113,6 +133,22 @@ public static class SettingsService
                     }
                     if (loaded.SettingsVersion < 4) loaded.SettingsVersion = 4;
                     if (loaded.SettingsVersion < 5) loaded.SettingsVersion = 5;
+                    if (loaded.SettingsVersion < 6)
+                    {
+                        // 3.0: background download of verified updates is on by default; installing stays opt-in.
+                        loaded.AutoDownloadUpdates = true;
+                        loaded.PreviewDocuments = true;
+                        loaded.SettingsVersion = 6;
+                    }
+                    loaded.FolderPreviewStyle = Math.Clamp(loaded.FolderPreviewStyle, 0, 2);
+                    loaded.FolderPreviewWidth = Math.Clamp(loaded.FolderPreviewWidth, 380, 1000);
+                    loaded.FolderPreviewTileSize = Math.Clamp(loaded.FolderPreviewTileSize, 64, 170);
+                    loaded.FolderPreviewMaxItems = Math.Clamp(loaded.FolderPreviewMaxItems, 6, 60);
+                    loaded.FolderPreviewTintOpacity = Math.Clamp(loaded.FolderPreviewTintOpacity, 10, 95);
+                    loaded.FolderPreviewCornerRadius = Math.Clamp(loaded.FolderPreviewCornerRadius, 0, 24);
+                    loaded.FolderPreviewSort = Math.Clamp(loaded.FolderPreviewSort, 0, 2);
+                    if (!ThemeService.TryParseAccent(loaded.FolderPreviewTintHex, out _)) loaded.FolderPreviewTintHex = "#0B1324";
+                    loaded.SkippedUpdateVersion ??= string.Empty;
                     loaded.ThemeId = ThemeService.IsKnownTheme(loaded.ThemeId) ? loaded.ThemeId : "PersianTurquoise";
                     loaded.GlassOpacityPercent = Math.Clamp(loaded.GlassOpacityPercent, 45, 97);
                     loaded.ThemeAccentHex = ThemeService.TryParseAccent(loaded.ThemeAccentHex, out _) ? loaded.ThemeAccentHex : string.Empty;

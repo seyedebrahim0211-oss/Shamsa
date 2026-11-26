@@ -1,18 +1,23 @@
-# Changelog — Shamsa Pro
+﻿# تغییرات شمسا / Shamsa Changelog
 
-## [3.0.0] - 2026-11-25
-### Added
-- **In-App Auto-Updater (`UpdateServicePro`)**: GitHub Releases integration with changelog preview, streaming progress bar, SHA-256 verification, pre-update settings backup, and silent installer launch.
-- **Office & PDF First-Page Preview (`DocumentPreviewService`)**: High-DPI Windows Shell thumbnails plus offline OpenXML first-page preview for Word, Excel, PowerPoint, and PDF files.
-- **Glassmorphic Customizable Folder Preview (`GlassFolderPreviewWindow`)**: Resizable glass window with live opacity slider, search, and integrated document/media preview pane.
-- **Fold11-Style Folder Icon Studio & AES-256 Locker (`FolderIconService`, `FolderVaultService`, `FolderCustomizerWindow`)**: Custom gradient/text/image `.ico` builder, batch folder apply via `desktop.ini`, HKCU Explorer context menu, and AES-256-GCM folder vault encryption.
-- **Bandicam-Style Screen Recorder & Voice Commands (`ScreenRecorderService`, `VoiceCommandService`, `ScreenRecorderHudWindow`)**: FFmpeg-backed recording, instant screenshots, and Persian/English voice triggers.
-- **Seelen UI-Inspired Desktop Environment Suite**:
-  - Customizable Top Bar & Control Center (`TopBarWindow`) with Jalali clock, Workspace switcher, Windows Settings quick controls, and Plugin Host slot.
-  - Floating Smart Dock (`SmartDockWindow`) with hover magnification and live DWM window previews (`DwmRegisterThumbnail`).
-  - Real Win32 Tiling Window Manager (`WindowManagerService`) with 2/3/4-zone/stacked layouts, per-app rules, and saved Workspace profiles.
-  - Desktop Widgets (`WidgetHostWindow`) with Jalali/Gregorian/Hijri calendar, Iranian holidays, Prayer Times, real CPU/RAM/Disk/Battery/Network telemetry, and Sticky Notes.
-  - Non-destructive Fences-style Desktop Grouping (`DesktopFencesWindow`).
-  - Spotlight Quick Search & Local Clipboard History (`SpotlightLauncherWindow`, `ClipboardHistoryService`).
-  - Extended Theme Engine (`ThemeEngineProService`) with 8 themes, auto day/night clock schedule, RTL, and `Vazirmatn` font support.
-  - Safe Mode & One-Click Restore Windows Desktop (`RecoveryService`).
+## [3.1.0]
+- **به‌روزرسانی هوشمند داخل برنامه:** دانلود و تأیید SHA-256 در پس‌زمینه، نصب «یک‌کلیکی» بی‌صدا با اجرای دوباره خودکار، نصب خودکار اختیاری هنگام بیکاری سیستم، نمایش تغییرات نسخه، رد کردن یک نسخه و پیام تأیید پس از به‌روزرسانی.
+- **پیش‌نمایش اسناد کنار موس:** صفحه اول Word، Excel، PowerPoint، PDF، OpenDocument، Markdown و فایل‌های متنی/کد؛ پشتیبانی کامل از متن فارسی راست‌به‌چپ؛ تعداد صفحه، برگه و اسلاید.
+- **کارت شیشه‌ای بزرگ پوشه:** نمای واقعی محتویات پوشه (شبکه، گالری رسانه یا فهرست) با انیمیشن بزرگ‌شدن و تنظیم پهنا، اندازه کاشی، رنگ و تیرگی شیشه، گردی گوشه‌ها و مرتب‌سازی.
+- **ضبط صفحه و اسکرین‌شات:** کل صفحه، ناحیه یا پنجره؛ صدای سیستم و میکروفون؛ مکث/ادامه؛ نمایش کلیک‌ها؛ شمارش معکوس؛ انکودر کارت گرافیک؛ شورتکات‌های سراسری و فرمان صوتی (انگلیسی).
+- **استودیو پوشه:** ساخت آیکون دلخواه پوشه (رنگ، گرادیان، ایموجی، متن یا تصویر)، کتابخانه محلی، علاقه‌مندی‌ها و تاریخچه، اعمال گروهی؛ قفل پوشه با رمز و رمزنگاری AES-256-GCM؛ منوی کلیک‌راست اختیاری در Explorer.
+- **محیط دسکتاپ به سبک Seelen UI (اختیاری):** نوار بالای شیشه‌ای (فضاهای کاری، برنامه فعال، ساعت و تاریخ شمسی با تقویم، پخش رسانه، پردازنده/حافظه، شبکه، صدا، باتری)، داک مک‌مانند با بزرگ‌نمایی و پین کشیدن‌ورها کردن، جستجوی سریع Spotlight (برنامه‌ها، تنظیمات ویندوز، فایل‌ها، ماشین‌حساب، وب؛ فارسی و انگلیسی)، مدیر پنجره با چسباندن به نیمه/ربع و کاشی‌کاری خودکار با پنج چیدمان؛ پنهان‌سازی برگشت‌پذیر تسک‌بار ویندوز.
+- **استودیو دسکتاپ:** همه تنظیمات نوار بالا، داک، جستجو، مدیر پنجره، رنگ، شیشه و فونت در یک پنجره ساده با اعمال زنده، حالت‌های آماده (Seelen، مک، کاشی‌کاری، مینیمال) و دکمه همیشگی «بازگردانی دسکتاپ ویندوز» (در منوی سینی هم هست؛ پس از خطا یا خروج هم خودکار انجام می‌شود).
+- **بدون تداخل میانبرها:** همه کلیدهای سراسری (منوی دایره‌ای، ضبط صفحه، جستجو، مدیر پنجره) در یک ثبت‌کننده مشترک؛ تداخل‌ها جلوگیری و در صفحه «میانبرها و تداخل‌ها» نمایش داده می‌شوند.
+- **فونت فارسی داخلی:** وزیرمتن (OFL) داخل برنامه است تا رابط روی هر ویندوزی یکسان و خوانا باشد؛ انتخاب فونت دلخواه از استودیو.
+- **مرکز کنترل:** وای‌فای و بلوتوث (روشن/خاموش مستقیم)، روشنایی صفحه (لپ‌تاپ یا نمایشگر DDC/CI)، صدا، پخش رسانه، تم روشن/تیره، و میان‌بر به نور شب و مزاحم نشوید (ویندوز برای این دو رابط عمومی ندارد).
+- **قوانین برنامه‌ها و حالت‌های کاری:** شناور، همیشه رو، بزرگ یا جای ثابت برای هر برنامه؛ ذخیره چیدمان پنجره‌ها و بازیابی با یک کلید (برنامه‌های بسته خودکار باز می‌شوند).
+- **تصویر زنده پنجره‌ها روی داک** هنگام اشاره به آیکون، با دکمه بستن.
+- **ویجت‌های دسکتاپ:** تقویم شمسی با تعطیلات رسمی، اوقات شرعی ۳۶ شهر، آب‌وهوا (اختیاری، Open-Meteo)، یادداشت و ساعت.
+- **گروه‌بندی دسکتاپ به سبک Fences** بدون حذف یا پنهان کردن آیکون‌های واقعی.
+- **تم خودکار روز و شب** با ساعت دلخواه یا طلوع و غروب خورشید؛ تنظیم اصلی ویندوز هنگام خاموش کردن برمی‌گردد.
+- **تاریخچه کلیپ‌بورد در جستجوی سریع** (`Ctrl+Alt+V` یا «cb »)؛ رمزهای مدیران رمز ثبت نمی‌شوند و ذخیره روی دیسک اختیاری و رمزنگاری‌شده است.
+- **فرمان صوتی فارسی** («شمسا باز کن …»، چیدمان‌ها، حالت کاری، اسکرین‌شات) — با بسته گفتار فارسی ویندوز، یا فینگلیش در غیر این صورت.
+- **افزونه‌های نوار بالا** با فایل‌های JSON ساده.
+- **پیش‌نمایش PDF** اکنون صفحه‌ها را خودکار ورق می‌زند.
+- نسخه از `Shamsa.csproj` خوانده می‌شود و انتشار GitHub برای هر نسخه یک بار ساخته می‌شود.

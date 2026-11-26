@@ -45,7 +45,9 @@
         <GradientStop Color="#1E3A8A" Offset="1"/>
     </LinearGradientBrush>
 
-    <FontFamily x:Key="UiFont">Vazirmatn, IRANSans, Vazir, Segoe UI, Tahoma</FontFamily>
+    <!-- Embedded Vazirmatn first (Assets/Fonts, OFL) so every machine gets the same Persian type;
+         App can swap this key at startup for the user's chosen font (desktop.json → UiFontFamily). -->
+    <FontFamily x:Key="UiFont">pack://application:,,,/Assets/Fonts/#Vazirmatn, Vazirmatn, IRANSansX, Segoe UI, Tahoma</FontFamily>
 
     <!-- دکمه‌ها -->
     <Style TargetType="Button">

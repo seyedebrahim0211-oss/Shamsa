@@ -228,6 +228,12 @@ public partial class ToolsDashboardWindow : Window
     public event Action? OpenShelfRequested;
     public event Action? ExitAppRequested;
     public event Action<bool>? HotkeyRecordingChanged;
+    public event Action? OpenRecorderRequested;
+    public event Action? OpenFolderStudioRequested;
+    public event Action<string>? DemoFolderPreviewRequested;
+
+    private static readonly string[] FolderTintPalette =
+        { "#0B1324", "#0F2A3D", "#0E3B36", "#1F1B3A", "#3A1530", "#2B2116", "#111827", "#F8FAFC" };
 
     public ToolsDashboardWindow(ConverterService converter, Func<bool>? isHotkeyRegistered = null)
     {
@@ -258,6 +264,21 @@ public partial class ToolsDashboardWindow : Window
         foreach (var action in ConverterService.ConvertActions.Append("zip"))
             ConvertActionBox.Items.Add(new ComboBoxItem { Content = ConverterService.ActionLabel(action), Tag = action });
         ConvertActionBox.SelectedIndex = 0;
+
+        foreach (var hex in FolderTintPalette)
+        {
+            var swatch = new Button
+            {
+                Width = 24, Height = 24, Margin = new Thickness(0, 0, 5, 0), Padding = new Thickness(0), Tag = hex,
+                ToolTip = hex,
+                Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex)),
+                BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1)
+            };
+            swatch.Click += (_, _) => SetFolderTint(hex);
+            FolderTintSwatches.Children.Add(swatch);
+        }
+        UpdateService.StateChanged += OnUpdateStateChanged;
 
         LoadSettingsIntoUi();
         UpdateFfmpegStatus();
@@ -293,6 +314,10 @@ public partial class ToolsDashboardWindow : Window
     }
 
     private void DemoDonut_Click(object sender, RoutedEventArgs e) => DemoDonutRequested?.Invoke();
+    private void OpenRecorder_Click(object sender, RoutedEventArgs e) => OpenRecorderRequested?.Invoke();
+    private void OpenFolderStudio_Click(object sender, RoutedEventArgs e) => OpenFolderStudioRequested?.Invoke();
+    private void OpenDesktopStudio_Click(object sender, RoutedEventArgs e) => Shamsa.Desktop.DesktopFeature.ShowStudio();
+    private void OpenLauncher_Click(object sender, RoutedEventArgs e) => Shamsa.Desktop.DesktopFeature.ShowLauncher();
     private void OpenShelfFromHeader_Click(object sender, RoutedEventArgs e) => OpenShelfRequested?.Invoke();
     private void JumpToOrganizer_Click(object sender, RoutedEventArgs e) => SelectTab(1);
     private void JumpToConverter_Click(object sender, RoutedEventArgs e) => SelectTab(4);
@@ -958,7 +983,21 @@ public partial class ToolsDashboardWindow : Window
         AutoUpdateCheck.IsChecked = s.AutoCheckUpdates;
         AutoDownloadUpdateCheck.IsChecked = s.AutoDownloadUpdates;
         AutoDownloadUpdateCheck.IsEnabled = s.AutoCheckUpdates;
+        AutoInstallIdleCheck.IsChecked = s.AutoInstallWhenIdle;
+        AutoInstallIdleCheck.IsEnabled = s.AutoCheckUpdates && s.AutoDownloadUpdates;
         PreviewImagesCheck.IsChecked = s.PreviewImages;
+        PreviewDocumentsCheck.IsChecked = s.PreviewDocuments;
+        FolderStyleBox.SelectedIndex = s.FolderPreviewStyle;
+        FolderSortBox.SelectedIndex = s.FolderPreviewSort;
+        FolderWidthSlider.Value = s.FolderPreviewWidth;
+        FolderTileSlider.Value = s.FolderPreviewTileSize;
+        FolderItemsSlider.Value = s.FolderPreviewMaxItems;
+        FolderTintSlider.Value = s.FolderPreviewTintOpacity;
+        FolderRadiusSlider.Value = s.FolderPreviewCornerRadius;
+        FolderTintBox.Text = s.FolderPreviewTintHex;
+        FolderNamesCheck.IsChecked = s.FolderPreviewShowNames;
+        FolderZoomCheck.IsChecked = s.FolderPreviewZoomAnimation;
+        UpdateFolderSliderLabels();
         SmartScrubCheck.IsChecked = s.SmartScrub;
         HoverDelaySlider.Value = s.HoverDelayMs;
         HoverDelayText.Text = $"{s.HoverDelayMs} ms";
@@ -1045,7 +1084,9 @@ public partial class ToolsDashboardWindow : Window
             s.FolderPreviewEnabled = FolderPreviewCheck.IsChecked == true;
             s.AutoCheckUpdates = AutoUpdateCheck.IsChecked == true;
             s.AutoDownloadUpdates = s.AutoCheckUpdates && AutoDownloadUpdateCheck.IsChecked == true;
+            s.AutoInstallWhenIdle = s.AutoDownloadUpdates && AutoInstallIdleCheck.IsChecked == true;
             s.PreviewImages = PreviewImagesCheck.IsChecked == true;
+            s.PreviewDocuments = PreviewDocumentsCheck.IsChecked == true;
             s.SmartScrub = SmartScrubCheck.IsChecked == true;
             s.DonutEnabled = DonutCheck.IsChecked == true;
             s.DonutShortcutEnabled = DonutShortcutCheck.IsChecked == true;
@@ -1217,26 +1258,152 @@ public partial class ToolsDashboardWindow : Window
         SettingsService.Save(); // notify listeners (tray menu)
     }
 
+    // =====================================================================
+    // Folder glass card customisation
+    // =====================================================================
+
+    private void UpdateFolderSliderLabels()
+    {
+        if (FolderWidthText == null || FolderTileText == null || FolderItemsText == null || FolderTintText == null || FolderRadiusText == null
+            || FolderWidthSlider == null || FolderTileSlider == null || FolderItemsSlider == null || FolderTintSlider == null || FolderRadiusSlider == null) return;
+        FolderWidthText.Text = $"{(int)FolderWidthSlider.Value} px";
+        FolderTileText.Text = $"{(int)FolderTileSlider.Value} px";
+        FolderItemsText.Text = $"{(int)FolderItemsSlider.Value}";
+        FolderTintText.Text = $"{(int)FolderTintSlider.Value}%";
+        FolderRadiusText.Text = $"{(int)FolderRadiusSlider.Value} px";
+    }
+
+    private void FolderPreviewSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        UpdateFolderSliderLabels();
+        if (_loading || FolderRadiusSlider == null) return;
+        SettingsService.Update(s =>
+        {
+            s.FolderPreviewWidth = (int)FolderWidthSlider.Value;
+            s.FolderPreviewTileSize = (int)FolderTileSlider.Value;
+            s.FolderPreviewMaxItems = (int)FolderItemsSlider.Value;
+            s.FolderPreviewTintOpacity = (int)FolderTintSlider.Value;
+            s.FolderPreviewCornerRadius = (int)FolderRadiusSlider.Value;
+        });
+    }
+
+    private void FolderPreviewSetting_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading || FolderStyleBox == null || FolderSortBox == null) return;
+        SettingsService.Update(s =>
+        {
+            s.FolderPreviewStyle = Math.Max(0, FolderStyleBox.SelectedIndex);
+            s.FolderPreviewSort = Math.Max(0, FolderSortBox.SelectedIndex);
+            s.FolderPreviewShowNames = FolderNamesCheck.IsChecked == true;
+            s.FolderPreviewZoomAnimation = FolderZoomCheck.IsChecked == true;
+        });
+    }
+
+    private void SetFolderTint(string hex)
+    {
+        FolderTintBox.Text = hex;
+        SettingsService.Update(s => s.FolderPreviewTintHex = hex);
+    }
+
+    private void ApplyFolderTint_Click(object sender, RoutedEventArgs e)
+    {
+        string hex = FolderTintBox.Text.Trim();
+        if (!ThemeService.TryParseAccent(hex, out _))
+        {
+            MessageBox.Show(this, "رنگ را به شکل #RRGGBB وارد کنید؛ مثال: #0B1324", "شمسا", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        SetFolderTint(hex.ToUpperInvariant());
+    }
+
+    private void DemoFolderPreview_Click(object sender, RoutedEventArgs e)
+    {
+        string? folder = ShellActions.PickFolder(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), this);
+        if (folder != null) DemoFolderPreviewRequested?.Invoke(folder);
+    }
+
+    private void ResetFolderPreview_Click(object sender, RoutedEventArgs e)
+    {
+        var d = new AppSettings();
+        SettingsService.Update(s =>
+        {
+            s.FolderPreviewStyle = d.FolderPreviewStyle;
+            s.FolderPreviewWidth = d.FolderPreviewWidth;
+            s.FolderPreviewTileSize = d.FolderPreviewTileSize;
+            s.FolderPreviewMaxItems = d.FolderPreviewMaxItems;
+            s.FolderPreviewTintHex = d.FolderPreviewTintHex;
+            s.FolderPreviewTintOpacity = d.FolderPreviewTintOpacity;
+            s.FolderPreviewCornerRadius = d.FolderPreviewCornerRadius;
+            s.FolderPreviewShowNames = d.FolderPreviewShowNames;
+            s.FolderPreviewSort = d.FolderPreviewSort;
+            s.FolderPreviewZoomAnimation = d.FolderPreviewZoomAnimation;
+        });
+        RefreshSettings();
+    }
+
+    // =====================================================================
+    // Updates
+    // =====================================================================
+
+    private bool _updateBusy;
+
+    private void OnUpdateStateChanged() => Dispatcher.BeginInvoke(() => { if (!_updateBusy) RefreshUpdateStatus(); });
+
     public void RefreshUpdateStatus()
     {
         if (UpdateStatusText == null || InstallUpdateBtn == null) return;
+        string checkedAt = UpdateService.LastCheckedLocal > DateTime.MinValue
+            ? $" · آخرین بررسی {UpdateService.LastCheckedLocal:HH:mm}" : string.Empty;
+        UpdateVersionBadge.Text = $"v{UpdateService.CurrentVersion.ToString(3)}{checkedAt}";
         var release = UpdateService.Latest;
         if (release == null)
         {
             UpdateStatusText.Text = UpdateService.LastError != null
                 ? "بررسی به‌روزرسانی ناموفق بود: " + UpdateService.LastError
-                : $"نسخه فعلی: {UpdateService.CurrentVersion.ToString(3)} · برای بررسی جدید دکمه پایین را بزنید.";
-            InstallUpdateBtn.IsEnabled = false;
+                : $"نسخه فعلی: {UpdateService.CurrentVersion.ToString(3)} · برای بررسی دستی دکمه پایین را بزنید.";
+            InstallUpdateBtn.IsEnabled = InstallUpdateWizardBtn.IsEnabled = false;
+            SkipUpdateBtn.Visibility = ReleasePageBtn.Visibility = UpdateNotesPanel.Visibility = Visibility.Collapsed;
+            return;
         }
-        else
-        {
-            UpdateStatusText.Text = $"نسخه جدید {release.Version} آماده است · " +
-                (UpdateService.HasVerifiedDownload(release)
-                    ? "فایل دریافت شده، هنگام نصب مجدداً بررسی خواهد شد."
-                    : $"حجم فایل نصب: {FileKinds.FormatSize(release.SizeBytes)}");
-            InstallUpdateBtn.IsEnabled = true;
-        }
+
+        bool skipped = release.Version.ToString(3) == SettingsService.Current.SkippedUpdateVersion;
+        bool staged = UpdateService.HasVerifiedDownload(release);
+        UpdateStatusText.Text = $"🎉 نسخه جدید {release.Version} منتشر شده است · " +
+            (staged ? "فایل نصب دریافت و تأیید شده؛ آماده نصب با یک کلیک."
+                    : $"حجم دانلود: {FileKinds.FormatSize(release.SizeBytes)}") +
+            (skipped ? " (این نسخه را رد کرده‌اید)" : string.Empty);
+        InstallUpdateBtn.IsEnabled = InstallUpdateWizardBtn.IsEnabled = true;
+        SkipUpdateBtn.Visibility = skipped ? Visibility.Collapsed : Visibility.Visible;
+        ReleasePageBtn.Visibility = Visibility.Visible;
+        UpdateNotesText.Text = string.IsNullOrWhiteSpace(release.Notes) ? "یادداشت انتشار ارائه نشده است." : CleanNotes(release.Notes);
+        UpdateNotesPanel.Visibility = Visibility.Visible;
     }
+
+    /// <summary>Light Markdown cleanup for the notes box (headings, bullets, bold, links).</summary>
+    private static string CleanNotes(string markdown)
+    {
+        var lines = markdown.Replace("\r\n", "\n").Split('\n')
+            .Select(l => l.TrimEnd())
+            .Select(l => l.StartsWith("#") ? "▪ " + l.TrimStart('#', ' ') : l)
+            .Select(l => l.StartsWith("- ") || l.StartsWith("* ") ? "•  " + l[2..] : l)
+            .Select(l => System.Text.RegularExpressions.Regex.Replace(l, @"\*\*(.+?)\*\*", "$1"))
+            .Select(l => System.Text.RegularExpressions.Regex.Replace(l, @"\[(.+?)\]\((.+?)\)", "$1"));
+        return string.Join("\n", lines).Trim();
+    }
+
+    private void SkipUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (UpdateService.Latest is { } release)
+            SettingsService.Update(s => s.SkippedUpdateVersion = release.Version.ToString(3));
+        RefreshUpdateStatus();
+    }
+
+    private void ReleasePage_Click(object sender, RoutedEventArgs e)
+    {
+        if (UpdateService.Latest is { } release) ShellActions.OpenPath(release.ReleasePage);
+    }
+
+    private void InstallUpdateWizard_Click(object sender, RoutedEventArgs e) => _ = InstallUpdateAsync(silent: false);
 
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
     {
@@ -1255,35 +1422,41 @@ public partial class ToolsDashboardWindow : Window
         finally { CheckUpdateBtn.IsEnabled = true; }
     }
 
-    private async void InstallUpdate_Click(object sender, RoutedEventArgs e)
+    private void InstallUpdate_Click(object sender, RoutedEventArgs e) => _ = InstallUpdateAsync(silent: true);
+
+    private async Task InstallUpdateAsync(bool silent)
     {
         var release = UpdateService.Latest;
-        if (release == null) return;
+        if (release == null || _updateBusy) return;
         string size = FileKinds.FormatSize(release.SizeBytes);
-        var question = $"نسخه {release.Version} شمسا ({size}) از GitHub دریافت و با SHA-256 بررسی می‌شود. سپس نصب‌کننده اجرا شده و برنامه بسته می‌شود. ادامه می‌دهید؟";
+        string how = silent
+            ? "نصب بی‌صدا انجام می‌شود و شمسا خودکار دوباره اجرا می‌شود."
+            : "پنجره نصب‌کننده باز می‌شود و شمسا بسته می‌شود.";
+        var question = $"نسخه {release.Version} شمسا ({size}) دریافت و با SHA-256 رسمی تأیید می‌شود. {how}\nتنظیمات شما حفظ می‌شود. ادامه می‌دهید؟";
         if (MessageBox.Show(this, question, "به‌روزرسانی شمسا",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
 
-        InstallUpdateBtn.IsEnabled = false;
-        CheckUpdateBtn.IsEnabled = false;
+        _updateBusy = true;
+        InstallUpdateBtn.IsEnabled = InstallUpdateWizardBtn.IsEnabled = CheckUpdateBtn.IsEnabled = false;
+        UpdateProgress.Visibility = Visibility.Visible;
+        UpdateProgress.Value = 0;
         try
         {
             var progress = new Progress<string>(msg => UpdateStatusText.Text = msg);
-            string installer = await UpdateService.DownloadVerifiedAsync(release, progress);
-            UpdateStatusText.Text = "فایل تأیید شد؛ نصب‌کننده ویندوز در حال اجراست…";
-            UpdateService.LaunchInstaller(installer, release);
+            var percent = new Progress<double>(p => UpdateProgress.Value = p);
+            string installer = await UpdateService.DownloadVerifiedAsync(release, progress, default, percent);
+            UpdateStatusText.Text = silent ? "فایل تأیید شد؛ در حال نصب و اجرای دوباره شمسا…" : "فایل تأیید شد؛ نصب‌کننده ویندوز در حال اجراست…";
+            await UpdateService.LaunchInstallerAsync(installer, release, silent);
             Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
             UpdateStatusText.Text = "خطای دریافت یا اجرای نسخه جدید: " + ex.Message;
             MessageBox.Show(this, UpdateStatusText.Text, "شمسا", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-        finally
-        {
-            InstallUpdateBtn.IsEnabled = true;
-            CheckUpdateBtn.IsEnabled = true;
+            _updateBusy = false;
+            UpdateProgress.Visibility = Visibility.Collapsed;
+            InstallUpdateBtn.IsEnabled = InstallUpdateWizardBtn.IsEnabled = CheckUpdateBtn.IsEnabled = true;
         }
     }
 
@@ -1344,6 +1517,7 @@ public partial class ToolsDashboardWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
+        UpdateService.StateChanged -= OnUpdateStateChanged;
         _dupCts?.Cancel();
         _convertCts?.Cancel();
         _renameDebounce.Stop();

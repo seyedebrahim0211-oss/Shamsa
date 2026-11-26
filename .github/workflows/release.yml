@@ -1,21 +1,32 @@
-name: Build and publish Windows 11 installer
+name: Build and publish Windows installer
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+    branches: [main]
+    tags: ["v*"]
+  # Pull requests build and test the installer (downloadable artifact) but never publish a release.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      republish:
+        description: "Re-upload assets even if the release for this version already exists"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+concurrency:
+  group: shamsa-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-release:
+  windows-release:
     runs-on: windows-latest
     timeout-minutes: 45
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup .NET 8
@@ -23,56 +34,97 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Read version from Shamsa.csproj
-        id: ver
+      # Single source of truth: <Version> in Shamsa.csproj. Bump it to ship an update;
+      # installed copies detect the higher GitHub release and update themselves in-app.
+      - name: Read version and release notes
+        id: meta
         shell: pwsh
         run: |
-          [xml]$csproj = Get-Content Shamsa.csproj
-          $v = $csproj.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-          echo "version=$v" >> $env:GITHUB_OUTPUT
-          echo "tag=v$v" >> $env:GITHUB_OUTPUT
+          $version = ([xml](Get-Content Shamsa.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid <Version> '$version' in Shamsa.csproj" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          $notes = "نسخه $version شمسا"
+          if (Test-Path CHANGELOG.md) {
+            $text = Get-Content CHANGELOG.md -Raw -Encoding utf8
+            $m = [regex]::Match($text, "(?ms)^## \[?v?$([regex]::Escape($version))\]?.*?$\r?\n(.*?)(?=^## |\z)")
+            if ($m.Success) { $notes = $m.Groups[1].Value.Trim() }
+          }
+          $notes += "`n`n---`nنصب‌کننده ویندوز ۱۰/۱۱ (۶۴ بیتی)، نسخه پرتابل و فایل SHA256SUMS. نسخه‌های نصب‌شده از داخل برنامه (تنظیمات › به‌روزرسانی) به‌روز می‌شوند. فایل نصب امضای دیجیتال کد ندارد؛ SmartScreen ممکن است هشدار دهد."
+          Set-Content -Path release-notes.md -Value $notes -Encoding utf8
+          $exists = $false
+          gh release view "v$version" --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) { $exists = $true }
+          $global:LASTEXITCODE = 0
+          "exists=$exists" >> $env:GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
 
-      - name: Restore & Build
+      - name: Restore, compile and test
+        shell: pwsh
         run: |
           dotnet restore Shamsa.csproj -r win-x64
-          dotnet build Shamsa.csproj -c Release -r win-x64 --no-restore
-
-      - name: Publish self-contained win-x64
-        run: |
-          dotnet publish Shamsa.csproj -c Release -r win-x64 --self-contained true -o ./publish
-
-      - name: Create Portable ZIP
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path ./publish/* -DestinationPath "dist/Shamsa-v${{ steps.ver.outputs.version }}-win-x64-portable.zip" -Force
-
-      - name: Install Inno Setup & Build Installer
-        shell: pwsh
-        run: |
-          choco install innosetup -y --no-progress
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=${{ steps.ver.outputs.version }}" installer/Shamsa.iss
-
-      - name: Generate SHA256SUMS.txt
-        shell: pwsh
-        run: |
-          $files = Get-ChildItem dist -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" }
-          $lines = foreach ($f in $files) {
-            $h = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower()
-            "$h  $($f.Name)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build Shamsa.csproj --no-restore -c Release -r win-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path Tests/Shamsa.Tests.csproj) {
+            dotnet test Tests/Shamsa.Tests.csproj -c Release
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          $lines | Out-File -FilePath dist/SHA256SUMS.txt -Encoding ascii
 
-      - name: Upload Release Artifacts
+      - name: Publish self-contained Windows x64 application
+        shell: pwsh
+        run: |
+          $v = "${{ steps.meta.outputs.version }}"
+          dotnet publish Shamsa.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o publish
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path publish/Shamsa.exe)) { throw "Shamsa.exe missing after publishing" }
+          Compress-Archive -Path publish/* -DestinationPath "Shamsa-v$v-win-x64-portable.zip" -Force
+
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: |
+          if (!(Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Compile setup executable and checksums
+        shell: pwsh
+        run: |
+          $v = "${{ steps.meta.outputs.version }}"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$v" installer/Shamsa.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $setup = "dist/Shamsa-Setup-v$v-win-x64.exe"
+          if (!(Test-Path $setup)) { throw "Installer missing" }
+          Copy-Item "Shamsa-v$v-win-x64-portable.zip" dist/
+          # -Exclude without a wildcard path returns nothing in PowerShell 7, so filter explicitly.
+          $lines = Get-ChildItem dist -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()) *$($_.Name)"
+          }
+          if (-not $lines) { throw "No files to checksum in dist" }
+          Set-Content -Path dist/SHA256SUMS.txt -Value $lines -Encoding ascii
+          Get-Content dist/SHA256SUMS.txt
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Shamsa-v${{ steps.ver.outputs.version }}-Windows11
+          name: Shamsa-v${{ steps.meta.outputs.version }}-Windows
           path: dist/*
+          if-no-files-found: error
 
-      - name: Publish GitHub Release
+      # A release is created once per version (tag pushes or manual re-publish may replace assets).
+      - name: Publish release on GitHub
+        if: github.event_name != 'pull_request' && (steps.meta.outputs.exists != 'True' || startsWith(github.ref, 'refs/tags/') || inputs.republish)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: Shamsa ${{ steps.ver.outputs.tag }} (Windows 10/11)
-          generate_release_notes: true
-          files: dist/*
+          tag_name: v${{ steps.meta.outputs.version }}
+          name: شمسا ${{ steps.meta.outputs.version }} | Windows
+          target_commitish: ${{ github.sha }}
+          prerelease: false
+          draft: false
+          body_path: release-notes.md
+          files: |
+            dist/Shamsa-Setup-v${{ steps.meta.outputs.version }}-win-x64.exe
+            dist/Shamsa-v${{ steps.meta.outputs.version }}-win-x64-portable.zip
+            dist/SHA256SUMS.txt
+          fail_on_unmatched_files: true

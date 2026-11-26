@@ -1,20 +1,18 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <Nullable>enable</Nullable>
+    <!-- Windows 10 SDK projection: Windows.Data.Pdf first-page previews (Windows 10 1809+). -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Shamsa</AssemblyName>
     <RootNamespace>Shamsa</RootNamespace>
-    <Version>3.0.0</Version>
-    <Authors>Shamsa Contributors &amp; Honar Mardomi</Authors>
-    <Company>Honar Mardomi</Company>
-    <Product>Shamsa Pro — Negar Desktop Edition</Product>
     <ApplicationIcon>Assets\Shamsa.ico</ApplicationIcon>
+    <Version>3.1.0</Version>
+    <Authors>Shamsa Contributors</Authors>
+    <Description>شمسا (Shamsa) — دستیار هوشمند فایل ویندوز: پیش‌نمایش شناور ویدیو، منوی دایره‌ای تبدیل فرمت، قفسه موقت و ابزارهای نظم‌دهی</Description>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
@@ -25,10 +23,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\Shamsa.ico" />
+    <Resource Include="Assets\Shamsa-logo.png" />
+    <!-- Vazirmatn (SIL OFL 1.1) embedded so the Persian UI renders identically everywhere. -->
+    <Resource Include="Assets\Fonts\*.ttf" />
+    <None Include="Assets\Fonts\FONTS-LICENSE.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Unit tests live in their own project. -->
+  <ItemGroup>
     <Compile Remove="Tests\**" />
     <Compile Remove="sdk\**" />
     <EmbeddedResource Remove="Tests\**" />
     <None Remove="Tests\**" />
+    <Page Remove="Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,8 +45,14 @@
 
   <ItemGroup>
     <PackageReference Include="LibVLCSharp.WPF" Version="3.9.0" />
+    <!-- LibVLCSharp's windows10 asset drags in the WinUI Windows App SDK (bootstrapper, MSIX targets).
+         Shamsa is plain WPF, so keep the dependency node but consume none of its assets. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240627000" ExcludeAssets="all" PrivateAssets="all" />
+    <!-- PrivateAssets: don't copy ~150 MB of native VLC into referencing (test) projects -->
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" PrivateAssets="all" />
+    <!-- Screen recorder: WASAPI loopback (system sound) + microphone capture. MIT licence. -->
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <!-- Offline voice commands through the installed Windows speech recogniser. MIT licence. -->
     <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
-
 </Project>

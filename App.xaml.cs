@@ -28,6 +28,9 @@ public partial class App : Application
     private bool _hotkeyPausedForRecording;
 
     private VideoPreviewWindow? _previewWindow;
+    private FolderPreviewWindow? _folderWindow;
+    private DispatcherTimer? _idleInstallTimer;
+    private bool _installingUpdate;
     private DonutMenuWindow? _donutWindow;
     private DropShelfWindow? _shelfWindow;
     private ToolsDashboardWindow? _dashboardWindow;
@@ -59,10 +62,14 @@ public partial class App : Application
     private void Application_Startup(object sender, StartupEventArgs e)
     {
         // ---- single instance: a second launch just opens the dashboard of the running one
-        _singleInstanceMutex = new Mutex(true, MutexName, out bool isFirst);
+        // SHAMSA_DEV_INSTANCE lets a development build run beside the installed app (separate mutex/event).
+        string devSuffix = Environment.GetEnvironmentVariable("SHAMSA_DEV_INSTANCE") ?? string.Empty;
+        _singleInstanceMutex = new Mutex(true, MutexName + devSuffix, out bool isFirst);
         if (!isFirst)
         {
-            try { EventWaitHandle.OpenExisting(ShowEventName).Set(); } catch { }
+            // Explorer context-menu verbs start a second process: hand its arguments to the running instance.
+            ForwardArgsToRunningInstance(e.Args);
+            try { EventWaitHandle.OpenExisting(ShowEventName + devSuffix).Set(); } catch { }
             Shutdown();
             return;
         }
@@ -70,15 +77,16 @@ public partial class App : Application
         RegisterGlobalExceptionHandlers();
         SettingsService.Load();
         ThemeService.Apply(SettingsService.Current);
+        Shamsa.Desktop.DesktopFeature.ApplyFontEarly();
         AppLog.Info($"Shamsa starting (v{typeof(App).Assembly.GetName().Version}) args: {string.Join(' ', e.Args)}");
 
-        var showEvent = _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+        var showEvent = _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName + devSuffix);
         var listener = new Thread(() =>
         {
             try
             {
                 while (showEvent.WaitOne())
-                    Dispatcher.BeginInvoke(() => OpenDashboard());
+                    Dispatcher.BeginInvoke(ProcessForwardedArgs);
             }
             catch (ObjectDisposedException) { /* app is exiting */ }
         }) { IsBackground = true, Name = "Shamsa.ShowListener" };
@@ -86,6 +94,7 @@ public partial class App : Application
 
         _previewWindow = new VideoPreviewWindow();
         _previewWindow.WarmUp();
+        _folderWindow = new FolderPreviewWindow();
 
         _shelfWindow = new DropShelfWindow(_converterService);
 
@@ -106,6 +115,7 @@ public partial class App : Application
 
         SetupTrayIcon();
         ApplySettings();
+        InitializeFeatures();
 
         // بازه ۳۵ میلی‌ثانیه با اولویت Normal برای واکنش فوق‌سریع و آنی روی فایل‌ها
         _pollTimer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(35) };
@@ -117,8 +127,16 @@ public partial class App : Application
         _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(6) };
         _updateTimer.Tick += (_, _) => _ = CheckForUpdatesInBackgroundAsync(initial: false);
         _updateTimer.Start();
+        _idleInstallTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+        _idleInstallTimer.Tick += (_, _) => _ = TryIdleInstallAsync();
+        _idleInstallTimer.Start();
+
+        string? postUpdate = UpdateService.ConsumePostUpdateMessage();
+        if (postUpdate != null)
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => ShowNotification(postUpdate));
 
         RunSelfTestIfRequested(e.Args);
+        if (HandleFeatureArgs(e.Args)) return;
 
         bool silent = e.Args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
         string? tabArg = e.Args.FirstOrDefault(a => a.StartsWith("--tab=", StringComparison.OrdinalIgnoreCase));
@@ -142,12 +160,15 @@ public partial class App : Application
         {
             var release = await UpdateService.CheckAsync();
             if (release == null) return;
+            if (release.Version.ToString(3) == SettingsService.Current.SkippedUpdateVersion) return;
             if (SettingsService.Current.AutoDownloadUpdates)
             {
                 try
                 {
                     await UpdateService.DownloadVerifiedAsync(release);
-                    ShowNotification($"نسخه {release.Version} شمسا دریافت و بررسی شد. برای نصب به تنظیمات بروید.");
+                    ShowNotification(SettingsService.Current.AutoInstallWhenIdle
+                        ? $"نسخه {release.Version} شمسا دریافت و تأیید شد؛ هنگام بیکاری سیستم خودکار نصب می‌شود."
+                        : $"نسخه {release.Version} شمسا دریافت و تأیید شد. برای نصب با یک کلیک به تنظیمات › به‌روزرسانی بروید.");
                 }
                 catch (Exception ex)
                 {
@@ -164,6 +185,87 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Smart update: once a verified installer is staged and the user opted in, install silently after
+    /// 10 minutes without keyboard/mouse input — never while recording, converting or showing a menu.
+    /// The installer relaunches Shamsa with --updated.
+    /// </summary>
+    private async Task TryIdleInstallAsync()
+    {
+        var s = SettingsService.Current;
+        var release = UpdateService.Latest;
+        if (_installingUpdate || !s.AutoInstallWhenIdle || release == null || !UpdateService.HasVerifiedDownload(release)) return;
+        if (release.Version.ToString(3) == s.SkippedUpdateVersion) return;
+        if (UpdateService.GetUserIdleTime() < TimeSpan.FromMinutes(10) || IsAppBusy()) return;
+        _installingUpdate = true;
+        try
+        {
+            string installer = Path.Combine(UpdateService.UpdatesDirectory, release.FileName);
+            await UpdateService.LaunchInstallerAsync(installer, release, silent: true);
+            AppLog.Info($"Idle auto-install of {release.Version} started");
+            Shutdown();
+        }
+        catch (Exception ex)
+        {
+            _installingUpdate = false;
+            AppLog.Warn("Idle auto-install failed: " + ex.Message);
+        }
+    }
+
+    private bool IsAppBusy() =>
+        (_donutWindow?.IsShowingProgress ?? false) || (_donutWindow?.IsVisible ?? false) || FeatureBusy();
+
+    // ------------------------------------------------------------------ forwarded command lines (Explorer verbs)
+
+    private static string IpcDir => Path.Combine(AppPaths.DataDir, "ipc");
+
+    private static void ForwardArgsToRunningInstance(string[] args)
+    {
+        if (args.Length == 0) return;
+        try
+        {
+            Directory.CreateDirectory(IpcDir);
+            string file = Path.Combine(IpcDir, $"{DateTime.UtcNow.Ticks}-{Environment.ProcessId}.args");
+            File.WriteAllLines(file + ".tmp", args);
+            File.Move(file + ".tmp", file);
+        }
+        catch (Exception ex) { AppLog.Warn("Forwarding arguments failed: " + ex.Message); }
+    }
+
+    private void ProcessForwardedArgs()
+    {
+        bool handledAny = false;
+        try
+        {
+            if (Directory.Exists(IpcDir))
+            {
+                foreach (var file in Directory.GetFiles(IpcDir, "*.args").OrderBy(f => f, StringComparer.Ordinal))
+                {
+                    string[] args = Array.Empty<string>();
+                    try
+                    {
+                        if (DateTime.UtcNow - File.GetLastWriteTimeUtc(file) < TimeSpan.FromMinutes(2))
+                            args = File.ReadAllLines(file);
+                    }
+                    catch { }
+                    try { File.Delete(file); } catch { }
+                    if (args.Length > 0 && HandleFeatureArgs(args)) handledAny = true;
+                    else if (args.Length > 0) { HandleDashboardArgs(args); handledAny = true; }
+                }
+            }
+        }
+        catch (Exception ex) { AppLog.Warn("Reading forwarded arguments failed: " + ex.Message); }
+        if (!handledAny) OpenDashboard();
+    }
+
+    private void HandleDashboardArgs(string[] args)
+    {
+        string? tabArg = args.FirstOrDefault(a => a.StartsWith("--tab=", StringComparison.OrdinalIgnoreCase));
+        int? tab = tabArg != null && int.TryParse(tabArg[6..], out int t) ? t : null;
+        if (args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase)) && tab == null) return;
+        OpenDashboard(tab);
+    }
+
     private void RunSelfTestIfRequested(string[] args)
     {
         string? arg = args.FirstOrDefault(a => a.StartsWith("--selftest=", StringComparison.OrdinalIgnoreCase));
@@ -178,14 +280,62 @@ public partial class App : Application
             if (spec.StartsWith("preview:", StringComparison.OrdinalIgnoreCase))
             {
                 string path = spec["preview:".Length..].Trim('"');
-                _previewWindow?.ShowPreview(new HoverTarget(path, FileKinds.Of(path), new System.Windows.Point(300, 300), Rect.Empty));
+                var target = new HoverTarget(path, FileKinds.Of(path), new System.Windows.Point(300, 300), Rect.Empty);
+                if (target.Kind == FileKind.Folder) _folderWindow?.ShowPreview(target);
+                else _previewWindow?.ShowPreview(target);
             }
             else if (spec.Equals("donut", StringComparison.OrdinalIgnoreCase))
             {
                 _donutWindow?.OpenAt(new System.Windows.Point(700, 450));
             }
+            else if (spec.StartsWith("dashboard:", StringComparison.OrdinalIgnoreCase) && int.TryParse(spec[10..], out int dt))
+                OpenDashboard(dt);
+            else if (spec.StartsWith("window:", StringComparison.OrdinalIgnoreCase))
+                HandleFeatureArgs(new[] { spec[7..] });
         };
         timer.Start();
+
+        // --selftest-render=<file.png>: saves only Shamsa's own preview window (no screen capture) and exits.
+        string? renderArg = args.FirstOrDefault(a => a.StartsWith("--selftest-render=", StringComparison.OrdinalIgnoreCase));
+        if (renderArg == null) return;
+        string outPng = renderArg["--selftest-render=".Length..].Trim('"');
+        var renderTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5.5) };
+        renderTimer.Tick += (_, _) =>
+        {
+            renderTimer.Stop();
+            Window? w = (_folderWindow?.IsVisible ?? false) ? _folderWindow : (_previewWindow?.IsVisible ?? false) ? _previewWindow
+                : Windows.OfType<Window>().Where(x => x.IsVisible && x.ActualWidth > 1 && x.ActualHeight > 1)
+                    .OrderByDescending(x => x.ShowInTaskbar).ThenByDescending(x => x.ActualWidth * x.ActualHeight).FirstOrDefault();
+            try
+            {
+                if (w?.Content is FrameworkElement root && root.ActualWidth > 0)
+                {
+                    var dpi = ScreenHelper.GetDpi(root);
+                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                        (int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY),
+                        96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, System.Windows.Media.PixelFormats.Pbgra32);
+                    var dv = new System.Windows.Media.DrawingVisual();
+                    using (var dc = dv.RenderOpen())
+                    {
+                        dc.DrawRectangle(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x10, 0x1A, 0x30)), null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+                        // The window mirrors RTL content itself; a VisualBrush of the root lacks that transform.
+                        if (w.FlowDirection == FlowDirection.RightToLeft)
+                            dc.PushTransform(new System.Windows.Media.MatrixTransform(-1, 0, 0, 1, root.ActualWidth, 0));
+                        dc.DrawRectangle(new System.Windows.Media.VisualBrush(root), null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+                    }
+                    rtb.Render(dv);
+                    var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                    enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+                    using var fs = File.Create(outPng);
+                    enc.Save(fs);
+                    AppLog.Info($"Selftest render saved {root.ActualWidth}x{root.ActualHeight}");
+                }
+                else AppLog.Warn("Selftest render: no preview window visible");
+            }
+            catch (Exception ex) { AppLog.Error("Selftest render failed", ex); }
+            Shutdown();
+        };
+        renderTimer.Start();
     }
 
     private void RegisterGlobalExceptionHandlers()
@@ -197,7 +347,12 @@ public partial class App : Application
             args.Handled = true;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
             AppLog.Error("Fatal unhandled exception", args.ExceptionObject as Exception);
+            // Never leave the user without a taskbar / with reserved AppBar space after a crash.
+            Shamsa.Desktop.DesktopFeature.EmergencyRestore();
+        };
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => Shamsa.Desktop.DesktopFeature.EmergencyRestore();
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             AppLog.Error("Unobserved task exception", args.Exception);
@@ -212,6 +367,7 @@ public partial class App : Application
         var s = SettingsService.Current;
         _hoverService.IncludeImages = s.PreviewImages;
         _hoverService.IncludeFolders = s.FolderPreviewEnabled;
+        _hoverService.IncludeDocuments = s.PreviewDocuments;
         _previewWindow?.ApplySize();
         if (!s.HoverPreviewEnabled) HideHoverPreview(releaseFileNow: true);
 
@@ -222,10 +378,15 @@ public partial class App : Application
 
         if (!_hotkeyPausedForRecording)
         {
+            var donutBinding = new HotkeyBinding("donut.open", "منوی دایره‌ای", "باز کردن منو",
+                s.DonutShortcutModifiers, s.DonutShortcutEnabled ? s.DonutShortcutKey : 0);
             if (s.DonutShortcutEnabled && s.DonutShortcutKey > 0)
-                _hotkeyService.Register(s.DonutShortcutModifiers, s.DonutShortcutKey);
+                HotkeyRegistry.Report(donutBinding, _hotkeyService.Register(s.DonutShortcutModifiers, s.DonutShortcutKey));
             else
+            {
                 _hotkeyService.Unregister();
+                HotkeyRegistry.Report(donutBinding, false);
+            }
         }
 
         if (_menuPreview != null) _menuPreview.Checked = s.HoverPreviewEnabled;
@@ -267,6 +428,8 @@ public partial class App : Application
         menu.Items.Add("📖 راهنمای شروع سریع", null, (_, _) => OpenDashboard(tab: 0));
         menu.Items.Add("🔄 مبدل فایل", null, (_, _) => OpenDashboard(tab: 4));
         menu.Items.Add("✨ مرتب‌سازی Downloads الان", null, (_, _) => OrganizeDownloadsNow());
+        menu.Items.Add(new Forms.ToolStripSeparator());
+        AddFeatureTrayItems(menu);
         menu.Items.Add(new Forms.ToolStripSeparator());
 
         _menuPreview = AddToggle(menu, "پیش‌نمایش ویدیو/تصویر کنار موس", v => SettingsService.Update(s => s.HoverPreviewEnabled = v));
@@ -365,6 +528,8 @@ public partial class App : Application
             _dashboardWindow.DemoDonutRequested += () => _donutWindow?.ShowDemo();
             _dashboardWindow.OpenShelfRequested += () => _shelfWindow?.ShowShelf();
             _dashboardWindow.ExitAppRequested += () => Shutdown();
+            _dashboardWindow.DemoFolderPreviewRequested += folder => _folderWindow?.ShowDemo(folder);
+            WireFeatureEvents(_dashboardWindow);
             _dashboardWindow.HotkeyRecordingChanged += paused =>
             {
                 _hotkeyPausedForRecording = paused;
@@ -511,7 +676,7 @@ public partial class App : Application
         }
 
         // اگر موس وارد خود پنجره پیش‌نمایش شد (مثلاً برای رفتن روی فایل‌های زیرش) -> فوراً پیش‌نمایش را ببند و آماده فایل زیرین شو!
-        if (_previewWindow.IsVisible && NativeMethods.IsCursorOverOwnProcess(winPos.X, winPos.Y))
+        if ((_previewWindow.IsVisible || (_folderWindow?.IsVisible ?? false)) && NativeMethods.IsCursorOverOwnProcess(winPos.X, winPos.Y))
         {
             HideHoverPreview(releaseFileNow: false);
             _lastCursor = currentPos;
@@ -611,7 +776,16 @@ public partial class App : Application
             if (target != null && (IsInsideTarget(target, nowPos, margin: 10) || Distance(queriedAt, nowPos) <= 22))
             {
                 _activeHoverTarget = target;
-                _previewWindow?.ShowPreview(target);
+                if (target.Kind == FileKind.Folder && _folderWindow != null)
+                {
+                    _previewWindow?.HidePreview(releaseFileNow: false);
+                    _folderWindow.ShowPreview(target);
+                }
+                else
+                {
+                    _folderWindow?.HidePreview();
+                    _previewWindow?.ShowPreview(target);
+                }
             }
             else if (isRecheck)
             {
@@ -637,6 +811,7 @@ public partial class App : Application
             _lastPreviewClosedAt = DateTime.Now;
         _activeHoverTarget = null;
         _previewWindow?.HidePreview(releaseFileNow);
+        _folderWindow?.HidePreview();
     }
 
     private static double Distance(System.Windows.Point a, System.Windows.Point b) =>
@@ -661,7 +836,10 @@ public partial class App : Application
             }
             if (_trayIconHandle != IntPtr.Zero) NativeMethods.DestroyIcon(_trayIconHandle);
 
+            _idleInstallTimer?.Stop();
+            ShutdownFeatures();
             _previewWindow?.Close();
+            _folderWindow?.Close();
             _showEvent?.Dispose();
             if (_singleInstanceMutex != null)
             {
