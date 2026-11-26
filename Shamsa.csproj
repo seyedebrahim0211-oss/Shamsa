@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <!-- Windows 10 SDK projection: Windows.Data.Pdf first-page previews (Windows 10 1809+). -->
@@ -33,6 +33,7 @@
   <!-- Unit tests live in their own project. -->
   <ItemGroup>
     <Compile Remove="Tests\**" />
+    <Compile Remove="sdk\**" />
     <EmbeddedResource Remove="Tests\**" />
     <None Remove="Tests\**" />
     <Page Remove="Tests\**" />

@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Windows;
@@ -19,6 +19,18 @@ public sealed record DocumentPreview(BitmapSource Image, string Summary, Color A
 /// </summary>
 public static class DocumentPreviewService
 {
+    /// <summary>Compatibility alias for the uploaded Shamsa Pro windows.</summary>
+    public static bool IsSupportedDocument(string path) => IsSupported(path);
+
+    /// <summary>Synchronous, shell-thumbnail based preview for the uploaded Shamsa Pro windows (UI/STA thread).</summary>
+    public static DocumentFirstPagePreview GenerateFirstPagePreview(string filePath, int maxSidePx = 640)
+    {
+        string ext = Path.GetExtension(filePath);
+        BitmapSource? image = null;
+        try { image = ShellThumbnailService.TryGetShellImage(filePath, maxSidePx, thumbnailOnly: true) ?? ShellThumbnailService.TryGetShellImage(filePath, maxSidePx); } catch { }
+        return new DocumentFirstPagePreview(filePath, LabelFor(ext), image, null, null, LabelFor(ext));
+    }
+
     private const long MaxFileBytes = 250_000_000;
     private const int MaxXmlChars = 1_500_000;
 
@@ -658,3 +670,12 @@ public static class DocumentPreviewService
         return sb.ToString();
     }
 }
+
+/// <summary>Result shape used by the "Shamsa Pro" windows that were uploaded to main (kept for compatibility).</summary>
+public sealed record DocumentFirstPagePreview(
+    string FilePath,
+    string DocumentKind,
+    BitmapSource? ThumbnailImage,
+    string? ExtractedFirstPageSnippet,
+    int? EstimatedPagesOrSheets,
+    string SummaryLabel);

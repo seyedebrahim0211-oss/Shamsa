@@ -1,0 +1,11 @@
+{
+  "Id": "ir.honarmardomi.topbar.shamsi-badge",
+  "Name": "نشانگر تقویم و وضعیت نوار بالا",
+  "Version": "1.0.0",
+  "MinShamsaVersion": "3.0.0",
+  "Description": "افزونه نمونه برای اضافه کردن بج دلخواه به نوار بالای شمسا با مجوز محدود",
+  "Slot": "TopBar",
+  "RequestedPermissions": [],
+  "DisplayTemplate": "✦ هنر مردمی",
+  "Enabled": true
+}

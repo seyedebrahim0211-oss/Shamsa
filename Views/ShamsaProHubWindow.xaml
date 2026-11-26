@@ -1,0 +1,97 @@
+<Window x:Class="Shamsa.Views.ShamsaProHubWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="مرکز مدیریت و تنظیمات جامع شمسا (نسخه ۳ حرفه‌ای)"
+        Width="960" Height="640"
+        Background="{DynamicResource BgBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource ShamsaFontFamily}"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="✦ شمسا حرفه‌ای (Shamsa Pro v3.0 — هسته یکپارچه دسکتاپ)" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
+                <TextBlock Text="کنترل مستقل ماژول‌ها، تم‌ها، بروزرسانی خودکار درون‌برنامه‌ای و بازیابی امن دسکتاپ" FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="🛡 بازیابی دسکتاپ ویندوز" Click="RestoreDesktop_Click" Padding="12,7" Margin="0,0,8,0" Background="#DC2626" Foreground="White" BorderThickness="0"/>
+                <Button Content="💾 ذخیره تنظیمات" Click="SaveAll_Click" Padding="14,7" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Main Tabbed Settings (All requested domains cleanly organized) -->
+        <TabControl Grid.Row="1" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+            <TabItem Header="🧩 ماژول‌ها و دسکتاپ">
+                <ScrollViewer Padding="14">
+                    <StackPanel>
+                        <TextBlock Text="فعال/غیرفعالسازی مستقل ماژول‌ها:" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="ChkTopBar" Content="نوار بالا و مرکز کنترل (شبیه Seelen UI)" Margin="0,4" Foreground="{DynamicResource TextBrush}"/>
+                        <CheckBox x:Name="ChkHideTaskbar" Content="مخفی‌سازی اختیاری Taskbar اصلی ویندوز (کاملاً قابل بازگشت)" Margin="0,4" Foreground="{DynamicResource MutedBrush}"/>
+                        <CheckBox x:Name="ChkDock" Content="داک هوشمند شناور با پیش‌نمایش زنده پنجره‌ها" Margin="0,4" Foreground="{DynamicResource TextBrush}"/>
+                        <CheckBox x:Name="ChkFences" Content="گروه‌بندی آیکون‌های دسکتاپ به سبک Fences" Margin="0,4" Foreground="{DynamicResource TextBrush}"/>
+                        <CheckBox x:Name="ChkWidgets" Content="ویجت‌های دسکتاپ (تقویم شمسی، اوقات شرعی، پایش سیستم، یادداشت)" Margin="0,4" Foreground="{DynamicResource TextBrush}"/>
+                        <CheckBox x:Name="ChkClipboard" Content="تاریخچه کلیپ‌بورد محلی در جستجوی سریع" Margin="0,4" Foreground="{DynamicResource TextBrush}"/>
+                        <CheckBox x:Name="ChkVoice" Content="فرمان صوتی فارسی/انگلیسی (ضبط صفحه، اسکرین‌شات، چیدمان)" Margin="0,4" Foreground="{DynamicResource TextBrush}"/>
+                        <CheckBox x:Name="ChkLowPerf" Content="حالت کم‌مصرف و کاهش انیمیشن (Low Performance Mode)" Margin="0,4" Foreground="{DynamicResource TextBrush}"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Button Content="🎨 باز کردن استودیو آیکون/قفل پوشه" Click="OpenFolderStudio_Click" Padding="10,6" Margin="0,0,8,0" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                            <Button Content="🎥 باز کردن ضبط صفحه" Click="OpenRecorder_Click" Padding="10,6" Margin="0,0,8,0" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                            <Button Content="🔍 جستجوی سریع" Click="OpenSpotlight_Click" Padding="10,6" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="🎨 تم و ظاهر">
+                <StackPanel Margin="14">
+                    <TextBlock Text="انتخاب تم (پشتیبانی از تغییر خودکار روز و شب):" Margin="0,0,0,6"/>
+                    <ComboBox x:Name="ThemeCombo" Width="260" HorizontalAlignment="Right" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="رنگ تاکیدی سفارشی (HEX):" Margin="0,0,0,4"/>
+                    <TextBox x:Name="AccentHexBox" Width="180" HorizontalAlignment="Right" Padding="6,4" Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="شفافیت کارت‌های شیشه‌ای:" Margin="0,0,0,4"/>
+                    <Slider x:Name="GlassOpacitySlider" Minimum="0.45" Maximum="0.98" Width="260" HorizontalAlignment="Right"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="🪟 پنجره‌ها و چیدمان">
+                <StackPanel Margin="14">
+                    <TextBlock Text="اعمال فوری چیدمان روی پنجره‌های باز ویندوز:" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <Button Content="۲ ستونه" Click="Tile2_Click" Padding="12,7" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"/>
+                        <Button Content="۳ ستونه" Click="Tile3_Click" Padding="12,7" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"/>
+                        <Button Content="شبکه ۴ تایی" Click="Tile4_Click" Padding="12,7" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"/>
+                        <Button Content="پشته‌ای" Click="TileStack_Click" Padding="12,7" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                    </StackPanel>
+                    <TextBlock Text="پشتیبانی از قوانین اختصاصی هر برنامه (همیشه رو، جای ثابت، مستثنی از چیدمان) در فایل pro-settings.json ذخیره می‌شود." Foreground="{DynamicResource MutedBrush}"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="🔄 بروزرسانی خودکار">
+                <StackPanel Margin="14">
+                    <TextBlock x:Name="CurrentVersionText" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button Content="بررسی نسخه جدید از گیت‌هاب" Click="CheckUpdate_Click" Padding="14,8" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"/>
+                        <Button x:Name="InstallUpdateBtn" Content="دانلود تاییدشده و نصب خودکار" Click="DownloadInstallUpdate_Click" IsEnabled="False" Padding="14,8" Background="{DynamicResource GoldBrush}" Foreground="#0F172A" FontWeight="Bold" BorderThickness="0"/>
+                    </StackPanel>
+                    <ProgressBar x:Name="UpdateProgressBar" Height="10" Minimum="0" Maximum="100" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="UpdateStatusText" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,8"/>
+                    <TextBox x:Name="ChangelogBox" IsReadOnly="True" TextWrapping="Wrap" Height="220" VerticalScrollBarVisibility="Auto"
+                             Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}" Padding="10"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <TextBlock x:Name="HubStatusText" Grid.Row="2" Margin="0,8,0,0" FontSize="12" Foreground="{DynamicResource AccentBrush}"/>
+    </Grid>
+</Window>

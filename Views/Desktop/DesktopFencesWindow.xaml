@@ -1,0 +1,30 @@
+<Window x:Class="Shamsa.Views.Desktop.DesktopFencesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="گروه‌بندی آیکون‌های دسکتاپ (سبک Fences) | شمسا"
+        Width="340" Height="300"
+        Left="36" Top="68"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource ShamsaFontFamily}">
+    <Border Background="{DynamicResource GlassCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="16" Padding="10">
+        <DockPanel>
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <TextBlock x:Name="FenceTitleText" Text="📦 گروه سریع دسکتاپ" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}" VerticalAlignment="Center"/>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                    <Button Content="⚡ خودکار" Click="AutoGroupDesktop_Click" Padding="6,2" FontSize="11" Background="{DynamicResource PersianBadgeBrush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0" Margin="0,0,4,0"/>
+                    <Button x:Name="CollapseBtn" Content="▾" Click="ToggleCollapse_Click" Width="24" Background="Transparent" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
+                </StackPanel>
+            </DockPanel>
+
+            <TextBox x:Name="FilterBox" DockPanel.Dock="Top" Margin="0,0,0,6" Padding="6,4" TextChanged="FilterBox_TextChanged"
+                     Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" ToolTip="جستجو در گروه"/>
+
+            <ListBox x:Name="FenceItemsList" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextBrush}"
+                     MouseDoubleClick="FenceItemsList_DoubleClick"/>
+        </DockPanel>
+    </Border>
+</Window>
