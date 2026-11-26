@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="Assets/Shamsa-logo.png" alt="Shamsa Logo" width="128" height="128"/>
+  <img src="Assets/negarkhaneh-logo.png" alt="Negarkhaneh Logo" width="128" height="128"/>
 </p>
 
-<h1 align="center">شمسا · Shamsa</h1>
+<h1 align="center">نگارخانه · Negarkhaneh</h1>
 
 <p align="center">
-  <strong>دستیار هوشمند، سبک و آفلاین مدیریت فایل در ویندوز</strong><br/>
-  <em>A lightweight, offline, open-source Windows file utility inspired by Filee — crafted with a Persian Turquoise, Lapis &amp; Gold UI.</em>
+  <strong>همه ابزارهای شخصی‌سازی و مدیریت ویندوز، ساده و سبک، در یک صفحه</strong><br/>
+  <em>A lightweight, offline, open-source Windows personalization and file toolkit — Persian Turquoise, Lapis &amp; Gold UI.</em>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-14B8A6?style=flat-square" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0B1324?style=flat-square" alt="Windows"/>
-  <img src="https://img.shields.io/badge/Version-3.1.0-F6D379?style=flat-square" alt="Version 3.1.0"/>
+  <img src="https://img.shields.io/badge/Version-3.2.0-F6D379?style=flat-square" alt="Version 3.2.0"/>
   <img src="https://img.shields.io/badge/License-MIT-E5B85B?style=flat-square" alt="MIT License"/>
 </p>
 
