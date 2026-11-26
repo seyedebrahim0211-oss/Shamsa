@@ -44,7 +44,7 @@ public sealed class LauncherWindow : Window
         _index = index;
         _settings = settings;
         _preview = preview;
-        Title = "جستجوی سریع شمسا";
+        Title = "جستجوی سریع نگارخانه";
         Width = 700;
         SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None;

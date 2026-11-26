@@ -204,20 +204,20 @@ public static class FolderShellIntegration
 
     private static void Enable()
     {
-        string exe = ExePath ?? throw new InvalidOperationException("مسیر برنامه شمسا پیدا نشد.");
+        string exe = ExePath ?? throw new InvalidOperationException("مسیر برنامه نگارخانه پیدا نشد.");
         string q = $"\"{exe}\"";
         using var root = Registry.CurrentUser.CreateSubKey(Classes, writable: true);
 
         using (var verb = root.CreateSubKey(IconVerb))
         {
-            verb.SetValue("MUIVerb", "شخصی‌سازی آیکون پوشه با شمسا");
+            verb.SetValue("MUIVerb", "شخصی‌سازی آیکون پوشه با نگارخانه");
             verb.SetValue("Icon", $"{exe},0");
             using var cmd = verb.CreateSubKey("command");
             cmd.SetValue(null, $"{q} --folder-studio \"%1\"");
         }
         using (var verb = root.CreateSubKey(LockVerb))
         {
-            verb.SetValue("MUIVerb", "قفل پوشه با رمز (شمسا)");
+            verb.SetValue("MUIVerb", "قفل پوشه با رمز (نگارخانه)");
             verb.SetValue("Icon", $"{exe},0");
             using var cmd = verb.CreateSubKey("command");
             cmd.SetValue(null, $"{q} --folder-lock \"%1\"");
@@ -228,7 +228,7 @@ public static class FolderShellIntegration
         }
         using (var prog = root.CreateSubKey(ProgId))
         {
-            prog.SetValue(null, "پوشه قفل‌شده شمسا");
+            prog.SetValue(null, "پوشه قفل‌شده نگارخانه");
             using (var icon = prog.CreateSubKey("DefaultIcon")) icon.SetValue(null, $"{exe},0");
             using var cmd = prog.CreateSubKey(@"shell\open\command");
             cmd.SetValue(null, $"{q} --unlock \"%1\"");

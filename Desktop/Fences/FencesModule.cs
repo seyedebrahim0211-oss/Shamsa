@@ -400,7 +400,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
         string msg = files.Length == 1
             ? $"«{Path.GetFileName(files[0])}» به پوشه «{_def.Title}» منتقل شود؟"
             : $"{DesktopTheme.Digits(files.Length.ToString(), true)} مورد به پوشه «{_def.Title}» منتقل شود؟";
-        if (MessageBox.Show(msg, "شمسا — گروه‌بندی دسکتاپ", MessageBoxButton.YesNo, MessageBoxImage.Question,
+        if (MessageBox.Show(msg, "نگارخانه — گروه‌بندی دسکتاپ", MessageBoxButton.YesNo, MessageBoxImage.Question,
                 MessageBoxResult.No, MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign) != MessageBoxResult.Yes) return;
         int failed = 0;
         foreach (var src in files)
@@ -414,7 +414,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
             catch (Exception ex) { failed++; AppLog.Warn("Fence move: " + ex.Message); }
         }
         if (failed > 0)
-            MessageBox.Show($"{DesktopTheme.Digits(failed.ToString(), true)} مورد منتقل نشد (نام تکراری یا دسترسی).", "شمسا", MessageBoxButton.OK,
+            MessageBox.Show($"{DesktopTheme.Digits(failed.ToString(), true)} مورد منتقل نشد (نام تکراری یا دسترسی).", "نگارخانه", MessageBoxButton.OK,
                 MessageBoxImage.Warning, MessageBoxResult.OK, MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
         Render();
     }

@@ -23,14 +23,23 @@ internal sealed class VoiceCommandService : IDisposable
     public static readonly (string Phrase, VoiceCommand Command)[] Phrases =
     {
         ("start recording", VoiceCommand.StartRecording),
-        ("shamsa record", VoiceCommand.StartRecording),
+        ("negar record", VoiceCommand.StartRecording),
         ("stop recording", VoiceCommand.StopRecording),
-        ("shamsa stop", VoiceCommand.StopRecording),
+        ("negar stop", VoiceCommand.StopRecording),
         ("pause recording", VoiceCommand.PauseRecording),
         ("resume recording", VoiceCommand.ResumeRecording),
         ("take screenshot", VoiceCommand.Screenshot),
         ("take a screenshot", VoiceCommand.Screenshot),
-        ("shamsa screenshot", VoiceCommand.Screenshot),
+        ("negar screenshot", VoiceCommand.Screenshot),
+        // Persian commands spoken in Finglish (Windows ships no Persian desktop recogniser).
+        ("negar zabt kon", VoiceCommand.StartRecording),
+        ("shoroe zabt", VoiceCommand.StartRecording),
+        ("negar tavaghof", VoiceCommand.StopRecording),
+        ("payane zabt", VoiceCommand.StopRecording),
+        ("negar maks", VoiceCommand.PauseRecording),
+        ("negar edame", VoiceCommand.ResumeRecording),
+        ("negar aks begir", VoiceCommand.Screenshot),
+        ("aks begir", VoiceCommand.Screenshot),
     };
 
     public static string NoRecognizerMessage =>

@@ -1,7 +1,7 @@
 <Window x:Class="Shamsa.Views.Desktop.DesktopFencesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="گروه‌بندی آیکون‌های دسکتاپ (سبک Fences) | شمسا"
+        Title="گروه‌بندی آیکون‌های دسکتاپ (سبک Fences) | نگارخانه"
         Width="340" Height="300"
         Left="36" Top="68"
         WindowStyle="None"

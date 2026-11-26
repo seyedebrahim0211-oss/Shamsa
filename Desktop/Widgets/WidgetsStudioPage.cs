@@ -121,24 +121,55 @@ public static class WidgetsStudioPage
         loc.Children.Add(StudioUi.Title("شهر، اوقات شرعی و آب‌وهوا"));
         var latBox = new TextBox { Text = w.Latitude.ToString("0.####", CultureInfo.InvariantCulture), Width = 110, FlowDirection = FlowDirection.LeftToRight, HorizontalAlignment = HorizontalAlignment.Left };
         var lngBox = new TextBox { Text = w.Longitude.ToString("0.####", CultureInfo.InvariantCulture), Width = 110, FlowDirection = FlowDirection.LeftToRight, HorizontalAlignment = HorizontalAlignment.Left };
-        var city = new ComboBox { MinWidth = 200, HorizontalAlignment = HorizontalAlignment.Left };
-        foreach (var c in WidgetCities.All) city.Items.Add(new ComboBoxItem { Content = c.Name, Tag = c });
-        city.Items.Add(new ComboBoxItem { Content = "دستی (مختصات پایین)", Tag = null });
-        city.SelectedItem = city.Items.Cast<ComboBoxItem>().FirstOrDefault(i => i.Tag is WidgetCities.City cc && cc.Name == w.City)
-                            ?? city.Items.Cast<ComboBoxItem>().Last();
+        // Two-level picker: province / governorate → searchable county list.
+        var current = WidgetCityData.Find(w.City);
+        var selected = new TextBlock { Margin = new Thickness(0, 2, 0, 4), FontWeight = FontWeights.SemiBold, Text = "انتخاب فعلی: " + (w.City ?? "") };
+        var province = new ComboBox { MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Left };
+        province.Items.Add(new ComboBoxItem { Content = "همه استان‌ها و کشورها", Tag = null });
+        foreach (var g in WidgetCityData.Groups) province.Items.Add(new ComboBoxItem { Content = g.Label, Tag = g });
+        var search = new TextBox { MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Left, ToolTip = "بخشی از نام شهرستان یا شهر را بنویس" };
+        var counties = new ListBox { Height = 190, MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Left };
+        ScrollViewer.SetHorizontalScrollBarVisibility(counties, ScrollBarVisibility.Disabled);
+        var countLabel = StudioUi.Muted("");
         bool syncing = false;
-        city.SelectionChanged += (_, _) =>
+
+        void FillCounties()
         {
-            if (city.SelectedItem is ComboBoxItem { Tag: WidgetCities.City c })
-            {
-                syncing = true;
-                w.City = c.Name; w.Latitude = c.Lat; w.Longitude = c.Lng;
-                latBox.Text = c.Lat.ToString("0.####", CultureInfo.InvariantCulture);
-                lngBox.Text = c.Lng.ToString("0.####", CultureInfo.InvariantCulture);
-                syncing = false;
-                changed();
-            }
+            var group = (province.SelectedItem as ComboBoxItem)?.Tag as WidgetCityData.Group;
+            string q = WidgetCityData.Normalize(search.Text);
+            IEnumerable<WidgetCityData.Place> src = group?.Places ?? WidgetCityData.All;
+            var hits = (q.Length == 0 ? src : src.Where(p => WidgetCityData.Normalize(p.Name).Contains(q))).ToList();
+            if (group == null && q.Length == 0) hits = new(); // the full list (~700) only appears once something is typed
+            syncing = true;
+            counties.Items.Clear();
+            foreach (var p in hits.Take(300))
+                counties.Items.Add(new ListBoxItem { Content = group == null ? p.Display : p.Name, Tag = p });
+            counties.SelectedItem = counties.Items.Cast<ListBoxItem>().FirstOrDefault(i => i.Tag is WidgetCityData.Place p && p.Display == w.City);
+            if (counties.SelectedItem != null) counties.ScrollIntoView(counties.SelectedItem);
+            syncing = false;
+            countLabel.Text = group == null && q.Length == 0
+                ? "یک استان را انتخاب کن یا نام شهرستان را بنویس."
+                : $"{hits.Count.ToString(CultureInfo.InvariantCulture)} مورد" + (hits.Count > 300 ? " (۳۰۰ مورد اول نمایش داده شد)" : "");
+            countLabel.Text = DesktopTheme.Digits(countLabel.Text, true);
+        }
+
+        province.SelectionChanged += (_, _) => FillCounties();
+        search.TextChanged += (_, _) => FillCounties();
+        counties.SelectionChanged += (_, _) =>
+        {
+            if (syncing || counties.SelectedItem is not ListBoxItem { Tag: WidgetCityData.Place p }) return;
+            syncing = true;
+            w.City = p.Display; w.Latitude = p.Lat; w.Longitude = p.Lng;
+            latBox.Text = p.Lat.ToString("0.####", CultureInfo.InvariantCulture);
+            lngBox.Text = p.Lng.ToString("0.####", CultureInfo.InvariantCulture);
+            selected.Text = "انتخاب فعلی: " + p.Display;
+            syncing = false;
+            changed();
         };
+        province.SelectedItem = province.Items.Cast<ComboBoxItem>().FirstOrDefault(i => i.Tag is WidgetCityData.Group g && current != null && g.Places.Contains(current))
+                                ?? province.Items[0];
+        FillCounties();
+
         void CoordChanged()
         {
             if (syncing) return;
@@ -146,13 +177,19 @@ public static class WidgetsStudioPage
                 double.TryParse(lngBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var lo) && lo is >= -180 and <= 180)
             {
                 w.Latitude = la; w.Longitude = lo;
-                if (WidgetCities.All.All(c => Math.Abs(c.Lat - la) > 0.0001 || Math.Abs(c.Lng - lo) > 0.0001)) w.City = "موقعیت دلخواه";
+                if (WidgetCityData.All.All(c => Math.Abs(c.Lat - la) > 0.0001 || Math.Abs(c.Lng - lo) > 0.0001)) w.City = "موقعیت دلخواه";
+                selected.Text = "انتخاب فعلی: " + w.City;
                 changed();
             }
         }
         latBox.TextChanged += (_, _) => CoordChanged();
         lngBox.TextChanged += (_, _) => CoordChanged();
-        loc.Children.Add(StudioUi.Labeled("شهر", city));
+        loc.Children.Add(selected);
+        loc.Children.Add(StudioUi.Labeled("استان / کشور", province));
+        loc.Children.Add(StudioUi.Labeled("جست‌وجوی شهرستان", search));
+        loc.Children.Add(StudioUi.Labeled("شهرستان", counties));
+        loc.Children.Add(countLabel);
+        loc.Children.Add(StudioUi.Muted("یا مختصات دلخواه را دستی وارد کن:"));
         loc.Children.Add(StudioUi.Labeled("عرض جغرافیایی", latBox));
         loc.Children.Add(StudioUi.Labeled("طول جغرافیایی", lngBox));
 
@@ -165,6 +202,7 @@ public static class WidgetsStudioPage
         loc.Children.Add(StudioUi.Toggle("دریافت آنلاین آب‌وهوا (Open-Meteo)", w.WeatherOnline, v => w.WeatherOnline = v, changed));
         loc.Children.Add(StudioUi.Muted("برای آب‌وهوا فقط مختصات شهر به api.open-meteo.com فرستاده می‌شود (بدون حساب و کلید). تقویم و اوقات شرعی کاملاً آفلاین محاسبه می‌شوند."));
         loc.Children.Add(StudioUi.Muted(PersianHolidays.LunarNote));
+        loc.Children.Add(StudioUi.Muted(WidgetCityData.Attribution));
         root.Children.Add(StudioUi.Card(loc));
         return root;
     }

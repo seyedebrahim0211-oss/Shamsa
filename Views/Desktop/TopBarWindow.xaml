@@ -1,7 +1,7 @@
 <Window x:Class="Shamsa.Views.Desktop.TopBarWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="نوار بالا و مرکز کنترل شمسا"
+        Title="نوار بالا و مرکز کنترل نگارخانه"
         Height="38"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -20,7 +20,7 @@
 
             <!-- Right (RTL start): Brand + Workspaces + Tiling Quick Switch -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="✦ شمسا" Click="OpenHub_Click" Padding="10,4" Background="{DynamicResource PersianBadgeBrush}" Foreground="{DynamicResource GoldBrush}" FontWeight="Bold" BorderThickness="0" Margin="0,0,8,0"/>
+                <Button Content="🖼 نگارخانه" Click="OpenHub_Click" Padding="10,4" Background="{DynamicResource PersianBadgeBrush}" Foreground="{DynamicResource GoldBrush}" FontWeight="Bold" BorderThickness="0" Margin="0,0,8,0"/>
                 <ComboBox x:Name="WorkspaceCombo" Width="130" SelectionChanged="WorkspaceCombo_SelectionChanged" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
                 <Button Content="⊞ چیدمان ۲ ستونه" Click="TileTwoCol_Click" Padding="8,4" Background="Transparent" Foreground="{DynamicResource TextBrush}" BorderThickness="0" Margin="0,0,4,0"/>
                 <Button Content="🎥 ضبط" Click="OpenRecorder_Click" Padding="8,4" Background="Transparent" Foreground="{DynamicResource TextBrush}" BorderThickness="0" Margin="0,0,4,0"/>

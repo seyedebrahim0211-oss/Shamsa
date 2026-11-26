@@ -259,7 +259,7 @@ public static class UpdateService
                 CleanupOldInstallers(keep: null);
                 string firstLine = pending.Notes.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .FirstOrDefault(l => !l.StartsWith('#')) ?? string.Empty;
-                return $"✅ شمسا به نسخه {CurrentVersion.ToString(3)} به‌روزرسانی شد." + (firstLine.Length > 0 ? " " + firstLine.TrimStart('-', '*', ' ') : "");
+                return $"✅ نگارخانه به نسخه {CurrentVersion.ToString(3)} به‌روزرسانی شد." + (firstLine.Length > 0 ? " " + firstLine.TrimStart('-', '*', ' ') : "");
             }
             if (DateTime.UtcNow - pending.StartedUtc < TimeSpan.FromDays(2))
                 return $"⚠️ نصب نسخه {pending.Version} کامل نشد؛ نسخه {CurrentVersion.ToString(3)} همچنان فعال است و تنظیمات شما دست‌نخورده است.";

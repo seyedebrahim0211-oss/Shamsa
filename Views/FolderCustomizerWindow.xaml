@@ -1,7 +1,7 @@
 <Window x:Class="Shamsa.Views.FolderCustomizerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="استودیو آیکون و قفل پوشه (سبک Fold11) | شمسا"
+        Title="استودیو آیکون و قفل پوشه (سبک Fold11) | نگارخانه"
         Width="760" Height="540"
         Background="{DynamicResource BgBrush}"
         Foreground="{DynamicResource TextBrush}"
@@ -59,7 +59,7 @@
                             <Button Content="انتخاب PNG/JPG/ICO" Click="PickImageIcon_Click" Padding="12,8" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0"/>
                         </StackPanel>
 
-                        <CheckBox x:Name="ContextMenuCheck" Content="افزودن گزینه «شخصی‌سازی با شمسا» به منوی کلیک‌راست ویندوز" Margin="0,16,0,0" Foreground="{DynamicResource TextBrush}" Checked="ContextMenu_Toggled" Unchecked="ContextMenu_Toggled"/>
+                        <CheckBox x:Name="ContextMenuCheck" Content="افزودن گزینه «شخصی‌سازی با نگارخانه» به منوی کلیک‌راست ویندوز" Margin="0,16,0,0" Foreground="{DynamicResource TextBrush}" Checked="ContextMenu_Toggled" Unchecked="ContextMenu_Toggled"/>
                     </StackPanel>
                 </TabItem>
 

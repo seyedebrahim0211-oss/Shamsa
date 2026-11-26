@@ -100,7 +100,7 @@ public static class PrayerTimes
     private static double FixHour(double a) { a -= 24 * Math.Floor(a / 24); return a < 0 ? a + 24 : a; }
 }
 
-/// <summary>Cities offered in the prayer/weather pickers.</summary>
+/// <summary>Legacy short city list (kept for compatibility); the pickers now use <see cref="WidgetCityData"/>.</summary>
 public static class WidgetCities
 {
     public sealed record City(string Name, double Lat, double Lng);

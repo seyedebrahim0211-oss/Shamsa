@@ -162,3 +162,38 @@ public static class ShellActions
         public IntPtr Handle { get; }
     }
 }
+
+/// <summary>Helpers for re-parenting parts of one window into another (used by the «نگارخانه» hub).</summary>
+public static class UiHost
+{
+    /// <summary>Removes <paramref name="e"/> from whatever logical parent holds it.</summary>
+    public static void Detach(FrameworkElement e)
+    {
+        switch (e.Parent)
+        {
+            case System.Windows.Controls.Panel p: p.Children.Remove(e); break;
+            case System.Windows.Controls.ContentControl c when ReferenceEquals(c.Content, e): c.Content = null; break;
+            case System.Windows.Controls.Decorator d when ReferenceEquals(d.Child, e): d.Child = null; break;
+            case System.Windows.Controls.ItemsControl i: i.Items.Remove(e); break;
+            case Window w when ReferenceEquals(w.Content, e): w.Content = null; break;
+        }
+    }
+
+    /// <summary>
+    /// Takes a window's root content for hosting elsewhere and copies the window's own resources onto it,
+    /// so styles and brushes defined in Window.Resources still resolve after the move.
+    /// </summary>
+    public static FrameworkElement? TakeContent(Window w)
+    {
+        if (w.Content is not FrameworkElement root) return null;
+        w.Content = null;
+        CopyResources(w.Resources, root);
+        return root;
+    }
+
+    public static void CopyResources(ResourceDictionary from, FrameworkElement to)
+    {
+        foreach (var key in from.Keys)
+            if (!to.Resources.Contains(key)) to.Resources[key] = from[key];
+    }
+}

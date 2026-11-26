@@ -295,7 +295,7 @@ public sealed class LauncherIndex : IDisposable
         var list = new List<LauncherResult>
         {
             Cmd("قفل صفحه", "lock screen قفل کردن", "", "cmd:lock", () => LockWorkStation()),
-            Cmd("تنظیمات میز کار شمسا", "shamsa desktop studio settings شمسا تنظیمات", "", "cmd:studio", () => DesktopEvents.RequestStudio(null)),
+            Cmd("تنظیمات نگارخانه", "negarkhaneh negar shamsa desktop studio settings نگارخانه نگار نگارخانه تنظیمات", "", "cmd:studio", () => DesktopEvents.RequestStudio(null)),
             Cmd("تنظیمات داک", "dock settings داک", "", "cmd:studio-dock", () => DesktopEvents.RequestStudio("dock")),
             Cmd("تنظیمات جستجوی سریع", "launcher spotlight settings میانبر", "", "cmd:studio-launcher", () => DesktopEvents.RequestStudio("launcher")),
             Cmd("سطل بازیافت", "recycle bin trash سطل زباله", "", "cmd:recycle", () => ShellRun("explorer.exe", "shell:RecycleBinFolder")),

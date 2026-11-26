@@ -1,7 +1,7 @@
 <Window x:Class="Shamsa.Views.GlassFolderPreviewWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="پیش‌نمایش شیشه‌ای پوشه | شمسا"
+        Title="پیش‌نمایش شیشه‌ای پوشه | نگارخانه"
         Width="720" Height="480"
         MinWidth="460" MinHeight="340"
         WindowStyle="None"

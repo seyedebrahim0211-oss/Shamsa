@@ -9,7 +9,9 @@ using System.Windows.Media.Imaging;
 namespace Shamsa.FolderStudio;
 
 public enum IconOverlayKind { None, Emoji, Text, Image }
-public enum IconImageMode { Badge, Full }
+/// <summary>Badge = small picture on the folder; Full = picture fills the icon (cropped);
+/// Fit = whole picture visible on a transparent square (best for logos and app icons).</summary>
+public enum IconImageMode { Badge, Full, Fit }
 
 /// <summary>Serializable description of a folder icon. Rendering is deterministic, so equal designs produce equal .ico files.</summary>
 public sealed class IconDesign
@@ -101,6 +103,19 @@ public static class FolderIconRenderer
     {
         var baseColor = ParseColor(d.BaseHex, Color.FromRgb(0xF4, 0xB7, 0x40));
         var image = d.Overlay == IconOverlayKind.Image ? LoadImage(d.ImagePath) : null;
+
+        if (image != null && d.ImageMode == IconImageMode.Fit)
+        {
+            var rect = new Rect(4, 4, 248, 248);
+            double scale = Math.Min(rect.Width / image.PixelWidth, rect.Height / image.PixelHeight);
+            double w = image.PixelWidth * scale, h = image.PixelHeight * scale;
+            var target = new Rect(rect.X + (rect.Width - w) / 2, rect.Y + (rect.Height - h) / 2, w, h);
+            double radius = Math.Min(w, h) * 0.16;
+            if (d.RoundedImage) dc.PushClip(new RectangleGeometry(target, radius, radius));
+            dc.DrawImage(image, target);
+            if (d.RoundedImage) dc.Pop();
+            return;
+        }
 
         if (image != null && d.ImageMode == IconImageMode.Full)
         {
@@ -217,8 +232,115 @@ public static class FolderIconRenderer
 
     private static readonly Dictionary<string, (DateTime Stamp, BitmapSource Image)> ImageCache = new(StringComparer.OrdinalIgnoreCase);
 
-    public static bool IsSupportedImage(string path) =>
-        Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".ico" or ".gif" or ".tif" or ".tiff" or ".webp";
+    /// <summary>Pictures decoded directly by WPF/WIC (HEIC/AVIF/JXL work when the Windows codec is installed).</summary>
+    private static readonly HashSet<string> RasterExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".jpg", ".jpeg", ".jfif", ".jpe", ".bmp", ".dib", ".gif", ".tif", ".tiff", ".webp",
+        ".heic", ".heif", ".avif", ".jxl", ".jxr", ".wdp", ".dds"
+    };
+
+    /// <summary>Files whose own icon is used (programs, libraries, shortcuts, icon files).</summary>
+    private static readonly HashSet<string> IconSourceExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".ico", ".cur", ".exe", ".dll", ".lnk", ".icl", ".cpl", ".scr", ".url", ".appref-ms"
+    };
+
+    /// <summary>Formats Windows can usually thumbnail through the shell (vector, design and raw photo files).</summary>
+    private static readonly HashSet<string> ShellThumbExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".svg", ".psd", ".raw", ".cr2", ".cr3", ".nef", ".arw", ".dng", ".orf", ".rw2", ".emf", ".wmf", ".pdf"
+    };
+
+    /// <summary>True for any picture, icon file, program, library or shortcut the app can turn into a folder icon.</summary>
+    public static bool IsSupportedImage(string path)
+    {
+        string ext = Path.GetExtension(path);
+        return RasterExtensions.Contains(ext) || IconSourceExtensions.Contains(ext) || ShellThumbExtensions.Contains(ext);
+    }
+
+    /// <summary>File-dialog filter covering everything <see cref="IsSupportedImage"/> accepts.</summary>
+    public static string OpenFileFilter
+    {
+        get
+        {
+            static string Join(IEnumerable<string> exts) => string.Join(";", exts.Select(e => "*" + e));
+            var all = RasterExtensions.Concat(IconSourceExtensions).Concat(ShellThumbExtensions);
+            return $"همه عکس‌ها و آیکون‌ها|{Join(all)}|عکس‌ها|{Join(RasterExtensions)}|آیکون، برنامه و میانبر|{Join(IconSourceExtensions)}|سایر (SVG، PSD، RAW…)|{Join(ShellThumbExtensions)}|همه فایل‌ها|*.*";
+        }
+    }
+
+    /// <summary>Best image mode for a source: icons/programs/logos keep their shape, photos fill the icon.</summary>
+    public static IconImageMode SuggestMode(string path)
+    {
+        string ext = Path.GetExtension(path);
+        if (IconSourceExtensions.Contains(ext) || ext.Equals(".svg", StringComparison.OrdinalIgnoreCase)) return IconImageMode.Fit;
+        // Pictures with transparency (logos, PNG icons) look best uncropped.
+        var img = LoadImage(path);
+        return img != null && HasTransparentCorners(img) ? IconImageMode.Fit : IconImageMode.Full;
+    }
+
+    /// <summary>Phone photos store their orientation in EXIF; rotate so the icon is upright.</summary>
+    private static BitmapSource ApplyExifRotation(string path, BitmapSource bmp)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var frame = BitmapFrame.Create(fs, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+            if (frame.Metadata is BitmapMetadata meta && meta.ContainsQuery("System.Photo.Orientation"))
+            {
+                double angle = Convert.ToUInt16(meta.GetQuery("System.Photo.Orientation")) switch
+                {
+                    3 => 180,
+                    6 => 90,
+                    8 => 270,
+                    _ => 0
+                };
+                if (angle != 0) return new TransformedBitmap(bmp, new RotateTransform(angle));
+            }
+        }
+        catch { }
+        return bmp;
+    }
+
+    /// <summary>
+    /// One step: turns any picture, icon, program or shortcut into a multi-size .ico and sets it on the folder.
+    /// <paramref name="mode"/> null = automatic (logos/icons kept whole, photos fill the icon). STA thread.
+    /// </summary>
+    public static string ApplyImageToFolder(string folder, string imagePath, IconImageMode? mode = null, bool rounded = true)
+    {
+        if (LoadImage(imagePath) == null)
+            throw new InvalidOperationException("این فایل به عکس یا آیکون تبدیل نشد.");
+        var design = new IconDesign
+        {
+            Name = Path.GetFileNameWithoutExtension(imagePath),
+            Overlay = IconOverlayKind.Image,
+            ImagePath = imagePath,
+            ImageMode = mode ?? SuggestMode(imagePath),
+            RoundedImage = rounded
+        };
+        string ico = EnsureIcoFile(design);
+        FolderIconService.ApplyIcon(folder, ico);
+        try { FolderStudioStore.AddHistory(folder, design); } catch { }
+        return ico;
+    }
+
+    private static bool HasTransparentCorners(BitmapSource img)
+    {
+        try
+        {
+            var src = img.Format == PixelFormats.Bgra32 ? img : new FormatConvertedBitmap(img, PixelFormats.Bgra32, null, 0);
+            int w = src.PixelWidth, h = src.PixelHeight;
+            if (w < 2 || h < 2) return false;
+            var px = new byte[4];
+            foreach (var (x, y) in new[] { (0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1) })
+            {
+                src.CopyPixels(new Int32Rect(x, y, 1, 1), px, 4, 0);
+                if (px[3] < 32) return true;
+            }
+        }
+        catch { }
+        return false;
+    }
 
     public static BitmapSource? LoadImage(string path)
     {
@@ -227,24 +349,43 @@ public static class FolderIconRenderer
         {
             var stamp = File.GetLastWriteTimeUtc(path);
             if (ImageCache.TryGetValue(path, out var hit) && hit.Stamp == stamp) return hit.Image;
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            BitmapSource result;
-            if (Path.GetExtension(path).Equals(".ico", StringComparison.OrdinalIgnoreCase))
+            string ext = Path.GetExtension(path);
+            BitmapSource? result = null;
+            if (ext.Equals(".ico", StringComparison.OrdinalIgnoreCase) || ext.Equals(".cur", StringComparison.OrdinalIgnoreCase))
             {
-                var decoder = new IconBitmapDecoder(fs, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-                result = decoder.Frames.OrderByDescending(f => f.PixelWidth).First();
+                try
+                {
+                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    var decoder = new IconBitmapDecoder(fs, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                    result = decoder.Frames.OrderByDescending(f => f.PixelWidth).ThenByDescending(f => f.Format.BitsPerPixel).First();
+                }
+                catch { result = null; }
             }
-            else
+            else if (RasterExtensions.Contains(ext))
             {
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                bmp.DecodePixelWidth = 512;
-                bmp.StreamSource = fs;
-                bmp.EndInit();
-                result = bmp;
+                try
+                {
+                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                    bmp.DecodePixelWidth = 512;
+                    bmp.StreamSource = fs;
+                    bmp.EndInit();
+                    result = ApplyExifRotation(path, bmp);
+                }
+                catch { result = null; }
             }
-            result.Freeze();
+
+            // Programs, shortcuts, SVG/PSD/RAW, or a picture WIC could not decode: ask the Windows shell.
+            if (result == null)
+            {
+                bool iconOnly = IconSourceExtensions.Contains(ext);
+                result = Services.ShellThumbnailService.TryGetShellImage(path, 256, thumbnailOnly: !iconOnly, iconOnly: iconOnly);
+            }
+            if (result == null) return null;
+            if (!result.IsFrozen) result.Freeze();
             if (ImageCache.Count > 32) ImageCache.Clear();
             ImageCache[path] = (stamp, result);
             return result;

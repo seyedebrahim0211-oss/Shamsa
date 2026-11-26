@@ -10,7 +10,7 @@ public static class ControlCenterStudioPage
     {
         var c = s.ControlCenter;
         var page = Page();
-        var main = Body(Card(page, "مرکز کنترل", "از دکمه آیکون‌دار نوار بالا، منوی نوار بالا یا منوی سینی شمسا باز می‌شود."));
+        var main = Body(Card(page, "مرکز کنترل", "از دکمه آیکون‌دار نوار بالا، منوی نوار بالا یا منوی سینی نگارخانه باز می‌شود."));
         main.Children.Add(Toggle("فعال", null, c.Enabled, v => c.Enabled = v, changed));
         main.Children.Add(Button("باز کردن مرکز کنترل", DesktopEvents.RequestControlCenter));
 

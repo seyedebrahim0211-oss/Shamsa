@@ -118,7 +118,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.meta.outputs.version }}
-          name: شمسا ${{ steps.meta.outputs.version }} | Windows
+          name: نگارخانه ${{ steps.meta.outputs.version }} | Windows
           target_commitish: ${{ github.sha }}
           prerelease: false
           draft: false

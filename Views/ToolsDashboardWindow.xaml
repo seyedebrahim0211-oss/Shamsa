@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="شمسا (Shamsa) — دستیار هوشمند فایل ویندوز"
+        Title="نگارخانه — دستیار هوشمند فایل ویندوز"
         Icon="/Assets/Shamsa.ico"
         Width="1020" Height="700" MinWidth="820" MinHeight="560"
         WindowStartupLocation="CenterScreen"
@@ -117,25 +117,25 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- نوار عنوان اختصاصی شمسا: دکمه‌های ضربدر، بزرگ‌نمایی، کوچک‌نمایی و خروج کامل کاملاً در سمت راست -->
+            <!-- نوار عنوان اختصاصی نگارخانه: دکمه‌های ضربدر، بزرگ‌نمایی، کوچک‌نمایی و خروج کامل کاملاً در سمت راست -->
             <Border Grid.Row="0" Background="{DynamicResource GlassHeaderBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,0,6,0">
                 <DockPanel FlowDirection="LeftToRight" LastChildFill="True">
                     <!-- سمت راست: خروج کامل + کوچک‌نمایی + بزرگ‌نمایی + ضربدر -->
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
                         <Button Content="⏻ خروج از برنامه" Click="ExitApp_Click" Style="{StaticResource TitleBarExitAppBtn}"
-                                ToolTip="خروج کامل از شمسا و توقف اجرا در پس‌زمینه"/>
+                                ToolTip="خروج کامل از نگارخانه و توقف اجرا در پس‌زمینه"/>
                         <Button Content="─" Click="Minimize_Click" Style="{StaticResource TitleBarBtn}" ToolTip="کوچک کردن پنجره"/>
                         <Button x:Name="MaxRestoreBtn" Content="□" Click="MaximizeRestore_Click" Style="{StaticResource TitleBarBtn}" ToolTip="بزرگ‌نمایی / بازگردانی"/>
                         <Button Content="✕" Click="CloseWindow_Click" Style="{StaticResource TitleBarCloseBtn}" FontWeight="Bold"
                                 ToolTip="بستن پنجره (برنامه کنار ساعت ویندوز فعال می‌ماند)"/>
                     </StackPanel>
 
-                    <!-- سمت چپ: نشان شمسا + عنوان -->
+                    <!-- سمت چپ: نشان نگارخانه + عنوان -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Image Source="/Assets/Shamsa-logo.png" Width="22" Height="22" Margin="2,0,8,0"
                                RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="شمسا" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Shamsa" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="6,1,0,0"/>
+                        <TextBlock Text="نگارخانه" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Negarkhaneh" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="6,1,0,0"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
@@ -148,7 +148,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- هدر ایرانی با شمسه هشت‌پر فیروزه و طلا -->
+                <!-- هدر -->
                 <DockPanel Margin="2,0,2,8">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                         <Button Content="🧺 قفسه موقت" Click="OpenShelfFromHeader_Click" Style="{StaticResource GoldButton}" Padding="10,5" Margin="0,0,8,0"/>
@@ -163,7 +163,7 @@
                                RenderOptions.BitmapScalingMode="HighQuality"/>
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="شمسا" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
+                                <TextBlock Text="نگارخانه" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
                                 <TextBlock Text=" · دستیار هوشمند مدیریت فایل ویندوز" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Bottom" Margin="4,0,0,1"/>
                             </StackPanel>
                             <TextBlock Text="پیش‌نمایش ویدیو، تصویر، اسناد و پوشه · ضبط صفحه · آیکون و قفل پوشه · تبدیل فرمت و نظم‌دهی آفلاین" Style="{StaticResource Muted}" FontSize="11.5"/>
@@ -182,10 +182,10 @@
                     <StackPanel Margin="18">
                         <Border Style="{StaticResource PersianHighlightCard}">
                             <DockPanel>
-                                <Button Content="✨ آزمایش زنده منوی دایره‌ای" Click="DemoDonut_Click" Style="{StaticResource GoldButton}"
+                                <Button Content="◎ آزمایش زنده منوی دایره‌ای" Click="DemoDonut_Click" Style="{StaticResource GoldButton}"
                                         DockPanel.Dock="Left" Padding="14,8" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                 <StackPanel>
-                                    <TextBlock Text="خوش آمدید! کار با شمسا (Shamsa) در ۳ حرکت ساده" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
+                                    <TextBlock Text="خوش آمدید! کار با نگارخانه در ۳ حرکت ساده" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
                                     <TextBlock Style="{StaticResource Muted}" Margin="0,4,0,0"
                                                Text="برنامه بی‌سروصدا کنار ساعت ویندوز (System Tray) آماده است؛ هر وقت روی فایل‌ها کار می‌کنید بدون باز کردن هیچ پنجره‌ای به شما کمک می‌کند."/>
                                 </StackPanel>
@@ -252,7 +252,7 @@
                                     <TextBlock Text="۲. منوی دایره‌ای تبدیل سریع (مشابه Filee) 🔄" Style="{StaticResource SectionTitle}"/>
                                     <TextBlock x:Name="GuideDonutDesc" Style="{StaticResource Muted}" LineHeight="20"
                                                Text="دو راه سریع دارید: یا روی فایل شورتکات (پیش‌فرض Alt + Q) را بزنید و گزینه را کلیک کنید، یا Ctrl را نگه دارید و فایل را بکشید. با Tab یا اسکرول موس منو به ابزارهای سریع می‌چرخد."/>
-                                    <Button Content="✨ نمایش آزمایشی منوی دایره‌ای" Click="DemoDonut_Click" Style="{StaticResource AccentButton}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                                    <Button Content="◎ نمایش آزمایشی منوی دایره‌ای" Click="DemoDonut_Click" Style="{StaticResource AccentButton}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
                                 </StackPanel>
                             </Border>
 
@@ -329,7 +329,7 @@
 
                     <DockPanel Grid.Row="3">
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                            <Button x:Name="RunOrganizerBtn" Content="✨ شروع مرتب‌سازی" Click="RunOrganizer_Click" Style="{StaticResource AccentButton}" Margin="0,0,8,0" Padding="16,8"/>
+                            <Button x:Name="RunOrganizerBtn" Content="▶ شروع مرتب‌سازی" Click="RunOrganizer_Click" Style="{StaticResource AccentButton}" Margin="0,0,8,0" Padding="16,8"/>
                             <Button x:Name="UndoOrganizerBtn" Content="↶ بازگردانی" Click="UndoOrganizer_Click" IsEnabled="False"/>
                         </StackPanel>
                         <TextBlock x:Name="OrganizerStatus" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"
@@ -538,7 +538,7 @@
                             <WrapPanel Margin="0,0,0,8">
                                 <StackPanel Orientation="Horizontal" Margin="0,0,12,6">
                                     <TextBlock Text="سطح کیفیت:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <ComboBox x:Name="CompressPresetBox" Width="175" SelectionChanged="CompressPresetBox_SelectionChanged">
+                                    <ComboBox x:Name="CompressPresetBox" Width="220" SelectionChanged="CompressPresetBox_SelectionChanged">
                                         <ComboBoxItem Content="کیفیت بالا (افت نامحسوس)"/>
                                         <ComboBoxItem Content="متعادل و هوشمند (پیشنهادی)"/>
                                         <ComboBoxItem Content="کم‌حجم (تلگرام / وب)"/>
@@ -549,7 +549,7 @@
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,12,6">
                                     <TextBlock Text="ابعاد خروجی:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <ComboBox x:Name="CompressResBox" Width="168" SelectionChanged="CompressOption_Changed">
+                                    <ComboBox x:Name="CompressResBox" Width="200" SelectionChanged="CompressOption_Changed">
                                         <ComboBoxItem Content="ابعاد اصلی (بدون تغییر)"/>
                                         <ComboBoxItem Content="حداکثر 1920px (Full HD)"/>
                                         <ComboBoxItem Content="حداکثر 1280px (HD)"/>
@@ -562,7 +562,7 @@
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,12,6">
                                     <TextBlock Text="فرمت عکس:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <ComboBox x:Name="CompressImgFmtBox" Width="148" SelectionChanged="CompressOption_Changed">
+                                    <ComboBox x:Name="CompressImgFmtBox" Width="178" SelectionChanged="CompressOption_Changed">
                                         <ComboBoxItem Content="هوشمند (WEBP/JPG)"/>
                                         <ComboBoxItem Content="WEBP (کم‌حجم‌ترین)"/>
                                         <ComboBoxItem Content="JPG (سازگار با همه)"/>
@@ -572,7 +572,7 @@
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                     <TextBlock Text="سقف حجم ویدیو:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <ComboBox x:Name="CompressTargetMbBox" Width="158" SelectionChanged="CompressOption_Changed">
+                                    <ComboBox x:Name="CompressTargetMbBox" Width="215" SelectionChanged="CompressOption_Changed">
                                         <ComboBoxItem Content="خودکار (بر اساس کیفیت)" Tag="0"/>
                                         <ComboBoxItem Content="زیر 10 MB (دیسکورد/ایمیل)" Tag="10"/>
                                         <ComboBoxItem Content="زیر 25 MB (جیمیل/تلگرام)" Tag="25"/>
@@ -620,9 +620,9 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="16">
                         <!-- Lightweight layered glass; instant preview, persisted in LocalAppData -->
-                        <Border Style="{StaticResource PersianHighlightCard}">
+                        <Border x:Name="SecAppearance" Style="{StaticResource PersianHighlightCard}">
                             <StackPanel>
-                                <TextBlock Text="✦ ظاهر و تم‌های شیشه‌ای شمسا" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="ظاهر و تم‌های شیشه‌ای نگارخانه" Style="{StaticResource SectionTitle}"/>
                                 <TextBlock Text="رنگ‌ها بلافاصله در پنجره‌ها تغییر می‌کنند. تنظیمات برای اجراهای بعدی حفظ می‌شود."
                                            Style="{StaticResource Muted}" Margin="0,0,0,12"/>
                                 <WrapPanel Margin="0,0,0,10">
@@ -657,7 +657,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource Card}">
+                        <Border x:Name="SecFfmpeg" Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="موتور FFmpeg" Style="{StaticResource SectionTitle}"/>
                                 <TextBlock x:Name="FfmpegStatusText" TextWrapping="Wrap" Margin="0,0,0,2"/>
@@ -670,18 +670,18 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource PersianHighlightCard}">
+                        <Border x:Name="SecUpdate" Style="{StaticResource PersianHighlightCard}">
                             <StackPanel>
                                 <DockPanel>
                                     <TextBlock x:Name="UpdateVersionBadge" DockPanel.Dock="Left" FontSize="11" FontWeight="SemiBold"
                                                Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" FlowDirection="LeftToRight"/>
-                                    <TextBlock Text="↻ به‌روزرسانی هوشمند شمسا" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Text="↻ به‌روزرسانی هوشمند نگارخانه" Style="{StaticResource SectionTitle}"/>
                                 </DockPanel>
                                 <TextBlock Text="نسخه‌های جدید از GitHub Releases رسمی دریافت و قبل از نصب با SHA-256 همان انتشار تطبیق داده می‌شوند. تنظیمات و فایل‌های شما پس از به‌روزرسانی حفظ می‌شوند."
                                            Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                 <CheckBox x:Name="AutoUpdateCheck" Content="بررسی خودکار نسخه جدید هنگام اجرا و هر ۶ ساعت" Click="Setting_Changed"/>
                                 <CheckBox x:Name="AutoDownloadUpdateCheck" Content="دانلود و تأیید خودکار نسخه جدید در پس‌زمینه" Click="Setting_Changed"/>
-                                <CheckBox x:Name="AutoInstallIdleCheck" Content="نصب هوشمند: وقتی ۱۰ دقیقه با سیستم کار نکردم و شمسا مشغول ضبط/تبدیل نیست، بی‌صدا نصب و دوباره اجرا شود" Click="Setting_Changed"/>
+                                <CheckBox x:Name="AutoInstallIdleCheck" Content="نصب هوشمند: وقتی ۱۰ دقیقه با سیستم کار نکردم و نگارخانه مشغول ضبط/تبدیل نیست، بی‌صدا نصب و دوباره اجرا شود" Click="Setting_Changed"/>
                                 <TextBlock x:Name="UpdateStatusText" Foreground="{DynamicResource GoldBrush}"
                                            TextWrapping="Wrap" Margin="0,8,0,6"/>
                                 <ProgressBar x:Name="UpdateProgress" Height="6" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,0,0,8" FlowDirection="LeftToRight"/>
@@ -697,7 +697,7 @@
                                 <WrapPanel>
                                     <Button x:Name="CheckUpdateBtn" Content="بررسی نسخه جدید" Click="CheckUpdate_Click" Margin="0,0,8,5"/>
                                     <Button x:Name="InstallUpdateBtn" Content="⚡ نصب و اجرای مجدد (یک کلیک)" Click="InstallUpdate_Click" Style="{StaticResource AccentButton}" Margin="0,0,8,5" IsEnabled="False"
-                                            ToolTip="دانلود، تأیید SHA-256، نصب بی‌صدا و اجرای دوباره خودکار شمسا"/>
+                                            ToolTip="دانلود، تأیید SHA-256، نصب بی‌صدا و اجرای دوباره خودکار نگارخانه"/>
                                     <Button x:Name="InstallUpdateWizardBtn" Content="نصب با پنجره نصب‌کننده" Click="InstallUpdateWizard_Click" Margin="0,0,8,5" IsEnabled="False"/>
                                     <Button x:Name="SkipUpdateBtn" Content="فعلاً این نسخه را رد کن" Click="SkipUpdate_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,5" Visibility="Collapsed"/>
                                     <Button x:Name="ReleasePageBtn" Content="صفحه انتشار" Click="ReleasePage_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,5" Visibility="Collapsed"/>
@@ -707,7 +707,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource Card}">
+                        <Border x:Name="SecPreview" Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="پیش‌نمایش کنار موس" Style="{StaticResource SectionTitle}"/>
                                 <CheckBox x:Name="HoverCheck" Content="پیش‌نمایش ویدیو هنگام مکث موس در Explorer و دسکتاپ" Click="Setting_Changed"/>
@@ -741,7 +741,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource PersianHighlightCard}">
+                        <Border x:Name="SecFolderCard" Style="{StaticResource PersianHighlightCard}">
                             <StackPanel>
                                 <TextBlock Text="📁 شخصی‌سازی کارت شیشه‌ای پوشه" Style="{StaticResource SectionTitle}"/>
                                 <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
@@ -800,7 +800,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource Card}">
+                        <Border x:Name="SecDonut" Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="تبدیل و منوی دایره‌ای" Style="{StaticResource SectionTitle}"/>
                                 <CheckBox x:Name="DonutCheck" Content="منوی دایره‌ای با Ctrl + کشیدن فایل در Explorer" Click="Setting_Changed"/>
@@ -824,7 +824,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource Card}">
+                        <Border x:Name="SecAutoOrganize" Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="مرتب‌سازی خودکار" Style="{StaticResource SectionTitle}"/>
                                 <CheckBox x:Name="AutoOrganizeCheck" Content="فایل‌های جدید این پوشه خودکار دسته‌بندی شوند (پس از اتمام دانلود)" Click="Setting_Changed"/>
@@ -835,10 +835,10 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource Card}">
+                        <Border x:Name="SecSystem" Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="سیستم" Style="{StaticResource SectionTitle}"/>
-                                <CheckBox x:Name="StartupCheck" Content="اجرای خودکار Shamsa با شروع ویندوز" Click="Startup_Changed"/>
+                                <CheckBox x:Name="StartupCheck" Content="اجرای خودکار نگارخانه با شروع ویندوز" Click="Startup_Changed"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <Button Content="باز کردن پوشه لاگ" Click="OpenLogs_Click" Margin="0,0,6,0"/>
                                     <Button Content="باز کردن پوشه تنظیمات" Click="OpenDataDir_Click"/>

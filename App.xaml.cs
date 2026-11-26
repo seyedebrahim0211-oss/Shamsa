@@ -34,7 +34,12 @@ public partial class App : Application
     private DonutMenuWindow? _donutWindow;
     private DropShelfWindow? _shelfWindow;
     private ToolsDashboardWindow? _dashboardWindow;
+    private MainHubWindow? _hub;
     private DispatcherTimer? _pollTimer;
+    private DateTime _lastPollActivity = DateTime.Now;
+    private System.Drawing.Point _lastPollCursor;
+    private static readonly TimeSpan FastPoll = TimeSpan.FromMilliseconds(35);
+    private static readonly TimeSpan IdlePoll = TimeSpan.FromMilliseconds(110);
     private DispatcherTimer? _updateTimer;
 
     // tray menu items kept for syncing with settings
@@ -113,12 +118,14 @@ public partial class App : Application
         _autoOrganizer.FileOrganized += (name, category, dest) =>
             Notifier.Show($"«{name}» به پوشه {category} منتقل شد.", dest);
 
+        MainHubWindow.Opener = page => OpenHub(page);
         SetupTrayIcon();
         ApplySettings();
         InitializeFeatures();
 
-        // بازه ۳۵ میلی‌ثانیه با اولویت Normal برای واکنش فوق‌سریع و آنی روی فایل‌ها
-        _pollTimer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(35) };
+        // ۳۵ میلی‌ثانیه هنگام فعالیت موس/کیبورد برای واکنش آنی؛ پس از ۲ ثانیه سکون به ۱۱۰ میلی‌ثانیه می‌رود
+        // (تأخیر پیش‌نمایش از لحظه توقف موس شمرده می‌شود و اولین حرکت دوباره حالت سریع را برمی‌گرداند).
+        _pollTimer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = FastPoll };
         _pollTimer.Tick += PollTimer_Tick;
         _pollTimer.Start();
 
@@ -146,10 +153,10 @@ public partial class App : Application
         else if (!silent && !SettingsService.Current.HasSeenGuide)
         {
             SettingsService.Update(s => s.HasSeenGuide = true);
-            OpenDashboard(tab: 0);
+            OpenHub("home");
         }
         else if (!silent)
-            ShowNotification("شمسا فعال شد! روی ویدیوها و تصاویر مکث کنید یا شورتکات منوی دایره‌ای را بزنید.");
+            ShowNotification("نگارخانه فعال شد! روی ویدیوها و تصاویر مکث کنید یا شورتکات منوی دایره‌ای را بزنید.");
     }
 
     private async Task CheckForUpdatesInBackgroundAsync(bool initial)
@@ -167,8 +174,8 @@ public partial class App : Application
                 {
                     await UpdateService.DownloadVerifiedAsync(release);
                     ShowNotification(SettingsService.Current.AutoInstallWhenIdle
-                        ? $"نسخه {release.Version} شمسا دریافت و تأیید شد؛ هنگام بیکاری سیستم خودکار نصب می‌شود."
-                        : $"نسخه {release.Version} شمسا دریافت و تأیید شد. برای نصب با یک کلیک به تنظیمات › به‌روزرسانی بروید.");
+                        ? $"نسخه {release.Version} نگارخانه دریافت و تأیید شد؛ هنگام بیکاری سیستم خودکار نصب می‌شود."
+                        : $"نسخه {release.Version} نگارخانه دریافت و تأیید شد. برای نصب با یک کلیک به تنظیمات › به‌روزرسانی بروید.");
                 }
                 catch (Exception ex)
                 {
@@ -176,7 +183,7 @@ public partial class App : Application
                     ShowNotification($"نسخه {release.Version} منتشر شده؛ دانلود خودکار ناموفق بود. از تنظیمات بررسی کنید.");
                 }
             }
-            else ShowNotification($"نسخه جدید شمسا {release.Version} آماده است؛ برای نصب به تنظیمات بروید.");
+            else ShowNotification($"نسخه جدید نگارخانه {release.Version} آماده است؛ برای نصب به تنظیمات بروید.");
             _dashboardWindow?.RefreshUpdateStatus();
         }
         catch (Exception ex)
@@ -292,6 +299,8 @@ public partial class App : Application
                 OpenDashboard(dt);
             else if (spec.StartsWith("window:", StringComparison.OrdinalIgnoreCase))
                 HandleFeatureArgs(new[] { spec[7..] });
+            else if (spec.StartsWith("hub:", StringComparison.OrdinalIgnoreCase))
+                OpenHub(spec[4..]);
         };
         timer.Start();
 
@@ -404,13 +413,13 @@ public partial class App : Application
         if (_trayIcon == null) return;
         _balloonRevealPath = revealPath;
         string text = message.Length > 250 ? message[..247] + "..." : message;
-        _trayIcon.ShowBalloonTip(3500, "شمسا (Shamsa)", text, Forms.ToolTipIcon.Info);
+        _trayIcon.ShowBalloonTip(3500, "نگارخانه", text, Forms.ToolTipIcon.Info);
     }
 
     private void SetTrayBusy(bool busy)
     {
         if (_trayIcon != null)
-            _trayIcon.Text = busy ? "شمسا (Shamsa) — در حال پردازش..." : "شمسا (Shamsa) — دستیار هوشمند فایل";
+            _trayIcon.Text = busy ? "نگارخانه — در حال پردازش..." : "نگارخانه — دستیار هوشمند فایل";
     }
 
     private void SetupTrayIcon()
@@ -419,15 +428,15 @@ public partial class App : Application
         {
             Icon = CreateTrayIcon(),
             Visible = true,
-            Text = "شمسا (Shamsa) — دستیار هوشمند فایل"
+            Text = "نگارخانه — دستیار هوشمند فایل"
         };
 
         var menu = new Forms.ContextMenuStrip { RightToLeft = Forms.RightToLeft.Yes, ShowCheckMargin = true };
-        menu.Items.Add("🧰 داشبورد ابزارها", null, (_, _) => OpenDashboard());
+        var open = new Forms.ToolStripMenuItem("🖼 باز کردن نگارخانه", null, (_, _) => OpenHub("home")) { Font = new System.Drawing.Font(menu.Font, System.Drawing.FontStyle.Bold) };
+        menu.Items.Add(open);
         menu.Items.Add("🧺 قفسه موقت (Drop Shelf)", null, (_, _) => _shelfWindow?.ShowShelf());
-        menu.Items.Add("📖 راهنمای شروع سریع", null, (_, _) => OpenDashboard(tab: 0));
-        menu.Items.Add("🔄 مبدل فایل", null, (_, _) => OpenDashboard(tab: 4));
-        menu.Items.Add("✨ مرتب‌سازی Downloads الان", null, (_, _) => OrganizeDownloadsNow());
+        menu.Items.Add("🔄 مبدل فایل", null, (_, _) => OpenHub("files.convert"));
+        menu.Items.Add("🗂 مرتب‌سازی Downloads الان", null, (_, _) => OrganizeDownloadsNow());
         menu.Items.Add(new Forms.ToolStripSeparator());
         AddFeatureTrayItems(menu);
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -453,13 +462,14 @@ public partial class App : Application
             SettingsService.Save();
         });
 
+        menu.Items.Add("⚙ تنظیمات و به‌روزرسانی", null, (_, _) => OpenHub("settings"));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("⏻ خروج کامل از برنامه", null, (_, _) => Shutdown());
 
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.MouseClick += (_, args) =>
         {
-            if (args.Button == Forms.MouseButtons.Left) OpenDashboard();
+            if (args.Button == Forms.MouseButtons.Left) OpenHub(null);
         };
         _trayIcon.BalloonTipClicked += (_, _) =>
         {
@@ -520,9 +530,43 @@ public partial class App : Application
         }
     }
 
-    private void OpenDashboard(int? tab = null)
+    /// <summary>Legacy entry (--tab=N, forwarded launches): opens the matching hub page.</summary>
+    private void OpenDashboard(int? tab = null) => OpenHub(tab.HasValue ? tab.Value.ToString() : null);
+
+    /// <summary>
+    /// Opens the «نگارخانه» main window (created on first use only) at <paramref name="page"/>;
+    /// null keeps the page the user was on.
+    /// </summary>
+    private MainHubWindow OpenHub(string? page)
     {
-        if (_dashboardWindow == null || !_dashboardWindow.IsLoaded)
+        if (_hub == null)
+        {
+            _hub = new MainHubWindow(new HubActions
+            {
+                CreateDashboard = CreateDashboard,
+                OpenShelf = () => _shelfWindow?.ShowShelf(),
+                DemoDonut = () => _donutWindow?.ShowDemo(),
+                OrganizeDownloadsNow = OrganizeDownloadsNow,
+                ExitApp = Shutdown,
+            });
+            _hub.Closed += (_, _) =>
+            {
+                _hub = null;
+                if (_dashboardWindow != null)
+                {
+                    _dashboardWindow = null;
+                    _hotkeyPausedForRecording = false;
+                    ApplySettings();
+                }
+            };
+        }
+        _hub.ShowPage(page ?? _hub.CurrentPageId);
+        return _hub;
+    }
+
+    /// <summary>The (never shown) dashboard whose tabs and settings sections the hub hosts.</summary>
+    private ToolsDashboardWindow CreateDashboard()
+    {
         {
             _dashboardWindow = new ToolsDashboardWindow(_converterService, () => _hotkeyService.IsRegistered);
             _dashboardWindow.DemoDonutRequested += () => _donutWindow?.ShowDemo();
@@ -536,18 +580,8 @@ public partial class App : Application
                 if (paused) _hotkeyService.Unregister();
                 else ApplySettings();
             };
-            _dashboardWindow.Closed += (_, _) =>
-            {
-                _hotkeyPausedForRecording = false;
-                ApplySettings();
-                _dashboardWindow = null;
-            };
-            _dashboardWindow.Show();
         }
-
-        if (_dashboardWindow.WindowState == WindowState.Minimized) _dashboardWindow.WindowState = WindowState.Normal;
-        if (tab.HasValue) _dashboardWindow.SelectTab(tab.Value);
-        _dashboardWindow.Activate();
+        return _dashboardWindow;
     }
 
     private async void OnDonutHotkeyPressed()
@@ -597,11 +631,30 @@ public partial class App : Application
         try
         {
             PollOnce();
+            AdaptPollInterval();
         }
         catch (Exception ex)
         {
             AppLog.Error("Poll tick failed", ex);
         }
+    }
+
+    /// <summary>
+    /// Keeps the 35 ms tick only while something is happening (cursor moving, a button held, a preview,
+    /// menu or hover query active). After 2 s of complete stillness the loop relaxes to 110 ms, which cuts
+    /// idle wake-ups by ~70 %. Hover latency is unaffected: the hover delay starts when the cursor stops,
+    /// and the first tick that sees movement switches straight back to the fast interval.
+    /// </summary>
+    private void AdaptPollInterval()
+    {
+        if (_pollTimer == null) return;
+        var pos = Forms.Cursor.Position;
+        bool busy = pos != _lastPollCursor || _wasLeftDown || _isCheckingHover || _activeHoverTarget != null
+                    || (_donutWindow?.IsVisible ?? false) || NativeMethods.IsKeyDown(NativeMethods.VK_CONTROL);
+        _lastPollCursor = pos;
+        if (busy) _lastPollActivity = DateTime.Now;
+        var want = DateTime.Now - _lastPollActivity > TimeSpan.FromSeconds(2) ? IdlePoll : FastPoll;
+        if (_pollTimer.Interval != want) _pollTimer.Interval = want;
     }
 
     private void PollOnce()

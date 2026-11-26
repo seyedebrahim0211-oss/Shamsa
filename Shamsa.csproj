@@ -10,9 +10,10 @@
     <AssemblyName>Shamsa</AssemblyName>
     <RootNamespace>Shamsa</RootNamespace>
     <ApplicationIcon>Assets\Shamsa.ico</ApplicationIcon>
-    <Version>3.1.0</Version>
-    <Authors>Shamsa Contributors</Authors>
-    <Description>شمسا (Shamsa) — دستیار هوشمند فایل ویندوز: پیش‌نمایش شناور ویدیو، منوی دایره‌ای تبدیل فرمت، قفسه موقت و ابزارهای نظم‌دهی</Description>
+    <Version>3.2.0</Version>
+    <Authors>Negarkhaneh Contributors</Authors>
+    <Product>نگارخانه (Negarkhaneh)</Product>
+    <Description>نگارخانه (Negarkhaneh) — شخصی‌سازی کامل ویندوز، محیط دسکتاپ، ضبط صفحه، استودیوی پوشه و پیش‌نمایش هوشمند فایل‌ها</Description>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
