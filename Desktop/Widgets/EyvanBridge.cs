@@ -30,7 +30,7 @@ internal static class EyvanBridge
     private static string Manifest => Path.Combine(AppPaths.DataDir, "eyvan-host.json");
     internal static string Snapshot => Path.Combine(AppPaths.DataDir, "eyvan-snapshot.json");
 
-    internal sealed record State(int Schema, long At, string City, string NextName, long NextAt, bool ShowSeconds = true);
+    internal sealed record State(int Schema, long At, string City, string NextName, long NextAt, bool ShowSeconds = true, double? Latitude = null, double? Longitude = null, string? ZoneId = null);
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     internal static string Register()
@@ -59,7 +59,11 @@ internal static class EyvanBridge
         var s = root.Deserialize<State>(Json) ?? throw new InvalidDataException();
         if (s.Schema != 1 || string.IsNullOrWhiteSpace(s.City) || s.City.Length > 80 ||
             s.NextName?.Length > 80 || s.At <= 0 || s.At > DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds() ||
-            s.NextAt < 0 || s.NextAt > DateTimeOffset.MaxValue.ToUnixTimeMilliseconds())
+            s.NextAt < 0 || s.NextAt > DateTimeOffset.MaxValue.ToUnixTimeMilliseconds() ||
+            (s.Latitude.HasValue != s.Longitude.HasValue) ||
+            (s.Latitude is double lat && (!double.IsFinite(lat) || lat < -90 || lat > 90)) ||
+            (s.Longitude is double lng && (!double.IsFinite(lng) || lng < -180 || lng > 180)) ||
+            (s.ZoneId != null && (s.ZoneId.Length > 100 || CityClock.Zone(s.ZoneId) == null)))
             throw new InvalidDataException("ساختار وضعیت ایوان معتبر نیست.");
         return s;
     }

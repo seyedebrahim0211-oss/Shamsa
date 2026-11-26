@@ -82,10 +82,13 @@ public sealed class WindowManagerSettings
     public int Gap { get; set; } = 8;                     // 0..40 px
     public int OuterPadding { get; set; } = 8;            // 0..60 px
     public bool HotkeysEnabled { get; set; } = true;      // Ctrl+Alt+Arrows etc.
+    public Dictionary<string, WindowHotkey> Hotkeys { get; set; } = new();
     public bool FocusFollowsMouse { get; set; } = false;
     public bool FloatDialogs { get; set; } = true;
     public List<string> ExcludedProcesses { get; set; } = new() { "Taskmgr.exe", "ScreenClippingHost.exe" };
 }
+
+public sealed record WindowHotkey(uint Modifiers, int Key);
 
 public sealed class ControlCenterSettings
 {
@@ -271,6 +274,7 @@ public sealed class DesktopSettings
         Dock.IconSize = Math.Clamp(Dock.IconSize, 32, 80);
         Dock.Magnification = Math.Clamp(Dock.Magnification, 100, 200);
         Launcher.MaxResults = Math.Clamp(Launcher.MaxResults, 4, 15);
+        WindowManager.Hotkeys ??= new();
         WindowManager.Gap = Math.Clamp(WindowManager.Gap, 0, 40);
         WindowManager.OuterPadding = Math.Clamp(WindowManager.OuterPadding, 0, 60);
         TopBar.LeftItems ??= new(); TopBar.CenterItems ??= new(); TopBar.RightItems ??= new();

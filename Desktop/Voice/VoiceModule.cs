@@ -23,7 +23,8 @@ public sealed class VoiceModule : IDesktopModule
         _generation++;
         var device = _microphone;
         _microphone = null;
-        try { device?.StopRecording(); } finally { device?.Dispose(); }
+        try { device?.StopRecording(); } catch { }
+        finally { try { device?.Dispose(); } catch { } }
     }
 
     public static Button HoldButton(Func<DesktopSettings> settings, Action<string> status)
@@ -33,6 +34,7 @@ public sealed class VoiceModule : IDesktopModule
         MemoryStream? samples = null;
         int session = -1;
         bool down = false;
+        var limit = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         VoiceLanguage language = VoiceLanguage.Persian;
 
         void Begin()
@@ -55,6 +57,7 @@ public sealed class VoiceModule : IDesktopModule
                 };
                 _microphone.StartRecording();
                 down = true;
+                limit.Start();
                 button.Content = "در حال شنیدن… رها کنید";
                 status("میکروفون روشن است");
             }
@@ -63,6 +66,7 @@ public sealed class VoiceModule : IDesktopModule
 
         async void End(bool recognize)
         {
+            limit.Stop();
             if (!down) { if (!recognize && session == _generation) Cancel(); return; }
             down = false;
             button.Content = "🎙 نگه دارید و فرمان بگویید";
@@ -88,6 +92,7 @@ public sealed class VoiceModule : IDesktopModule
             catch (Exception ex) { if (token == _generation) status("تشخیص گفتار در دسترس نیست. " + ex.Message); }
         }
 
+        limit.Tick += (_, _) => End(false);
         button.PreviewMouseLeftButtonDown += (_, e) => { button.Focus(); if (button.CaptureMouse()) Begin(); e.Handled = true; };
         button.PreviewMouseLeftButtonUp += (_, e) => { End(true); button.ReleaseMouseCapture(); e.Handled = true; };
         button.LostMouseCapture += (_, _) => { if (down) End(false); };

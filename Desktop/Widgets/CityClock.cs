@@ -14,10 +14,24 @@ internal static class CityClock
     internal static TimeZoneInfo? Zone(string? id) =>
         !string.IsNullOrWhiteSpace(id) && TimeZoneInfo.TryFindSystemTimeZoneById(id, out var zone) ? zone : null;
 
-    internal static TimeZoneInfo LocalZone(WidgetsSettings w) =>
-        Zone(w.ZoneId) ?? WidgetViews.CityTimeZone(w.City, w.Latitude, w.Longitude) ?? TimeZoneInfo.Local;
+    internal sealed record Location(string City, double Latitude, double Longitude, TimeZoneInfo Zone, bool FromEyvan);
+    internal static Location Resolve(WidgetsSettings w)
+    {
+        var state = EyvanBridge.Read(w.EyvanFile);
+        if (state != null && state.At >= DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeMilliseconds())
+        {
+            if (state.Latitude is double lat && state.Longitude is double lng && Zone(state.ZoneId) is { } explicitZone)
+                return new(state.City, lat, lng, explicitZone, true);
+            var place = WidgetCityData.Find(state.City);
+            if (place != null && WidgetViews.CityTimeZone(place.Display, place.Lat, place.Lng) is { } inferred)
+                return new(place.Display, place.Lat, place.Lng, inferred, true);
+        }
+        return new(w.City, w.Latitude, w.Longitude,
+            Zone(w.ZoneId) ?? WidgetViews.CityTimeZone(w.City, w.Latitude, w.Longitude) ?? TimeZoneInfo.Local, false);
+    }
+    internal static TimeZoneInfo LocalZone(WidgetsSettings w) => Resolve(w).Zone;
     internal static DateTime Now(WidgetsSettings w) =>
-        TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, w.EyvanFile != null ? Zone("Asia/Tehran") ?? LocalZone(w) : LocalZone(w));
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, LocalZone(w));
 
     // Called only by the visible IP lookup button. No IP or device identifier is retained.
     internal static async Task<(string City, double Lat, double Lng, string Zone)> LookupAsync()

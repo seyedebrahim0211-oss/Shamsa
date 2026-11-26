@@ -551,6 +551,33 @@ public sealed class DesktopStudioView : UserControl
             c.Children.Add(row);
         }
         _page.Children.Add(Wrap(c));
+        var editor = Card("تغییر میانبرهای مدیر پنجره‌ها");
+        foreach (var (id, label, mods, key) in new[] {
+            ("left", "نیمه چپ", 3u, 0x25),
+            ("right", "نیمه راست", 3u, 0x27),
+            ("up", "نیمه بالا", 3u, 0x26),
+            ("down", "نیمه پایین", 3u, 0x28),
+            ("tl", "ربع بالا-چپ", 3u, 0x55),
+            ("tr", "ربع بالا-راست", 3u, 0x49),
+            ("bl", "ربع پایین-چپ", 3u, 0x4A),
+            ("br", "ربع پایین-راست", 3u, 0x4B),
+            ("max", "تمام‌صفحه با فاصله / بازگردانی", 3u, 0x0D),
+            ("center", "وسط صفحه (۷۰٪)", 3u, 0x43),
+            ("tile", "روشن/خاموش چیدمان خودکار", 3u, 0x54),
+            ("layout", "چیدمان بعدی", 3u, 0x4C),
+            ("float", "شناور کردن پنجره", 3u, 0x46),
+            ("prev", "پنجره قبلی", 3u, 0xDB),
+            ("next", "پنجره بعدی", 3u, 0xDD),
+            ("swapl", "جابه‌جایی با قبلی", 7u, 0x25),
+            ("swapr", "جابه‌جایی با بعدی", 7u, 0x27)
+        })
+        {
+            var value = _s.WindowManager.Hotkeys.TryGetValue(id, out var custom) && custom != null ? custom : new WindowHotkey(mods, key);
+            editor.Children.Add(Labeled(label, HotkeyBox(value.Modifiers, value.Key, "wm." + id,
+                (m, k) => _s.WindowManager.Hotkeys[id] = new WindowHotkey(m, k))));
+        }
+        editor.Children.Add(SmallButton("بازنشانی میانبرها", () => { _s.WindowManager.Hotkeys.Clear(); Changed(); ShowPageLater(); }));
+        _page.Children.Add(Wrap(editor));
         var note = Card("پیشنهاد");
         note.Children.Add(Muted("از ترکیب‌های Alt+Shift و Ctrl+Shift تنها استفاده نکن؛ در ویندوز فارسی برای تغییر زبان صفحه‌کلید به کار می‌روند. کلیدهای Win+… هم بیشتر در اختیار خود ویندوز هستند."));
         note.Children.Add(Muted("میانبر منوی دایره‌ای و ضبط صفحه از داشبورد نگارخانه و پنجره ضبط تغییر می‌کنند؛ میانبر جستجوی سریع از همین استودیو."));
