@@ -41,7 +41,7 @@ public partial class App
         Desktop.Voice.VoiceCommands.AppCommand += cmd => Dispatcher.BeginInvoke(() =>
         {
             if (cmd == "screenshot") RecorderFeature.TakeScreenshot();
-            else if (cmd == "record") RecorderFeature.ShowWindow();
+            else if (cmd == "record") OpenHub("capture.recorder");
         });
     }
 
@@ -62,12 +62,14 @@ public partial class App
         if (args.Length == 0) return false;
         try
         {
-            if (FolderStudioFeature.TryHandleArgs(args)) return true;
+            if (TryHandleFolderArgs(args)) return true;
             bool Has(string a) => args.Any(x => x.Equals(a, StringComparison.OrdinalIgnoreCase));
-            if (Has("--recorder")) { RecorderFeature.ShowWindow(); return true; }
+            if (Has("--recorder")) { OpenHub("capture.recorder"); return true; }
             if (Has("--screenshot")) { RecorderFeature.TakeScreenshot(); return true; }
-            if (Has("--folder-studio-window")) { FolderStudioFeature.ShowWindow(); return true; }
-            if (Has("--desktop-studio")) { DesktopFeature.ShowStudio(); return true; }
+            if (Has("--folder-studio-window")) { OpenHub("folders.studio"); return true; }
+            if (Has("--desktop-studio")) { OpenHub("desktop.home"); return true; }
+            string? hubPage = args.FirstOrDefault(a => a.StartsWith("--page=", StringComparison.OrdinalIgnoreCase));
+            if (hubPage != null) { OpenHub(hubPage["--page=".Length..]); return true; }
             if (Has("--launcher")) { DesktopFeature.ShowLauncher(); return true; }
             if (Has("--restore-desktop")) { DesktopFeature.RestoreWindowsDesktop(); Notifier.Show("دسکتاپ پیش‌فرض ویندوز بازگردانده شد."); return true; }
             string? studioPage = args.FirstOrDefault(a => a.StartsWith("--desktop-studio=", StringComparison.OrdinalIgnoreCase));
@@ -85,19 +87,53 @@ public partial class App
         return false;
     }
 
+    /// <summary>
+    /// Explorer verbs for the folder studio (--folder-studio "dir", --folder-lock "dir", --unlock "file.shamsalock")
+    /// open the studio page inside the hub instead of a separate window.
+    /// </summary>
+    private bool TryHandleFolderArgs(string[] args)
+    {
+        for (int i = 0; i < args.Length; i++)
+        {
+            string a = args[i];
+            string? value = i + 1 < args.Length ? args[i + 1].Trim('"') : null;
+            if (a.Equals("--folder-studio", StringComparison.OrdinalIgnoreCase))
+            {
+                var w = OpenHub("folders.studio").OpenFolderStudio(0);
+                if (value != null && Directory.Exists(value)) w.AddFolders(new[] { value });
+                return true;
+            }
+            if (a.Equals("--folder-lock", StringComparison.OrdinalIgnoreCase))
+            {
+                var w = OpenHub("folders.studio").OpenFolderStudio(1);
+                if (value != null && Directory.Exists(value)) w.SetLockFolder(value);
+                return true;
+            }
+            if (a.Equals("--unlock", StringComparison.OrdinalIgnoreCase))
+            {
+                var w = OpenHub("folders.studio").OpenFolderStudio(1);
+                if (value != null && File.Exists(value)) w.SetVault(value);
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void WireFeatureEvents(Views.ToolsDashboardWindow dashboard)
     {
-        dashboard.OpenRecorderRequested += RecorderFeature.ShowWindow;
-        dashboard.OpenFolderStudioRequested += () => FolderStudioFeature.ShowWindow();
+        dashboard.OpenRecorderRequested += () => OpenHub("capture.recorder");
+        dashboard.OpenFolderStudioRequested += () => OpenHub("folders.studio");
     }
 
     private void AddFeatureTrayItems(System.Windows.Forms.ContextMenuStrip menu)
     {
-        menu.Items.Add("🎥 ضبط صفحه (Ctrl+Alt+R)", null, (_, _) => RecorderFeature.ShowWindow());
+        menu.Items.Add("🎥 ضبط صفحه (Ctrl+Alt+R)", null, (_, _) => OpenHub("capture.recorder"));
         menu.Items.Add("📸 اسکرین‌شات (Ctrl+Alt+S)", null, (_, _) => RecorderFeature.TakeScreenshot());
-        menu.Items.Add("🎨 استودیو پوشه: آیکون و قفل", null, (_, _) => FolderStudioFeature.ShowWindow());
+        menu.Items.Add("🎨 استودیو پوشه: آیکون و قفل", null, (_, _) => OpenHub("folders.studio"));
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-        menu.Items.Add("🖥 استودیو دسکتاپ (نوار بالا، داک، پنجره‌ها)", null, (_, _) => DesktopFeature.ShowStudio());
+        menu.Items.Add("🖥 استودیو دسکتاپ (نوار بالا، داک، پنجره‌ها)", null, (_, _) => OpenHub("desktop.home"));
+        menu.Items.Add("🧩 ویجت‌ها و اوقات شرعی", null, (_, _) => OpenHub("desktop.widgets"));
+        menu.Items.Add("🖌 شخصی‌سازی ویندوز", null, (_, _) => OpenHub("personalize"));
         var l = DesktopSettingsStore.Current.Launcher;
         menu.Items.Add($"🔍 جستجوی سریع ({GlobalHotkeyService.FormatShortcut(l.HotkeyModifiers, l.HotkeyKey)})", null, (_, _) => DesktopFeature.ShowLauncher());
         menu.Items.Add("🎛 مرکز کنترل", null, (_, _) => DesktopEvents.RequestControlCenter());

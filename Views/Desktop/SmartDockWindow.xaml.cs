@@ -78,7 +78,7 @@ public partial class SmartDockWindow : Window
         double iconSize = s.DockIconSize;
 
         // Core Shamsa quick-launch pins
-        AddDockButton("✦", "مرکز تنظیمات شمسا", iconSize, null, () => ShamsaProBootstrap.OpenProHub());
+        AddDockButton("🖼", "مرکز تنظیمات نگارخانه", iconSize, null, () => ShamsaProBootstrap.OpenProHub());
         AddDockButton("🔍", "جستجوی سریع و کلیپ‌بورد", iconSize, null, () => ShamsaProBootstrap.OpenSpotlight());
         AddDockButton("🎨", "آیکون و قفل پوشه", iconSize, null, () => ShamsaProBootstrap.OpenFolderCustomizer());
         AddDockButton("🎥", "ضبط صفحه و اسکرین‌شات", iconSize, null, () => ShamsaProBootstrap.OpenScreenRecorderHud());

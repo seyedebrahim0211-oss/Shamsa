@@ -144,7 +144,7 @@ public partial class FolderStudioWindow : Window
 
     private void AddFolder_Click(object sender, RoutedEventArgs e)
     {
-        var folder = ShellActions.PickFolder(_folders.LastOrDefault()?.Path, this);
+        var folder = ShellActions.PickFolder(_folders.LastOrDefault()?.Path, Dlg);
         if (folder != null) AddFolders(new[] { folder });
     }
 
@@ -256,6 +256,7 @@ public partial class FolderStudioWindow : Window
         ImagePathBox.Text = d.ImagePath;
         ImageBadge.IsChecked = d.ImageMode == IconImageMode.Badge;
         ImageFull.IsChecked = d.ImageMode == IconImageMode.Full;
+        ImageFit.IsChecked = d.ImageMode == IconImageMode.Fit;
         RoundedCheck.IsChecked = d.RoundedImage;
         _loading = was;
         UpdatePanels();
@@ -289,7 +290,7 @@ public partial class FolderStudioWindow : Window
         _design.OverlayHex = AutoInkCheck.IsChecked == true ? string.Empty
             : FolderIconRenderer.IsValidHex(InkHexBox.Text) ? InkHexBox.Text.Trim() : "#FFFFFF";
         _design.ImagePath = ImagePathBox.Text;
-        _design.ImageMode = ImageFull.IsChecked == true ? IconImageMode.Full : IconImageMode.Badge;
+        _design.ImageMode = ImageFit.IsChecked == true ? IconImageMode.Fit : ImageFull.IsChecked == true ? IconImageMode.Full : IconImageMode.Badge;
         _design.RoundedImage = RoundedCheck.IsChecked == true;
         _design.Name = _design.Overlay switch
         {
@@ -341,9 +342,9 @@ public partial class FolderStudioWindow : Window
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
             Title = "انتخاب تصویر برای آیکون پوشه",
-            Filter = "تصاویر|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff;*.webp;*.ico"
+            Filter = FolderIconRenderer.OpenFileFilter
         };
-        if (dlg.ShowDialog(this) == true) SetImage(dlg.FileName);
+        if (dlg.ShowDialog(Dlg) == true) SetImage(dlg.FileName);
     }
 
     private void SetImage(string path)
@@ -354,6 +355,10 @@ public partial class FolderStudioWindow : Window
             return;
         }
         ImagePathBox.Text = path;
+        var mode = FolderIconRenderer.SuggestMode(path);
+        ImageBadge.IsChecked = mode == IconImageMode.Badge;
+        ImageFull.IsChecked = mode == IconImageMode.Full;
+        ImageFit.IsChecked = mode == IconImageMode.Fit;
         OverlayImage.IsChecked = true;
         UpdatePanels();
         RefreshPreview();
@@ -380,7 +385,7 @@ public partial class FolderStudioWindow : Window
             P16L.Source = P16D.Source = p16;
         }
         catch (Exception ex) { AppLog.Warn("Folder icon preview failed: " + ex.Message); }
-        FavoriteBtn.Content = FolderStudioStore.IsFavorite(_design) ? "★ علاقه‌مندی" : "☆ علاقه‌مندی";
+        FavoriteBtn.Content = FolderStudioStore.IsFavorite(_design) ? "♥ علاقه‌مندی" : "♡ علاقه‌مندی";
     }
 
     private void Favorite_Click(object sender, RoutedEventArgs e)
@@ -433,7 +438,7 @@ public partial class FolderStudioWindow : Window
         catch (Exception ex)
         {
             AppLog.Error("Shell integration change failed", ex);
-            MessageBox.Show(this, "تغییر منوی کلیک‌راست ممکن نشد: " + ex.Message, "شمسا", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Dlg, "تغییر منوی کلیک‌راست ممکن نشد: " + ex.Message, "نگارخانه", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         ShellIntegrationCheck.IsChecked = FolderShellIntegration.IsEnabled();
     }
@@ -442,7 +447,7 @@ public partial class FolderStudioWindow : Window
 
     private void BrowseLockFolder_Click(object sender, RoutedEventArgs e)
     {
-        var folder = ShellActions.PickFolder(LockFolderBox.Text, this);
+        var folder = ShellActions.PickFolder(LockFolderBox.Text, Dlg);
         if (folder != null) LockFolderBox.Text = folder;
     }
 
@@ -525,9 +530,9 @@ public partial class FolderStudioWindow : Window
         string msg = $"پوشه «{System.IO.Path.GetFileName(folder)}» ({scan.Files} فایل، {FileKinds.FormatSize(scan.Bytes)}) رمزنگاری می‌شود.\n\n" +
                      "• ابتدا فایل «.shamsalock» ساخته و به‌طور کامل رمزگشایی آزمایشی و هش همه فایل‌ها تأیید می‌شود.\n" +
                      "• فقط پس از تأیید موفق، پوشه اصلی حذف می‌شود. این حذف «پاک‌سازی امن» نیست و ممکن است با ابزارهای بازیابی دیسک قابل بازگشت باشد.\n" +
-                     "• اگر رمز را فراموش کنید، هیچ راهی برای بازکردن فایل وجود ندارد (حتی برای سازندگان شمسا)." + sizeNote +
+                     "• اگر رمز را فراموش کنید، هیچ راهی برای بازکردن فایل وجود ندارد (حتی برای سازندگان نگارخانه)." + sizeNote +
                      "\n\nادامه می‌دهید؟";
-        if (MessageBox.Show(this, msg, "قفل پوشه با رمز", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        if (MessageBox.Show(Dlg, msg, "قفل پوشه با رمز", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
         await RunLockOperation(async (progress, ct) =>
         {
@@ -543,8 +548,8 @@ public partial class FolderStudioWindow : Window
 
     private void BrowseVault_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "انتخاب فایل قفل شمسا", Filter = "پوشه قفل‌شده شمسا|*.shamsalock" };
-        if (dlg.ShowDialog(this) == true) VaultBox.Text = dlg.FileName;
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "انتخاب فایل قفل نگارخانه", Filter = "پوشه قفل‌شده نگارخانه|*.shamsalock" };
+        if (dlg.ShowDialog(Dlg) == true) VaultBox.Text = dlg.FileName;
     }
 
     private void Vault_Changed(object sender, TextChangedEventArgs e)
@@ -622,11 +627,46 @@ public partial class FolderStudioWindow : Window
         }
     }
 
+    // ------------------------------------------------------------------ hosting in the «نگارخانه» hub
+
+    /// <summary>When set, this window is never shown: its content lives in <see cref="Host"/>.</summary>
+    public Window? Host { get; set; }
+    private Window Dlg => Host ?? this;
+
+    /// <summary>Takes the window content for hosting elsewhere (drag &amp; drop of folders keeps working).</summary>
+    public FrameworkElement? DetachForHost(Window host)
+    {
+        Host = host;
+        var root = UiHost.TakeContent(this);
+        if (root == null) return null;
+        root.Margin = new Thickness(0);
+        root.AllowDrop = true;
+        root.DragOver += Window_DragOver;
+        root.Drop += Window_Drop;
+        HeaderTitle.Visibility = Visibility.Collapsed; // the hub shows the page title
+        return root;
+    }
+
+    /// <summary>Same checks as closing the stand-alone window. Returns false when the user keeps a lock operation running.</summary>
+    public bool TryReleaseHosted()
+    {
+        var e = new CancelEventArgs();
+        ConfirmCloseAndSave(e);
+        return !e.Cancel;
+    }
+
     protected override void OnClosing(CancelEventArgs e)
+    {
+        ConfirmCloseAndSave(e);
+        if (e.Cancel) return;
+        base.OnClosing(e);
+    }
+
+    private void ConfirmCloseAndSave(CancelEventArgs e)
     {
         if (_lockCts != null)
         {
-            if (MessageBox.Show(this, "عملیات قفل در حال اجراست. لغو شود؟ (پوشه اصلی دست‌نخورده می‌ماند)", "شمسا",
+            if (MessageBox.Show(Dlg, "عملیات قفل در حال اجراست. لغو شود؟ (پوشه اصلی دست‌نخورده می‌ماند)", "نگارخانه",
                     MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             {
                 e.Cancel = true;
@@ -641,6 +681,5 @@ public partial class FolderStudioWindow : Window
             FolderStudioStore.Save();
         }
         catch { }
-        base.OnClosing(e);
     }
 }

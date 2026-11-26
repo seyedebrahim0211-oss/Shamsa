@@ -310,6 +310,7 @@ public partial class ToolsDashboardWindow : Window
 
     public void SelectTab(int index)
     {
+        if (Host != null && NavigateRequested != null && index >= 0 && index < TabPageIds.Length) { NavigateRequested(TabPageIds[index]); return; }
         if (index >= 0 && index < Tabs.Items.Count) Tabs.SelectedIndex = index;
     }
 
@@ -321,7 +322,7 @@ public partial class ToolsDashboardWindow : Window
     private void OpenShelfFromHeader_Click(object sender, RoutedEventArgs e) => OpenShelfRequested?.Invoke();
     private void JumpToOrganizer_Click(object sender, RoutedEventArgs e) => SelectTab(1);
     private void JumpToConverter_Click(object sender, RoutedEventArgs e) => SelectTab(4);
-    private void JumpToSettings_Click(object sender, RoutedEventArgs e) => SelectTab(5);
+    private void JumpToSettings_Click(object sender, RoutedEventArgs e) { if (Host != null && NavigateRequested != null) NavigateRequested("files.preview"); else SelectTab(5); }
 
     // =====================================================================
     // Smart organizer
@@ -331,7 +332,7 @@ public partial class ToolsDashboardWindow : Window
 
     private void BrowseOrganizer_Click(object sender, RoutedEventArgs e)
     {
-        var path = ShellActions.PickFolder(OrganizerFolderBox.Text, this);
+        var path = ShellActions.PickFolder(OrganizerFolderBox.Text, Dlg);
         if (path != null) OrganizerFolderBox.Text = path;
     }
 
@@ -416,7 +417,7 @@ public partial class ToolsDashboardWindow : Window
 
     private void BrowseRename_Click(object sender, RoutedEventArgs e)
     {
-        var path = ShellActions.PickFolder(RenameFolderBox.Text, this);
+        var path = ShellActions.PickFolder(RenameFolderBox.Text, Dlg);
         if (path != null) RenameFolderBox.Text = path; // TextChanged triggers preview
     }
 
@@ -500,7 +501,7 @@ public partial class ToolsDashboardWindow : Window
 
     private void BrowseDup_Click(object sender, RoutedEventArgs e)
     {
-        var path = ShellActions.PickFolder(DupFolderBox.Text, this);
+        var path = ShellActions.PickFolder(DupFolderBox.Text, Dlg);
         if (path != null) DupFolderBox.Text = path;
     }
 
@@ -509,7 +510,7 @@ public partial class ToolsDashboardWindow : Window
         string folder = DupFolderBox.Text.Trim();
         if (!Directory.Exists(folder))
         {
-            var picked = ShellActions.PickFolder(null, this);
+            var picked = ShellActions.PickFolder(null, Dlg);
             if (picked == null) return;
             DupFolderBox.Text = folder = picked;
         }
@@ -615,13 +616,13 @@ public partial class ToolsDashboardWindow : Window
         var fullyDeleted = _dupRows.GroupBy(r => r.GroupIndex).Where(g => g.All(r => r.IsSelected)).Select(g => g.Key).ToList();
         if (fullyDeleted.Count > 0)
         {
-            MessageBox.Show(this, $"در {fullyDeleted.Count} گروه همه نسخه‌ها انتخاب شده‌اند. حداقل یک نسخه از هر فایل باید باقی بماند.",
-                "Shamsa", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Dlg, $"در {fullyDeleted.Count} گروه همه نسخه‌ها انتخاب شده‌اند. حداقل یک نسخه از هر فایل باید باقی بماند.",
+                "نگارخانه", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        if (MessageBox.Show(this, $"{selected.Count} فایل به سطل زباله منتقل شود؟ (قابل بازیابی از Recycle Bin)",
-                "Shamsa", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        if (MessageBox.Show(Dlg, $"{selected.Count} فایل به سطل زباله منتقل شود؟ (قابل بازیابی از Recycle Bin)",
+                "نگارخانه", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
 
         int ok = 0, failed = 0;
@@ -730,7 +731,7 @@ public partial class ToolsDashboardWindow : Window
     private void AddConvertFiles_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true, Title = "انتخاب فایل‌ها" };
-        if (dialog.ShowDialog(this) == true)
+        if (dialog.ShowDialog(Dlg) == true)
         {
             AddConvertItems(dialog.FileNames);
             SuggestAction(dialog.FileNames);
@@ -1239,7 +1240,7 @@ public partial class ToolsDashboardWindow : Window
 
     private void BrowseAutoOrganize_Click(object sender, RoutedEventArgs e)
     {
-        var path = ShellActions.PickFolder(AutoOrganizeFolderBox.Text, this);
+        var path = ShellActions.PickFolder(AutoOrganizeFolderBox.Text, Dlg);
         if (path == null) return;
         AutoOrganizeFolderBox.Text = path;
         Setting_Changed(sender, e);
@@ -1253,7 +1254,7 @@ public partial class ToolsDashboardWindow : Window
         if (!StartupManager.SetEnabled(wanted))
         {
             StartupCheck.IsChecked = StartupManager.IsEnabled();
-            MessageBox.Show(this, "تغییر تنظیم اجرای خودکار ممکن نشد.", "Shamsa", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Dlg, "تغییر تنظیم اجرای خودکار ممکن نشد.", "نگارخانه", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         SettingsService.Save(); // notify listeners (tray menu)
     }
@@ -1310,7 +1311,7 @@ public partial class ToolsDashboardWindow : Window
         string hex = FolderTintBox.Text.Trim();
         if (!ThemeService.TryParseAccent(hex, out _))
         {
-            MessageBox.Show(this, "رنگ را به شکل #RRGGBB وارد کنید؛ مثال: #0B1324", "شمسا", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(Dlg, "رنگ را به شکل #RRGGBB وارد کنید؛ مثال: #0B1324", "نگارخانه", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         SetFolderTint(hex.ToUpperInvariant());
@@ -1318,7 +1319,7 @@ public partial class ToolsDashboardWindow : Window
 
     private void DemoFolderPreview_Click(object sender, RoutedEventArgs e)
     {
-        string? folder = ShellActions.PickFolder(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), this);
+        string? folder = ShellActions.PickFolder(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), Dlg);
         if (folder != null) DemoFolderPreviewRequested?.Invoke(folder);
     }
 
@@ -1413,7 +1414,7 @@ public partial class ToolsDashboardWindow : Window
         {
             var release = await UpdateService.CheckAsync(force: true);
             RefreshUpdateStatus();
-            if (release == null) UpdateStatusText.Text = "✅ نسخه فعلی شمسا به‌روز است.";
+            if (release == null) UpdateStatusText.Text = "✅ نسخه فعلی نگارخانه به‌روز است.";
         }
         catch (Exception ex)
         {
@@ -1430,10 +1431,10 @@ public partial class ToolsDashboardWindow : Window
         if (release == null || _updateBusy) return;
         string size = FileKinds.FormatSize(release.SizeBytes);
         string how = silent
-            ? "نصب بی‌صدا انجام می‌شود و شمسا خودکار دوباره اجرا می‌شود."
-            : "پنجره نصب‌کننده باز می‌شود و شمسا بسته می‌شود.";
-        var question = $"نسخه {release.Version} شمسا ({size}) دریافت و با SHA-256 رسمی تأیید می‌شود. {how}\nتنظیمات شما حفظ می‌شود. ادامه می‌دهید؟";
-        if (MessageBox.Show(this, question, "به‌روزرسانی شمسا",
+            ? "نصب بی‌صدا انجام می‌شود و نگارخانه خودکار دوباره اجرا می‌شود."
+            : "پنجره نصب‌کننده باز می‌شود و نگارخانه بسته می‌شود.";
+        var question = $"نسخه {release.Version} نگارخانه ({size}) دریافت و با SHA-256 رسمی تأیید می‌شود. {how}\nتنظیمات شما حفظ می‌شود. ادامه می‌دهید؟";
+        if (MessageBox.Show(Dlg, question, "به‌روزرسانی نگارخانه",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
 
@@ -1446,14 +1447,14 @@ public partial class ToolsDashboardWindow : Window
             var progress = new Progress<string>(msg => UpdateStatusText.Text = msg);
             var percent = new Progress<double>(p => UpdateProgress.Value = p);
             string installer = await UpdateService.DownloadVerifiedAsync(release, progress, default, percent);
-            UpdateStatusText.Text = silent ? "فایل تأیید شد؛ در حال نصب و اجرای دوباره شمسا…" : "فایل تأیید شد؛ نصب‌کننده ویندوز در حال اجراست…";
+            UpdateStatusText.Text = silent ? "فایل تأیید شد؛ در حال نصب و اجرای دوباره نگارخانه…" : "فایل تأیید شد؛ نصب‌کننده ویندوز در حال اجراست…";
             await UpdateService.LaunchInstallerAsync(installer, release, silent);
             Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
             UpdateStatusText.Text = "خطای دریافت یا اجرای نسخه جدید: " + ex.Message;
-            MessageBox.Show(this, UpdateStatusText.Text, "شمسا", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Dlg, UpdateStatusText.Text, "نگارخانه", MessageBoxButton.OK, MessageBoxImage.Warning);
             _updateBusy = false;
             UpdateProgress.Visibility = Visibility.Collapsed;
             InstallUpdateBtn.IsEnabled = InstallUpdateWizardBtn.IsEnabled = CheckUpdateBtn.IsEnabled = true;

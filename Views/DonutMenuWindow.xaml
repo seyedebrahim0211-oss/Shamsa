@@ -79,7 +79,7 @@
             <ScaleTransform x:Name="RootScale" ScaleX="1" ScaleY="1"/>
         </Canvas.RenderTransform>
 
-        <!-- لایه منوی حلقه‌ای شمسا -->
+        <!-- لایه منوی حلقه‌ای نگارخانه -->
         <Canvas x:Name="MenuLayer" Width="360" Height="360">
             <!-- حلقه پس‌زمینه لاجوردی با حاشیه طلایی (خوانا روی هر پس‌زمینه روشن یا تیره) -->
             <Ellipse Canvas.Left="16" Canvas.Top="16" Width="328" Height="328"

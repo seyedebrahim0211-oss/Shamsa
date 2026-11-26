@@ -44,7 +44,7 @@ public partial class DonutMenuWindow : Window
         new("🗜", "کم‌حجم", "compress"), new("📷", "JPG", "jpg")
     });
 
-    // پالت خوانا و پرکنتراست شمسا (کاشی لاجوردی، فیروزه نیشابوری و طلایی روشن)
+    // پالت خوانا و پرکنتراست نگارخانه (کاشی لاجوردی، فیروزه نیشابوری و طلایی روشن)
     private static readonly Brush SliceNormalBg = FrozenGrad("#FF1D335B", "#FF122140");
     private static readonly Brush SliceHoverBg = FrozenGrad("#FF14B8A6", "#FF0D9488");
     private static readonly Brush SliceDisabledBg = Frozen("#E60D1628");

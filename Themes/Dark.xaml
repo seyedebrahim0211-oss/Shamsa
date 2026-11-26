@@ -1,14 +1,14 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- پالت هویت بصری شمسا: لاجوردی شب، فیروزه نیشابور و طلایی تذهیب با کنتراست بالا -->
-    <Color x:Key="BgColor">#0A1224</Color>
-    <Color x:Key="SurfaceColor">#111E38</Color>
-    <Color x:Key="Surface2Color">#1A2C50</Color>
-    <Color x:Key="BorderColor">#2A436B</Color>
-    <Color x:Key="AccentColor">#14B8A6</Color>
+    <!-- پالت هویت بصری نگارخانه: لاجوردی شب، فیروزه نیشابور و طلایی تذهیب با کنتراست بالا (قاب، بوم و قلم‌مو؛ بدون نقش ستاره) -->
+    <Color x:Key="BgColor">#0A1430</Color>
+    <Color x:Key="SurfaceColor">#101D3D</Color>
+    <Color x:Key="Surface2Color">#182B55</Color>
+    <Color x:Key="BorderColor">#2A4272</Color>
+    <Color x:Key="AccentColor">#19C3B1</Color>
     <Color x:Key="AccentDarkColor">#0D9488</Color>
-    <Color x:Key="GoldColor">#F6D379</Color>
+    <Color x:Key="GoldColor">#E9C46A</Color>
 
     <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}"/>
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
@@ -29,6 +29,13 @@
     <SolidColorBrush x:Key="GlassHighlightBrush" Color="#EE1A2C50"/>
     <SolidColorBrush x:Key="GlassHeaderBrush" Color="#111E38"/>
     <SolidColorBrush x:Key="ShelfGlassBrush" Color="#F40B1324"/>
+
+    <!-- پوسته پنجره اصلی نگارخانه (ThemeService همین کلیدها را با تم انتخابی بازنویسی می‌کند) -->
+    <SolidColorBrush x:Key="SidebarBrush" Color="#081026"/>
+    <SolidColorBrush x:Key="NavHoverBrush" Color="#14F5F7FB"/>
+    <SolidColorBrush x:Key="NavSelectedBrush" Color="#3019C3B1"/>
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="#2219C3B1"/>
+    <SolidColorBrush x:Key="GoldSoftBrush" Color="#26E9C46A"/>
 
     <!-- خط تذهیب طلایی-فیروزه‌ای ظریف برای جداکننده‌ها -->
     <LinearGradientBrush x:Key="PersianDividerBrush" StartPoint="0,0.5" EndPoint="1,0.5">
@@ -56,29 +63,32 @@
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="13,6"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8"
-                            Padding="{TemplateBinding Padding}" BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
-                    </Border>
+                    <Grid SnapsToDevicePixels="True">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"/>
+                        <Border x:Name="Hl" Background="#FFFFFFFF" CornerRadius="8" Opacity="0" IsHitTestVisible="False"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource GoldBrush}"/>
-                            <Setter TargetName="Bd" Property="Opacity" Value="0.94"/>
+                            <Setter TargetName="Hl" Property="Opacity" Value="0.06"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Opacity" Value="0.78"/>
+                            <Setter TargetName="Hl" Property="Opacity" Value="0.12"/>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            <Setter Property="Opacity" Value="0.45"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -176,7 +186,7 @@
         <Setter Property="Margin" Value="0,0,0,8"/>
     </Style>
 
-    <!-- ComboBox تیره و هماهنگ با تم شمسا (بدون کادر خاکستری پیش‌فرض ویندوز) -->
+    <!-- ComboBox تیره و هماهنگ با تم نگارخانه (بدون کادر خاکستری پیش‌فرض ویندوز) -->
     <Style TargetType="ComboBox">
         <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
@@ -418,6 +428,65 @@
     <Style x:Key="PersianHighlightCard" TargetType="Border" BasedOn="{StaticResource Card}">
         <Setter Property="Background" Value="{DynamicResource GlassHighlightBrush}"/>
         <Setter Property="BorderBrush" Value="#77F6D379"/>
+    </Style>
+
+    <!-- ===== پنجره اصلی نگارخانه ===== -->
+    <Style x:Key="HubNavItem" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Height" Value="38"/>
+        <Setter Property="Margin" Value="0,1"/>
+        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid SnapsToDevicePixels="True">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10" BorderThickness="1" BorderBrush="Transparent"/>
+                        <Border x:Name="Bar" Width="3" HorizontalAlignment="Left" Margin="0,9" CornerRadius="2"
+                                Background="{DynamicResource GoldBrush}" Visibility="Collapsed"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource NavHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource NavSelectedBrush}"/>
+                            <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="HubCard" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource GlassCardBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16,14"/>
+        <Setter Property="Margin" Value="0,0,12,12"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="HubIconButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+        <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Width" Value="34"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
     </Style>
 
     <Style TargetType="ToolTip">

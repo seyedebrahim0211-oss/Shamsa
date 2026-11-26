@@ -108,6 +108,12 @@ public static class DesktopFeature
 
     public static void ShowStudio(string? page = null)
     {
+        // The «نگارخانه» main window hosts every studio page; the stand-alone window is only a fallback.
+        if (Shamsa.Views.MainHubWindow.Opener is { } openHub)
+        {
+            openHub(string.IsNullOrWhiteSpace(page) ? "desktop.home" : page.Trim().ToLowerInvariant() == "personalize" ? "personalize" : "desktop." + page.Trim().ToLowerInvariant());
+            return;
+        }
         if (_studio == null || !_studio.IsLoaded)
         {
             _studio = new DesktopStudioWindow();

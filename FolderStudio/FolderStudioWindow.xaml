@@ -1,7 +1,7 @@
 <Window x:Class="Shamsa.FolderStudio.FolderStudioWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="استودیو پوشه شمسا"
+        Title="استودیو پوشه نگارخانه"
         Icon="/Assets/Shamsa.ico"
         Width="1220" Height="800" MinWidth="1000" MinHeight="660"
         WindowStartupLocation="CenterScreen"
@@ -65,13 +65,13 @@
         <DockPanel Margin="2,0,2,8">
             <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center" HorizontalAlignment="Left">
                 <CheckBox x:Name="ShellIntegrationCheck" Click="ShellIntegration_Click"
-                          Content="افزودن «شمسا» به منوی کلیک‌راست پوشه‌ها و باز شدن فایل‌های قفل با دوبار کلیک"
+                          Content="افزودن گزینه‌های نگارخانه به منوی کلیک‌راست پوشه‌ها و باز شدن فایل‌های قفل با دوبار کلیک"
                           ToolTip="فقط برای حساب کاربری شما (HKCU)، بدون نیاز به دسترسی مدیر و کاملاً قابل برگشت. در ویندوز ۱۱ زیر «Show more options»."/>
             </StackPanel>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel x:Name="HeaderTitle" Orientation="Horizontal">
                 <Image Source="/Assets/Shamsa-logo.png" Width="40" Height="40" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="استودیو پوشه شمسا" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
+                    <TextBlock Text="استودیو پوشه نگارخانه" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
                     <TextBlock Text="آیکون دلخواه برای پوشه‌ها بسازید و پوشه‌های خصوصی را با رمزنگاری AES-256 قفل کنید"
                                Style="{StaticResource Muted}" FontSize="11.5"/>
                 </StackPanel>
@@ -85,9 +85,9 @@
             <TabItem Header="🎨 آیکون پوشه">
                 <Grid Margin="12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="300"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="340"/>
+                        <ColumnDefinition Width="280"/>
+                        <ColumnDefinition Width="*" MinWidth="250"/>
+                        <ColumnDefinition Width="320"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- folders -->
@@ -101,8 +101,8 @@
                                 <Button Content="حذف از فهرست" Click="RemoveFolder_Click" Margin="0,0,6,6"/>
                             </WrapPanel>
                             <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-                                <Button x:Name="ApplyBtn" Content="✨ اعمال آیکون روی پوشه‌ها" Click="Apply_Click" Style="{StaticResource GoldButton}" Padding="12,9" Margin="0,0,0,6"/>
-                                <Button Content="↺ بازگردانی آیکون پیش‌فرض (انتخاب‌شده‌ها)" Click="Restore_Click" Margin="0,0,0,6"/>
+                                <Button x:Name="ApplyBtn" Content="🖌 اعمال آیکون روی پوشه‌ها" Click="Apply_Click" Style="{StaticResource GoldButton}" Padding="12,9" Margin="0,0,0,6"/>
+                                <Button Content="↺ بازگردانی آیکون پیش‌فرض" ToolTip="آیکون پیش‌فرض ویندوز برای پوشه‌های انتخاب‌شده برمی‌گردد" Click="Restore_Click" Margin="0,0,0,6"/>
                                 <TextBlock x:Name="IconStatusText" TextWrapping="Wrap" Foreground="{DynamicResource AccentBrush}" FontSize="11.5"/>
                             </StackPanel>
                             <Grid>
@@ -142,7 +142,7 @@
                                     <Button Content="اعمال HEX" Click="BaseHex_Click" Margin="6,0,0,0"/>
                                 </WrapPanel>
 
-                                <CheckBox x:Name="GradientCheck" Content="گرادیان با رنگ دوم (بالای پوشه)" Click="Design_Changed" Margin="0,12,0,4"/>
+                                <CheckBox x:Name="GradientCheck" Content="گرادیان با رنگ دوم" ToolTip="رنگ دوم در بالای پوشه" Click="Design_Changed" Margin="0,12,0,4"/>
                                 <StackPanel x:Name="GradientPanel" IsEnabled="False">
                                     <WrapPanel x:Name="GradientSwatches"/>
                                     <WrapPanel>
@@ -195,6 +195,7 @@
                                     <WrapPanel Margin="0,8,0,0">
                                         <RadioButton x:Name="ImageBadge" Content="نشان روی پوشه" GroupName="im" IsChecked="True" Foreground="{DynamicResource TextBrush}" Margin="0,0,14,0" Click="Design_Changed"/>
                                         <RadioButton x:Name="ImageFull" Content="کل آیکون" GroupName="im" Foreground="{DynamicResource TextBrush}" Margin="0,0,14,0" Click="Design_Changed"/>
+                                        <RadioButton x:Name="ImageFit" Content="کامل بدون برش" GroupName="im" Foreground="{DynamicResource TextBrush}" Margin="0,0,14,0" Click="Design_Changed"/>
                                         <CheckBox x:Name="RoundedCheck" Content="گوشه‌های گرد" IsChecked="True" Click="Design_Changed"/>
                                     </WrapPanel>
                                     <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0"
@@ -250,13 +251,13 @@
                                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                                     <ComboBox x:Name="LibraryFilter" Width="118" DockPanel.Dock="Left" Margin="0,0,6,0" SelectionChanged="Library_Changed">
                                         <ComboBoxItem Content="همه آماده‌ها" IsSelected="True"/>
-                                        <ComboBoxItem Content="⭐ علاقه‌مندی‌ها"/>
+                                        <ComboBoxItem Content="♥ علاقه‌مندی‌ها"/>
                                         <ComboBoxItem Content="🕘 تاریخچه"/>
                                     </ComboBox>
                                     <TextBox x:Name="LibrarySearch" TextChanged="Library_Changed" ToolTip="جستجو: موسیقی، کد، music، work…"/>
                                 </DockPanel>
                                 <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource Muted}" FontSize="10.5" Margin="0,6,0,0"
-                                           Text="کتابخانه محلی و آفلاین شمسا (ترکیب رنگ‌ها و موضوع‌ها) — کتابخانه آنلاین اشتراکی نیست."/>
+                                           Text="کتابخانه محلی و آفلاین نگارخانه (ترکیب رنگ‌ها و موضوع‌ها) — کتابخانه آنلاین اشتراکی نیست."/>
                                 <ListBox x:Name="LibraryList" Background="Transparent" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="LibraryList_SelectionChanged">
                                     <ListBox.ItemsPanel>

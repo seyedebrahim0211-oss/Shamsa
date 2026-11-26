@@ -1,7 +1,7 @@
 <Window x:Class="Shamsa.Views.ShamsaProHubWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="مرکز مدیریت و تنظیمات جامع شمسا (نسخه ۳ حرفه‌ای)"
+        Title="مرکز مدیریت و تنظیمات جامع نگارخانه (نسخه ۳ حرفه‌ای)"
         Width="960" Height="640"
         Background="{DynamicResource BgBrush}"
         Foreground="{DynamicResource TextBrush}"
@@ -18,7 +18,7 @@
         <!-- Header -->
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <StackPanel>
-                <TextBlock Text="✦ شمسا حرفه‌ای (Shamsa Pro v3.0 — هسته یکپارچه دسکتاپ)" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
+                <TextBlock Text="نگارخانه حرفه‌ای (Negarkhaneh Pro — هسته یکپارچه دسکتاپ)" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource GoldBrush}"/>
                 <TextBlock Text="کنترل مستقل ماژول‌ها، تم‌ها، بروزرسانی خودکار درون‌برنامه‌ای و بازیابی امن دسکتاپ" FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
             </StackPanel>
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">

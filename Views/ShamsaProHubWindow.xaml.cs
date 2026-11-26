@@ -80,7 +80,7 @@ public partial class ShamsaProHubWindow : Window
             _pendingRelease = await UpdateServicePro.CheckForUpdateAsync();
             if (_pendingRelease == null)
             {
-                UpdateStatusText.Text = "شمسا کاملاً به‌روز است.";
+                UpdateStatusText.Text = "نگارخانه کاملاً به‌روز است.";
                 ChangelogBox.Text = "نسخه جدیدتری یافت نشد.";
                 return;
             }

@@ -39,8 +39,9 @@ public static class ThemeService
                               Hex("#39D8B5"), Hex("#F7D894"), Hex("#F2FFFA"), Hex("#BDDDD4")),
         "AmethystGlass" => new(Hex("#140D23"), Hex("#2B1946"), Hex("#43275F"), Hex("#68458B"),
                                Hex("#C69AFF"), Hex("#FFCFA3"), Hex("#FFF8FF"), Hex("#D9C7EB")),
-        _ => new(Hex("#0A1224"), Hex("#111E38"), Hex("#1A2C50"), Hex("#2A436B"),
-                 Hex("#14B8A6"), Hex("#F6D379"), Hex("#F8FAFC"), Hex("#B6C6DF"))
+        // «نگارخانه»: lapis night, Neyshabur turquoise and illumination gold.
+        _ => new(Hex("#0A1430"), Hex("#101D3D"), Hex("#182B55"), Hex("#2A4272"),
+                 Hex("#19C3B1"), Hex("#E9C46A"), Hex("#F5F7FB"), Hex("#AFC0DC"))
     };
 
     private static Color Alpha(Color color, byte a) => Color.FromArgb(a, color.R, color.G, color.B);
@@ -94,5 +95,11 @@ public static class ThemeService
             new(Alpha(gold, 230), 0.5), new(Alpha(accent, 170), 0.75), new(Alpha(gold, 0), 1.0)
         }, new Point(0, 0.5), new Point(1, 0.5));
         resources["PersianBadgeBrush"] = Gradient(accent, palette.Surface2);
+        // Hub chrome (sidebar, navigation states, soft tints) follows the palette too.
+        resources["SidebarBrush"] = Brush(Color.Multiply(palette.Bg, 0.8f) with { A = 255 });
+        resources["NavHoverBrush"] = Brush(Alpha(palette.Text, 20));
+        resources["NavSelectedBrush"] = Brush(Alpha(accent, 48));
+        resources["AccentSoftBrush"] = Brush(Alpha(accent, 34));
+        resources["GoldSoftBrush"] = Brush(Alpha(gold, 38));
     }
 }

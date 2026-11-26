@@ -51,12 +51,59 @@ public partial class RecorderWindow : Window
         };
     }
 
+    // ------------------------------------------------------------------ hosting in the «نگارخانه» hub
+
+    /// <summary>When set, this window is never shown: its content lives in <see cref="Host"/>.</summary>
+    public Window? Host { get; set; }
+    private Window Dlg => Host ?? this;
+    private bool _hostMinimizedForRecording;
+
+    /// <summary>Takes the window content for hosting elsewhere.</summary>
+    public FrameworkElement? DetachForHost(Window host)
+    {
+        Host = host;
+        var root = UiHost.TakeContent(this);
+        if (root != null) root.Margin = new Thickness(0);
+        return root;
+    }
+
+    /// <summary>Detaches static event handlers when the hub closes (the hidden window is never closed itself).</summary>
+    public void ReleaseHosted()
+    {
+        _timer.Stop();
+        RecorderFeature.StatusChanged -= OnStatusChanged;
+        RecorderFeature.Message -= OnMessage;
+        RecorderSettingsStore.Changed -= OnSettingsChanged;
+    }
+
+    /// <summary>
+    /// The recorder minimises its own window while recording; when hosted, do the same for the hub so it
+    /// is not captured (window-only capture keeps it visible, like the stand-alone window).
+    /// </summary>
+    private void SyncHostWithRecording()
+    {
+        if (Host == null) return;
+        var state = RecorderFeature.State;
+        bool starting = RecorderFeature.IsBusy && state != RecorderState.Finalizing;
+        if (starting && !_hostMinimizedForRecording && Host.IsVisible && Host.WindowState != WindowState.Minimized
+            && RecorderSettingsStore.Current.Mode != CaptureMode.Window)
+        {
+            _hostMinimizedForRecording = true;
+            Host.WindowState = WindowState.Minimized;
+        }
+        else if (!RecorderFeature.IsBusy && _hostMinimizedForRecording)
+        {
+            _hostMinimizedForRecording = false;
+            if (Host.WindowState == WindowState.Minimized) Host.WindowState = WindowState.Normal;
+        }
+    }
+
     private void TryDarkTitleBar()
     {
         try { NativeMethods.TryRoundCorners(new WindowInteropHelper(this).Handle); } catch { }
     }
 
-    private void OnStatusChanged() => Dispatcher.BeginInvoke(RefreshStatus);
+    private void OnStatusChanged() => Dispatcher.BeginInvoke(() => { RefreshStatus(); SyncHostWithRecording(); });
     private void OnMessage(string m) => Dispatcher.BeginInvoke(() => MessageText.Text = m);
     private void OnSettingsChanged() => Dispatcher.BeginInvoke(LoadRecent);
 
@@ -203,20 +250,20 @@ public partial class RecorderWindow : Window
     private async void ShotWindow_Click(object sender, RoutedEventArgs e)
     {
         // Give focus back to the previously active window, otherwise this window would be captured.
-        WindowState = WindowState.Minimized;
+        Dlg.WindowState = WindowState.Minimized;
         await Task.Delay(350);
         RecorderFeature.TakeScreenshot(ScreenshotMode.ActiveWindow);
         await Task.Delay(300);
-        WindowState = WindowState.Normal;
+        Dlg.WindowState = WindowState.Normal;
     }
 
     private async void PickRegion_Click(object sender, RoutedEventArgs e)
     {
-        WindowState = WindowState.Minimized;
+        Dlg.WindowState = WindowState.Minimized;
         await Task.Delay(250);
         var r = await RegionSelectorWindow.SelectAsync();
-        WindowState = WindowState.Normal;
-        Activate();
+        Dlg.WindowState = WindowState.Normal;
+        Dlg.Activate();
         if (r is not { } sel) return;
         RecorderSettingsStore.Update(s =>
         {
@@ -320,7 +367,7 @@ public partial class RecorderWindow : Window
 
     private void BrowseOutput_Click(object sender, RoutedEventArgs e)
     {
-        string? folder = ShellActions.PickFolder(RecorderSettingsStore.Current.EffectiveOutputFolder, this);
+        string? folder = ShellActions.PickFolder(RecorderSettingsStore.Current.EffectiveOutputFolder, Dlg);
         if (folder == null) return;
         RecorderSettingsStore.Update(s => s.OutputFolder = folder);
         OutputFolderBox.Text = folder;
@@ -335,7 +382,7 @@ public partial class RecorderWindow : Window
 
     private void BrowseShotFolder_Click(object sender, RoutedEventArgs e)
     {
-        string? folder = ShellActions.PickFolder(RecorderSettingsStore.Current.EffectiveScreenshotFolder, this);
+        string? folder = ShellActions.PickFolder(RecorderSettingsStore.Current.EffectiveScreenshotFolder, Dlg);
         if (folder == null) return;
         RecorderSettingsStore.Update(s => s.ScreenshotFolder = folder);
         ShotFolderBox.Text = folder;
@@ -363,7 +410,7 @@ public partial class RecorderWindow : Window
     private void RecentDelete_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedRecent() is not string p || !File.Exists(p)) return;
-        if (MessageBox.Show(this, $"فایل «{Path.GetFileName(p)}» به سطل زباله منتقل شود؟", "ضبط صفحه شمسا",
+        if (MessageBox.Show(Dlg, $"فایل «{Path.GetFileName(p)}» به سطل زباله منتقل شود؟", "ضبط صفحه نگارخانه",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         try
         {
@@ -372,7 +419,7 @@ public partial class RecorderWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "حذف ممکن نشد: " + ex.Message, "ضبط صفحه شمسا", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Dlg, "حذف ممکن نشد: " + ex.Message, "ضبط صفحه نگارخانه", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -447,7 +494,7 @@ public partial class RecorderWindow : Window
         if (error != null)
         {
             VoiceCheck.IsChecked = false;
-            MessageBox.Show(this, error, "فرمان صوتی", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(Dlg, error, "فرمان صوتی", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         RefreshStatus();
     }

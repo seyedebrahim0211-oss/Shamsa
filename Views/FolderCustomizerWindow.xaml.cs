@@ -97,7 +97,7 @@ public partial class FolderCustomizerWindow : Window
             string exe = Environment.ProcessPath ?? "Shamsa.exe";
             FolderIconService.SetExplorerContextMenu(ContextMenuCheck.IsChecked == true, exe);
             StatusText.Text = ContextMenuCheck.IsChecked == true
-                ? "گزینه شمسا به منوی کلیک‌راست پوشه‌ها اضافه شد."
+                ? "گزینه نگارخانه به منوی کلیک‌راست پوشه‌ها اضافه شد."
                 : "گزینه منوی کلیک‌راست حذف شد.";
         }
         catch (Exception ex) { StatusText.Text = $"خطا: {ex.Message}"; }
@@ -116,7 +116,7 @@ public partial class FolderCustomizerWindow : Window
 
     private void UnlockVault_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFileDialog { Filter = "فایل قفل‌شده شمسا|*.shamsavault" };
+        var dlg = new OpenFileDialog { Filter = "فایل قفل‌شده نگارخانه|*.shamsavault" };
         if (dlg.ShowDialog() == true)
         {
             try

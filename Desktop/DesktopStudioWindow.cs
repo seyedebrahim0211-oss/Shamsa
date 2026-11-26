@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using WDock = System.Windows.Controls.Dock;
@@ -11,123 +11,124 @@ using Shamsa.Services;
 namespace Shamsa.Desktop;
 
 /// <summary>
-/// «استودیو دسکتاپ»: one simple place to customise the whole desktop environment (top bar, dock,
-/// launcher, window manager, theme, font, shortcuts). Every change applies live and is saved to
-/// desktop.json; "Restore Windows desktop" is always one click away.
+/// Stand-alone fallback window around <see cref="DesktopStudioView"/>. The main «نگارخانه» hub hosts the
+/// same view directly; this window is only used when the hub is not available (very early start-up).
 /// </summary>
 public sealed class DesktopStudioWindow : Window
 {
-    private DesktopSettings _s;
-    private readonly ListBox _nav = new();
-    private readonly StackPanel _page = new();
-    private readonly ScrollViewer _scroll;
-    private readonly DispatcherTimer _saveTimer;
-    private readonly TextBlock _status = new();
-    private string _currentPage = "home";
-    private bool _building;
-
-    private static readonly (string Id, string Glyph, string Title)[] Pages =
-    {
-        ("home", "", "شروع سریع"),
-        ("theme", "", "ظاهر و فونت"),
-        ("topbar", "", "نوار بالا"),
-        ("dock", "", "داک"),
-        ("launcher", "", "جستجوی سریع"),
-        ("wm", "", "مدیر پنجره‌ها"),
-        ("rules", "", "قوانین و حالت‌های کاری"),
-        ("widgets", "", "ویجت‌ها"),
-        ("fences", "", "گروه‌بندی دسکتاپ"),
-        ("controlcenter", "", "مرکز کنترل"),
-        ("autotheme", "", "تم خودکار روز و شب"),
-        ("clipboard", "", "تاریخچه کلیپ‌بورد"),
-        ("voice", "", "فرمان صوتی فارسی"),
-        ("plugins", "", "افزونه‌های نوار بالا"),
-        ("hotkeys", "", "میانبرها و تداخل‌ها"),
-    };
-
-    private static readonly string[] AccentSwatches = { "#14B8A6", "#3B82F6", "#8B5CF6", "#EC4899", "#F43F5E", "#F59E0B", "#22C55E", "#F6D379", "#E2E8F0" };
-    private static readonly string[] TintSwatches = { "#0B1324", "#000000", "#111827", "#1E1B4B", "#052E2B", "#3B0764", "#1F2937", "#F8FAFC" };
+    private readonly DesktopStudioView _view = new();
 
     public DesktopStudioWindow()
     {
-        _s = DesktopSettingsStore.Current.Clone();
-        Title = "استودیو دسکتاپ شمسا";
+        Title = "استودیو دسکتاپ نگارخانه";
         Width = 980; Height = 680; MinWidth = 760; MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         FlowDirection = FlowDirection.RightToLeft;
         SetResourceReference(BackgroundProperty, "BgBrush");
         SetResourceReference(ForegroundProperty, "TextBrush");
-        FontFamily = DesktopTheme.Font;
+        SetResourceReference(FontFamilyProperty, "UiFont");
         FontSize = 13;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
         try { Icon = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/Shamsa.ico")); } catch { }
+        Content = _view;
+        Closed += (_, _) => _view.Release();
+    }
 
+    public void ShowPage(string? id) => _view.ShowPage(id);
+}
+
+/// <summary>
+/// «استودیو دسکتاپ»: every desktop-environment page (top bar, dock, launcher, window manager, theme,
+/// widgets, …) as one embeddable view. The hub owns navigation; this view builds the requested page,
+/// edits one shared clone of desktop.json and saves it (debounced) so all modules apply live.
+/// </summary>
+public sealed class DesktopStudioView : UserControl
+{
+    private DesktopSettings _s;
+    private readonly StackPanel _page = new();
+    private readonly ScrollViewer _scroll;
+    private readonly DispatcherTimer _saveTimer;
+    private readonly TextBlock _status = new();
+    private readonly Border _statusPill;
+    private string _currentPage = "home";
+    private bool _building;
+    private bool _released;
+
+    /// <summary>Page ids, Segoe Fluent glyphs and titles (the hub builds its «دسکتاپ» group from this list).</summary>
+    public static readonly (string Id, string Glyph, string Title, string Keywords)[] Pages =
+    {
+        ("home", "", "شروع سریع دسکتاپ", "desktop seelen preset حالت آماده محیط دسکتاپ تسک‌بار taskbar"),
+        ("theme", "", "ظاهر و فونت", "theme font color accent glass رنگ فونت شیشه"),
+        ("topbar", "", "نوار بالا", "topbar bar clock date ساعت تاریخ شمسی نوار"),
+        ("dock", "", "داک", "dock pin magnify پین داک بزرگ‌نمایی"),
+        ("launcher", "", "جستجوی سریع", "launcher search spotlight جستجو لانچر"),
+        ("wm", "", "مدیر پنجره‌ها", "window manager tile snap کاشی چسباندن پنجره"),
+        ("rules", "", "قوانین و حالت‌های کاری", "rules layout profile قانون چیدمان حالت کاری"),
+        ("widgets", "", "ویجت‌ها", "widgets calendar weather prayer تقویم اوقات شرعی آب‌وهوا ویجت"),
+        ("fences", "", "گروه‌بندی دسکتاپ", "fences icons group آیکون گروه دسکتاپ"),
+        ("controlcenter", "", "مرکز کنترل", "control center wifi bluetooth volume brightness وای‌فای صدا روشنایی"),
+        ("autotheme", "", "تم خودکار روز و شب", "auto theme dark light sunset تیره روشن غروب"),
+        ("clipboard", "", "تاریخچه کلیپ‌بورد", "clipboard history copy کپی کلیپ‌بورد"),
+        ("voice", "", "فرمان صوتی فارسی", "voice speech microphone صوتی میکروفون"),
+        ("plugins", "", "افزونه‌های نوار بالا", "plugins json افزونه"),
+        ("hotkeys", "", "میانبرها و تداخل‌ها", "hotkeys shortcuts keyboard میانبر کلید"),
+    };
+
+    /// <summary>Raised whenever a page sets its title/subtitle (title null = the page draws its own heading).</summary>
+    public event Action<string?, string>? HeaderChanged;
+
+    public string CurrentPage => _currentPage;
+
+    private static readonly string[] AccentSwatches = { "#14B8A6", "#3B82F6", "#8B5CF6", "#EC4899", "#F43F5E", "#F59E0B", "#22C55E", "#F6D379", "#E2E8F0" };
+    private static readonly string[] TintSwatches = { "#0B1324", "#000000", "#111827", "#1E1B4B", "#052E2B", "#3B0764", "#1F2937", "#F8FAFC" };
+
+    public DesktopStudioView()
+    {
+        _s = DesktopSettingsStore.Current.Clone();
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); DesktopSettingsStore.Save(_s.Clone()); SetStatus("ذخیره و اعمال شد ✓"); };
 
         var root = new Grid();
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
-        root.ColumnDefinitions.Add(new ColumnDefinition());
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition());
 
-        // ---- navigation
-        var side = new DockPanel { Margin = new Thickness(12) };
-        var brand = new StackPanel { Margin = new Thickness(6, 4, 6, 14) };
-        brand.Children.Add(new TextBlock { Text = "استودیو دسکتاپ", FontSize = 19, FontWeight = FontWeights.Bold });
-        brand.Children.Add(Muted("دسکتاپ و تسک‌بار را به سلیقه خودت بساز"));
-        DockPanel.SetDock(brand, WDock.Top);
-        side.Children.Add(brand);
-
-        var restore = new Button { Content = "↺ بازگردانی دسکتاپ ویندوز", Margin = new Thickness(0, 10, 0, 0), Padding = new Thickness(10, 8, 10, 8) };
-        TryStyle(restore, "DangerButton");
-        restore.ToolTip = "همه ماژول‌ها خاموش و تسک‌بار ویندوز فوراً برگردانده می‌شود";
-        restore.Click += (_, _) =>
-        {
-            DesktopFeature.RestoreWindowsDesktop();
-            _s = DesktopSettingsStore.Current.Clone();
-            ShowPage(_currentPage);
-            SetStatus("دسکتاپ پیش‌فرض ویندوز بازگردانده شد");
-        };
-        DockPanel.SetDock(restore, WDock.Bottom);
-        side.Children.Add(restore);
-        _status.Margin = new Thickness(6, 8, 6, 0);
+        _status.FontSize = 12;
         _status.TextWrapping = TextWrapping.Wrap;
         _status.SetResourceReference(TextBlock.ForegroundProperty, "SuccessBrush");
-        DockPanel.SetDock(_status, WDock.Bottom);
-        side.Children.Add(_status);
-
-        _nav.Background = Brushes.Transparent;
-        _nav.BorderThickness = new Thickness(0);
-        foreach (var p in Pages)
+        _statusPill = new Border
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 7, 4, 7) };
-            row.Children.Add(new TextBlock { Text = p.Glyph, FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 15, Width = 26, VerticalAlignment = VerticalAlignment.Center });
-            row.Children.Add(new TextBlock { Text = p.Title, FontSize = 13.5, VerticalAlignment = VerticalAlignment.Center });
-            _nav.Items.Add(new ListBoxItem { Content = row, Tag = p.Id, Foreground = DesktopTheme.TextBrush });
-        }
-        _nav.SelectionChanged += (_, _) =>
-        {
-            if (!_building && _nav.SelectedItem is ListBoxItem { Tag: string id }) ShowPage(id);
+            Child = _status, Padding = new Thickness(10, 3, 10, 3), CornerRadius = new CornerRadius(10), Margin = new Thickness(0, 0, 0, 8),
+            HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Collapsed, BorderThickness = new Thickness(1)
         };
-        side.Children.Add(_nav);
+        _statusPill.SetResourceReference(Border.BackgroundProperty, "SurfaceBrush");
+        _statusPill.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
+        root.Children.Add(_statusPill);
 
-        var sideBorder = new Border { Child = side, BorderThickness = new Thickness(0, 0, 1, 0) };
-        sideBorder.SetResourceReference(Border.BackgroundProperty, "SurfaceBrush");
-        sideBorder.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
-        root.Children.Add(sideBorder);
-
-        _page.Margin = new Thickness(22, 18, 22, 24);
-        _scroll = new ScrollViewer { Content = _page, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        Grid.SetColumn(_scroll, 1);
+        _page.Margin = new Thickness(0, 0, 8, 24);
+        _scroll = new ScrollViewer { Content = _page, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        Grid.SetRow(_scroll, 1);
         root.Children.Add(_scroll);
 
         Content = root;
         HotkeyRegistry.Changed += OnHotkeysChanged;
-        Closed += (_, _) =>
-        {
-            HotkeyRegistry.Changed -= OnHotkeysChanged;
-            if (_saveTimer.IsEnabled) { _saveTimer.Stop(); DesktopSettingsStore.Save(_s.Clone()); }
-        };
-        ShowPage("home");
+    }
+
+    /// <summary>Flushes a pending save and detaches static event handlers (call when the host closes).</summary>
+    public void Release()
+    {
+        if (_released) return;
+        _released = true;
+        HotkeyRegistry.Changed -= OnHotkeysChanged;
+        if (_saveTimer.IsEnabled) { _saveTimer.Stop(); DesktopSettingsStore.Save(_s.Clone()); }
+    }
+
+    /// <summary>Re-reads desktop.json (e.g. after «بازگردانی دسکتاپ ویندوز») and rebuilds the current page.</summary>
+    public void ReloadFromStore(string? status = null)
+    {
+        _saveTimer.Stop();
+        _s = DesktopSettingsStore.Current.Clone();
+        ShowPage(_currentPage);
+        if (status != null) SetStatus(status);
     }
 
     private void OnHotkeysChanged()
@@ -137,16 +138,18 @@ public sealed class DesktopStudioWindow : Window
 
     // ------------------------------------------------------------------ paging
 
+    public static bool IsPage(string? id) => id != null && (id == "personalize" || Pages.Any(p => p.Id == id));
+
     public void ShowPage(string? id)
     {
         id ??= "home";
-        if (Pages.All(p => p.Id != id)) id = "home";
+        if (!IsPage(id)) id = "home";
+        // Pick up changes saved elsewhere (top-bar menus, auto theme, restore) unless an edit is pending.
+        if (!_saveTimer.IsEnabled) _s = DesktopSettingsStore.Current.Clone();
         _currentPage = id;
         _building = true;
         try
         {
-            foreach (ListBoxItem item in _nav.Items)
-                if ((string)item.Tag == id) _nav.SelectedItem = item;
             _page.Children.Clear();
             switch (id)
             {
@@ -165,19 +168,31 @@ public sealed class DesktopStudioWindow : Window
                     () => Fences.FencesStudioPage.Build(_s, Changed)); break;
                 case "controlcenter": External("مرکز کنترل", "وای‌فای، بلوتوث، روشنایی، صدا، رسانه، نور شب و مزاحم نشوید — از دکمه کنار ساعت نوار بالا یا منوی سینی.",
                     () => ControlCenter.ControlCenterStudioPage.Build(_s, Changed)); break;
-                case "autotheme": External("تم خودکار روز و شب", "تم روشن و تیره ویندوز و شمسا در ساعت دلخواه یا با طلوع و غروب خورشید شهر شما عوض می‌شود.",
+                case "autotheme": External("تم خودکار روز و شب", "تم روشن و تیره ویندوز و نگارخانه در ساعت دلخواه یا با طلوع و غروب خورشید شهر شما عوض می‌شود.",
                     () => AutoTheme.AutoThemeStudioPage.Build(_s, Changed)); break;
                 case "clipboard": External(null, "هر چه کپی می‌کنی در جستجوی سریع (Ctrl+Alt+V یا «cb ») در دسترس است؛ رمزهای مدیران رمز ذخیره نمی‌شوند.",
                     () => Launcher.ClipboardStudioPage.Build(_s, Changed)); break;
-                case "voice": External(null, "با گفتن «شمسا …» برنامه باز کن، چیدمان را عوض کن یا اسکرین‌شات بگیر. میکروفون فقط با روشن کردن این بخش فعال می‌شود.",
+                case "voice": External(null, "با گفتن واژه بیداری (پیش‌فرض «نگار») و یک فرمان، برنامه باز کن، چیدمان را عوض کن یا اسکرین‌شات بگیر.",
                     () => Voice.VoiceStudioPage.Build(_s, Changed)); break;
                 case "plugins": External("افزونه‌های نوار بالا", "فایل‌های JSON ساده در پوشه افزونه‌ها، اجزای تازه به نوار بالا اضافه می‌کنند.",
                     () => Plugins.PluginsStudioPage.Build(_s, Changed)); break;
+                case "personalize": BuildPersonalize(); break;
             }
             _scroll.ScrollToTop();
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => _scroll.ScrollToTop());
         }
         finally { _building = false; }
+    }
+
+    /// <summary>
+    /// «شخصی‌سازی ویندوز» (Desktop/Personalize): system icons, wallpaper, accent colour, cursors and theme packages.
+    /// </summary>
+    private void BuildPersonalize()
+    {
+        const string title = "شخصی‌سازی ویندوز";
+        const string subtitle = "آیکون‌های دسکتاپ، «این رایانه»، سطل بازیافت، تصویر زمینه، نشانگر موس و ظاهر ویندوز — همه قابل برگشت.";
+        // The personalisation page draws its own hero heading, so the host hides its title row.
+        External(null, subtitle, () => Personalize.PersonalizeStudioPage.Build(_s, Changed));
     }
 
     private void Changed()
@@ -188,24 +203,28 @@ public sealed class DesktopStudioWindow : Window
         _saveTimer.Start();
     }
 
-    private void SetStatus(string text) => _status.Text = text;
+    private void SetStatus(string text)
+    {
+        _status.Text = text;
+        _statusPill.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     // ------------------------------------------------------------------ pages
 
     private void BuildHome()
     {
-        Header("شروع سریع", "محیط دسکتاپ شمسا کاملاً اختیاری است؛ با یک کلید روشن می‌شود و با یک کلید همه‌چیز به حالت ویندوز برمی‌گردد.");
+        Header("شروع سریع دسکتاپ", "محیط دسکتاپ نگارخانه کاملاً اختیاری است؛ با یک کلید روشن می‌شود و با یک کلید همه‌چیز به حالت ویندوز برمی‌گردد.");
 
         var master = Card();
-        master.Children.Add(Toggle("فعال‌سازی محیط دسکتاپ شمسا", "نوار بالا، داک، جستجوی سریع و مدیر پنجره طبق تنظیمات هر بخش اجرا می‌شوند",
+        master.Children.Add(Toggle("فعال‌سازی محیط دسکتاپ نگارخانه", "نوار بالا، داک، جستجوی سریع و مدیر پنجره طبق تنظیمات هر بخش اجرا می‌شوند",
             _s.Enabled, v => { _s.Enabled = v; ShowPageLater(); }));
-        master.Children.Add(Toggle("پنهان کردن تسک‌بار ویندوز", "فقط وقتی نوار بالا یا داک شمسا روشن است؛ هنگام خروج، خطا یا «بازگردانی» حتماً برمی‌گردد",
+        master.Children.Add(Toggle("پنهان کردن تسک‌بار ویندوز", "فقط وقتی نوار بالا یا داک نگارخانه روشن است؛ هنگام خروج، خطا یا «بازگردانی» حتماً برمی‌گردد",
             _s.HideWindowsTaskbar, v => _s.HideWindowsTaskbar = v));
         _page.Children.Add(Wrap(master));
 
         var presets = Card("حالت‌های آماده", "یک سبک را انتخاب کن؛ بعداً هر جزئیاتی را می‌توانی تغییر دهی.");
         var grid = new UniformGrid { Columns = 2 };
-        grid.Children.Add(PresetButton("✨ Seelen", "نوار بالای شیشه‌ای + داک + پنهان شدن تسک‌بار", s =>
+        grid.Children.Add(PresetButton("🖼 شیشه‌ای (Seelen)", "نوار بالای شیشه‌ای + داک + پنهان شدن تسک‌بار", s =>
         {
             s.TopBar.Enabled = true; s.TopBar.Position = "Top"; s.Dock.Enabled = true; s.Dock.Position = "Bottom";
             s.Dock.Magnification = 150; s.Launcher.Enabled = true; s.HideWindowsTaskbar = true; s.WindowManager.Enabled = false;
@@ -236,7 +255,7 @@ public sealed class DesktopStudioWindow : Window
             var go = new Button { Content = "تنظیم", Padding = new Thickness(12, 3, 12, 3) };
             TryStyle(go, "GhostButton");
             string id = m.Id;
-            go.Click += (_, _) => ShowPage(id);
+            go.Click += (_, _) => Go(id);
             DockPanel.SetDock(go, WDock.Right);
             row.Children.Add(go);
             var dot = new TextBlock { Text = "●", Margin = new Thickness(0, 0, 8, 0), Foreground = m.IsRunning ? Brushes.MediumSeaGreen : Brushes.Gray };
@@ -250,7 +269,7 @@ public sealed class DesktopStudioWindow : Window
         var tips = Card("نکته‌ها");
         tips.Children.Add(Muted("• جستجوی سریع: " + GlobalHotkeyService.FormatShortcut(_s.Launcher.HotkeyModifiers, _s.Launcher.HotkeyKey) +
                                 "   • چسباندن پنجره: Ctrl+Alt+جهت‌ها   • کاشی‌کاری خودکار: Ctrl+Alt+T"));
-        tips.Children.Add(Muted("• روی دکمه شمسا در نوار بالا کلیک‌راست کن تا مستقیم به این استودیو بیایی."));
+        tips.Children.Add(Muted("• روی دکمه نگارخانه در نوار بالا کلیک‌راست کن تا مستقیم به این استودیو بیایی."));
         tips.Children.Add(Muted("• اگر چیزی درست نمایش داده نشد، «بازگردانی دسکتاپ ویندوز» همیشه در دسترس است (منوی سینی هم دارد)."));
         _page.Children.Add(Wrap(tips));
     }
@@ -270,7 +289,7 @@ public sealed class DesktopStudioWindow : Window
         g.Children.Add(Toggle("حاشیه روشن ظریف", null, _s.Theme.ShowBorders, v => _s.Theme.ShowBorders = v));
         _page.Children.Add(Wrap(g));
 
-        var f = Card("فونت رابط کاربری", "وزیرمتن داخل برنامه قرار دارد و روی همه سیستم‌ها یکسان دیده می‌شود. تغییر فونت پس از اجرای دوباره شمسا کامل اعمال می‌شود.");
+        var f = Card("فونت رابط کاربری", "وزیرمتن داخل برنامه قرار دارد و روی همه سیستم‌ها یکسان دیده می‌شود. تغییر فونت پس از اجرای دوباره نگارخانه کامل اعمال می‌شود.");
         var fonts = new List<(string Value, string Label)> { ("", "وزیرمتن (داخلی، پیشنهادی)") };
         string[] persianHints = { "Vazir", "IRAN", "Yekan", "Sahel", "Shabnam", "Samim", "Estedad", "Tanha", "Parastoo", "Lalezar", "Mikhak", "Dana", "Peyda", "Kalameh" };
         foreach (var ff in Fonts.SystemFontFamilies.Select(x => x.Source).Distinct().OrderBy(x => x))
@@ -279,7 +298,7 @@ public sealed class DesktopStudioWindow : Window
         fonts.Add(("Tahoma", "Tahoma"));
         var combo = Combo(fonts.Select(x => (x.Value, x.Label)).ToArray(), _s.UiFontFamily, v => _s.UiFontFamily = v);
         f.Children.Add(combo);
-        var sample = new TextBlock { Text = "نمونه: شمسا، دستیار هوشمند دسکتاپ — ۱۴۰۵/۰۹/۰۴ — Shamsa 3", FontSize = 18, Margin = new Thickness(0, 10, 0, 0) };
+        var sample = new TextBlock { Text = "نمونه: نگارخانه، دسکتاپ به سلیقه تو — ۱۴۰۵/۰۹/۰۴ — Negarkhaneh", FontSize = 18, Margin = new Thickness(0, 10, 0, 0) };
         void UpdateSample()
         {
             try { sample.FontFamily = string.IsNullOrEmpty(_s.UiFontFamily) ? DesktopTheme.Font : new FontFamily(_s.UiFontFamily); } catch { }
@@ -396,7 +415,7 @@ public sealed class DesktopStudioWindow : Window
         add.Click += (_, _) =>
         {
             var dlg = new OpenFileDialog { Filter = "برنامه یا میانبر|*.exe;*.lnk;*.url;*.bat;*.cmd|همه فایل‌ها|*.*", DereferenceLinks = false, Multiselect = true };
-            if (dlg.ShowDialog(this) == true)
+            if (dlg.ShowDialog(Window.GetWindow(this)) == true)
             {
                 foreach (var f in dlg.FileNames) if (!d.Pinned.Contains(f, StringComparer.OrdinalIgnoreCase)) d.Pinned.Add(f);
                 Refill(); Changed();
@@ -485,7 +504,7 @@ public sealed class DesktopStudioWindow : Window
 
     private void BuildHotkeys()
     {
-        Header("میانبرها و تداخل‌ها", "همه کلیدهای سراسری شمسا یک‌جا. اگر دو بخش یک کلید را بخواهند، دومی ثبت نمی‌شود و اینجا با رنگ قرمز دیده می‌شود.");
+        Header("میانبرها و تداخل‌ها", "همه کلیدهای سراسری نگارخانه یک‌جا. اگر دو بخش یک کلید را بخواهند، دومی ثبت نمی‌شود و اینجا با رنگ قرمز دیده می‌شود.");
         var c = Card();
         var all = HotkeyRegistry.All;
         if (all.Count == 0) c.Children.Add(Muted("هنوز میانبری ثبت نشده است."));
@@ -520,7 +539,7 @@ public sealed class DesktopStudioWindow : Window
         _page.Children.Add(Wrap(c));
         var note = Card("پیشنهاد");
         note.Children.Add(Muted("از ترکیب‌های Alt+Shift و Ctrl+Shift تنها استفاده نکن؛ در ویندوز فارسی برای تغییر زبان صفحه‌کلید به کار می‌روند. کلیدهای Win+… هم بیشتر در اختیار خود ویندوز هستند."));
-        note.Children.Add(Muted("میانبر منوی دایره‌ای و ضبط صفحه از داشبورد شمسا و پنجره ضبط تغییر می‌کنند؛ میانبر جستجوی سریع از همین استودیو."));
+        note.Children.Add(Muted("میانبر منوی دایره‌ای و ضبط صفحه از داشبورد نگارخانه و پنجره ضبط تغییر می‌کنند؛ میانبر جستجوی سریع از همین استودیو."));
         _page.Children.Add(Wrap(note));
     }
 
@@ -531,6 +550,7 @@ public sealed class DesktopStudioWindow : Window
     {
         // Pages that draw their own title pass null so the header is not shown twice.
         if (title != null) Header(title, subtitle);
+        else HeaderChanged?.Invoke(null, subtitle);
         try { _page.Children.Add(build()); }
         catch (Exception ex)
         {
@@ -541,8 +561,18 @@ public sealed class DesktopStudioWindow : Window
 
     private void ShowPageLater() => Dispatcher.BeginInvoke(DispatcherPriority.Background, () => ShowPage(_currentPage));
 
+    /// <summary>Asks the host to navigate (keeps the hub sidebar in sync); falls back to an in-place page switch.</summary>
+    public event Action<string>? NavigateRequested;
+
+    private void Go(string id)
+    {
+        if (NavigateRequested != null) NavigateRequested(id);
+        else ShowPage(id);
+    }
+
     private void Header(string title, string subtitle)
     {
+        if (HeaderChanged != null) { HeaderChanged(title, subtitle); return; }
         _page.Children.Add(new TextBlock { Text = title, FontSize = 22, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         var sub = Muted(subtitle);
         sub.Margin = new Thickness(0, 0, 0, 14);
@@ -561,7 +591,7 @@ public sealed class DesktopStudioWindow : Window
             {
                 var w = module.CreatePreviewWindow(_s.Clone());
                 if (w == null) return;
-                w.Owner = this;
+                w.Owner = Window.GetWindow(this);
                 w.WindowStartupLocation = WindowStartupLocation.CenterOwner;
                 w.Show();
             }
