@@ -266,13 +266,16 @@ public static class WidgetViews
     private sealed class WeatherWidget : StackPanel
     {
         private readonly DesktopSettings _s;
-        private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(30) };
+        private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(30) };
+        private bool _loading;
+        private (double, double)? _shownCoordinates;
+        private DateTime _lastRefresh = DateTime.MinValue;
 
         public WeatherWidget(DesktopSettings s)
         {
             _s = s;
             _timer.Tick += (_, _) => _ = LoadAsync();
-            Loaded += (_, _) => { if (_s.Widgets.WeatherOnline) _timer.Start(); };
+            Loaded += (_, _) => { if (_s.Widgets.WeatherOnline) { _timer.Start(); _ = LoadAsync(); } };
             Unloaded += (_, _) => _timer.Stop();
             if (!s.Widgets.WeatherOnline)
             {
@@ -282,16 +285,22 @@ public static class WidgetViews
                 return;
             }
             Children.Add(Text("در حال دریافت هوای " + s.Widgets.City + "…", 12.5, brush: DesktopTheme.MutedBrush));
-            _ = LoadAsync();
         }
 
         private async Task LoadAsync()
         {
             var w = _s.Widgets;
             var location = CityClock.Resolve(w);
-            var r = await WeatherService.GetAsync(location.Latitude, location.Longitude);
+            var coordinates = (location.Latitude, location.Longitude);
+            if (_loading || (_shownCoordinates == coordinates && DateTime.UtcNow - _lastRefresh < TimeSpan.FromMinutes(25))) return;
+            _loading = true;
+            WeatherService.Report? r;
+            try { r = await WeatherService.GetAsync(location.Latitude, location.Longitude); }
+            finally { _loading = false; }
             var current = CityClock.Resolve(w);
-            if (!IsLoaded || current.Latitude != location.Latitude || current.Longitude != location.Longitude) return;
+            if (!IsLoaded || !_s.Widgets.WeatherOnline || current.Latitude != location.Latitude || current.Longitude != location.Longitude) return;
+            _shownCoordinates = coordinates;
+            _lastRefresh = r == null ? DateTime.UtcNow.AddMinutes(-24) : DateTime.UtcNow;
             await Dispatcher.InvokeAsync(() =>
             {
                 Children.Clear();

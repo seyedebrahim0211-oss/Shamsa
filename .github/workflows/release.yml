@@ -66,10 +66,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build Shamsa.csproj --no-restore -c Release -r win-x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Test-Path Tests/Shamsa.Tests.csproj) {
-            dotnet test Tests/Shamsa.Tests.csproj -c Release
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          if (!(Test-Path Tests/Shamsa.Tests.csproj)) { throw "Regression tests missing" }
+          dotnet test Tests/Shamsa.Tests.csproj -c Release --logger "console;verbosity=normal"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Audit NuGet dependencies
         shell: pwsh

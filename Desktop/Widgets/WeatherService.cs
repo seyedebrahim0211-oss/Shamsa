@@ -15,6 +15,7 @@ public static class WeatherService
     public sealed record Report(double Temperature, double Wind, int Code, List<Day> Days, DateTime FetchedAt);
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly object CacheGate = new();
     private static Report? _cache;
     private static (double, double) _cacheKey;
 
@@ -25,8 +26,9 @@ public static class WeatherService
 
     public static async Task<Report?> GetAsync(double lat, double lng, bool force = false)
     {
-        if (!force && _cache != null && _cacheKey == (lat, lng) && DateTime.Now - _cache.FetchedAt < TimeSpan.FromMinutes(25))
-            return _cache;
+        lock (CacheGate)
+            if (!force && _cache != null && _cacheKey == (lat, lng) && DateTime.UtcNow - _cache.FetchedAt < TimeSpan.FromMinutes(25))
+                return _cache;
         string url = string.Format(CultureInfo.InvariantCulture,
             "https://api.open-meteo.com/v1/forecast?latitude={0:0.####}&longitude={1:0.####}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=4",
             lat, lng);
@@ -46,10 +48,10 @@ public static class WeatherService
                     daily.GetProperty("temperature_2m_max")[i].GetDouble(),
                     daily.GetProperty("weather_code")[i].GetInt32()));
             }
-            _cache = new Report(cur.GetProperty("temperature_2m").GetDouble(), cur.GetProperty("wind_speed_10m").GetDouble(),
-                cur.GetProperty("weather_code").GetInt32(), days, DateTime.Now);
-            _cacheKey = (lat, lng);
-            return _cache;
+            var report = new Report(cur.GetProperty("temperature_2m").GetDouble(), cur.GetProperty("wind_speed_10m").GetDouble(),
+                cur.GetProperty("weather_code").GetInt32(), days, DateTime.UtcNow);
+            lock (CacheGate) { _cache = report; _cacheKey = (lat, lng); }
+            return report;
         }
         catch (Exception ex)
         {
