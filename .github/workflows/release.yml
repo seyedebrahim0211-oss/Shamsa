@@ -77,8 +77,27 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $audit = $report | ConvertFrom-Json
           if (-not $audit.projects) { throw "Dependency audit returned no projects" }
-          $vulns = @($audit.projects | ForEach-Object { $_.frameworks } | ForEach-Object { @($_.topLevelPackages) + @($_.transitivePackages) } | ForEach-Object { $_.vulnerabilities } | Where-Object { $_ })
-          $vulns | ConvertTo-Json -Depth 8 | Write-Output
+          $vulns = @(
+            foreach ($project in $audit.projects) {
+              foreach ($framework in $project.frameworks) {
+                foreach ($package in (@($framework.topLevelPackages) + @($framework.transitivePackages))) {
+                  foreach ($vulnerability in $package.vulnerabilities) {
+                    if ($null -ne $vulnerability) {
+                      [pscustomobject]@{
+                        package = $package.id
+                        version = $package.resolvedVersion
+                        framework = $framework.framework
+                        severity = $vulnerability.severity
+                        advisoryurl = $vulnerability.advisoryurl
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          )
+          if ($vulns.Count -eq 0) { Write-Output "No known NuGet vulnerabilities found." }
+          else { $vulns | ConvertTo-Json -Depth 8 | Write-Output }
           if ($vulns | Where-Object { $_.severity -in @('High', 'Critical') }) { throw "High or critical NuGet vulnerability" }
 
       - name: Publish self-contained Windows x64 application
