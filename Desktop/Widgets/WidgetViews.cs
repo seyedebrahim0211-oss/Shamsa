@@ -33,6 +33,19 @@ public static class WidgetViews
 
     internal static string D(string s) => DesktopTheme.Digits(s, true);
 
+    /// <summary>Time zone of a widget city (Iran, Afghanistan, Tajikistan); null = use the PC's zone.</summary>
+    internal static TimeZoneInfo? CityTimeZone(string? city, double lat, double lng)
+    {
+        string? id = city switch
+        {
+            "کابل" or "هرات" or "مزار شریف" or "قندهار" => "Afghanistan Standard Time",
+            "دوشنبه" or "خجند" => "West Asia Standard Time",
+            _ => lat is >= 25 and <= 40 && lng is >= 44 and <= 63.5 ? "Iran Standard Time" : null,
+        };
+        if (id == null) return null;
+        try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { return null; }
+    }
+
     internal static TextBlock Text(string text, double size = 13, FontWeight? weight = null, Brush? brush = null) => new()
     {
         Text = text, FontSize = size, FontWeight = weight ?? FontWeights.Normal,
@@ -188,12 +201,18 @@ public static class WidgetViews
             Children.Add(head);
             Children.Add(Text(PersianDate.Long(DateTime.Today, true), 11.5, brush: DesktopTheme.MutedBrush));
 
+            // Prayer times belong to the city, not to the PC's clock: a laptop set to another zone must
+            // still show Tehran's Fajr in Tehran time.
+            var cityZone = CityTimeZone(w.City, w.Latitude, w.Longitude);
+            var now = cityZone != null ? TimeZoneInfo.ConvertTime(DateTime.Now, cityZone) : DateTime.Now;
+            double? offset = cityZone?.GetUtcOffset(now).TotalHours;
             PrayerTimes.Times times;
-            try { times = PrayerTimes.Compute(DateTime.Today, w.Latitude, w.Longitude, w.PrayerMethod); }
+            try { times = PrayerTimes.Compute(now.Date, w.Latitude, w.Longitude, w.PrayerMethod, offset); }
             catch { Children.Add(Text("محاسبه ممکن نشد.")); return; }
-            var now = DateTime.Now;
             var nextName = times.All.Where(x => x.At > now && x.Name != "طلوع آفتاب" && x.Name != "غروب آفتاب")
                 .Select(x => x.Name).FirstOrDefault();
+            if (cityZone != null && Math.Abs((cityZone.GetUtcOffset(now) - TimeZoneInfo.Local.GetUtcOffset(DateTime.Now)).TotalMinutes) > 1)
+                Children.Add(Text("ساعت‌ها به وقت " + w.City + " است", 10.5, brush: DesktopTheme.MutedBrush));
             var rows = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
             foreach (var (name, at) in times.All)
             {
