@@ -32,8 +32,12 @@ public sealed class LauncherWindow : Window
     private static readonly (string Label, LauncherKind? Kind)[] Categories =
     {
         ("همه", null), ("برنامه‌ها", LauncherKind.App), ("تنظیمات", LauncherKind.Setting),
-        ("فایل‌ها", LauncherKind.File), ("فرمان‌ها", LauncherKind.Command)
+        ("فایل‌ها", LauncherKind.File), ("فرمان‌ها", LauncherKind.Command), ("کلیپ‌بورد", LauncherKind.Clipboard)
     };
+    private static readonly int ClipboardCategory = Categories.Length - 1;
+    private readonly TextBlock _footer = new();
+    private IntPtr _previousForeground;
+    private bool _clipMode;
 
     public LauncherWindow(LauncherIndex index, DesktopSettings settings, bool preview)
     {
@@ -54,7 +58,8 @@ public sealed class LauncherWindow : Window
         WindowStartupLocation = WindowStartupLocation.Manual;
         Content = BuildUi();
         _index.Updated += OnIndexUpdated;
-        Closed += (_, _) => _index.Updated -= OnIndexUpdated;
+        ClipboardHistory.Changed += OnClipboardChanged;
+        Closed += (_, _) => { _index.Updated -= OnIndexUpdated; ClipboardHistory.Changed -= OnClipboardChanged; };
         if (!preview)
         {
             Deactivated += (_, _) => HideLauncher();
@@ -130,13 +135,13 @@ public sealed class LauncherWindow : Window
         DockPanel.SetDock(divider, WpfDock.Top);
         root.Children.Add(divider);
 
-        var footer = new TextBlock
-        {
-            Text = "Enter اجرا  ·  Ctrl+Enter محل فایل  ·  Tab دسته بعدی  ·  Esc بستن",
-            FontSize = 11.5, Foreground = DesktopTheme.MutedBrush, Margin = new Thickness(18, 6, 18, 0), Opacity = 0.8
-        };
-        DockPanel.SetDock(footer, WpfDock.Bottom);
-        root.Children.Add(footer);
+        _footer.FontSize = 11.5;
+        _footer.Foreground = DesktopTheme.MutedBrush;
+        _footer.Margin = new Thickness(18, 6, 18, 0);
+        _footer.Opacity = 0.8;
+        _footer.TextTrimming = TextTrimming.CharacterEllipsis;
+        DockPanel.SetDock(_footer, WpfDock.Bottom);
+        root.Children.Add(_footer);
 
         _empty.Text = "نتیجه‌ای پیدا نشد";
         _empty.Foreground = DesktopTheme.MutedBrush;
@@ -204,7 +209,45 @@ public sealed class LauncherWindow : Window
         return null;
     }
 
-    private void OnIndexUpdated() => Dispatcher.BeginInvoke(new Action(() => { if (IsVisible) Refresh(); }));
+    private void OnIndexUpdated() => Dispatcher.BeginInvoke(new Action(() => { if (IsVisible && !_clipMode) Refresh(); }));
+    private void OnClipboardChanged() => Dispatcher.BeginInvoke(new Action(() => { if (IsVisible && _clipMode) Refresh(); }));
+
+    /// <summary>Clipboard mode: the clipboard chip is active or the query starts with "cb " / "؛".</summary>
+    private bool InClipboardMode(out string query)
+    {
+        query = _box.Text;
+        if (_category == ClipboardCategory) return true;
+        if (query.StartsWith("cb ", StringComparison.OrdinalIgnoreCase)) { query = query[3..]; return true; }
+        if (query.StartsWith("؛")) { query = query[1..]; return true; }
+        return false;
+    }
+
+    private List<LauncherResult> ClipboardResults(string query) =>
+        ClipboardHistory.Search(query).Take(Math.Max(_settings.Launcher.MaxResults, 12)).Select(c => new LauncherResult
+        {
+            Kind = LauncherKind.Clipboard,
+            Title = c.Preview,
+            Subtitle = (c.Pinned ? "📌 سنجاق‌شده · " : "") + Ago(c.CapturedUtc),
+            Target = c.Id,
+            Glyph = c.Kind switch { ClipKind.Files => "\uE8B7", ClipKind.Image => "\uEB9F", _ => "\uE8C8" },
+            IconPath = c.Kind == ClipKind.Files && c.Files is { Length: 1 } ? c.Files[0] : null,
+            Data = c
+        }).ToList();
+
+    private static string Ago(DateTime utc)
+    {
+        var d = DateTime.UtcNow - utc;
+        string s = d.TotalMinutes < 1 ? "همین حالا" : d.TotalHours < 1 ? $"{(int)d.TotalMinutes} دقیقه پیش"
+                 : d.TotalDays < 1 ? $"{(int)d.TotalHours} ساعت پیش" : $"{(int)d.TotalDays} روز پیش";
+        return DesktopTheme.Digits(s, true);
+    }
+
+    private void UpdateFooter()
+    {
+        _footer.Text = _clipMode
+            ? "Enter چسباندن  ·  Shift+Enter فقط کپی  ·  Ctrl+P سنجاق  ·  Delete حذف  ·  Esc بستن"
+            : "Enter اجرا  ·  Ctrl+Enter محل فایل  ·  Tab دسته بعدی  ·  «cb » یا «؛» کلیپ‌بورد  ·  Esc بستن";
+    }
 
     public void SetQuery(string text)
     {
@@ -215,7 +258,12 @@ public sealed class LauncherWindow : Window
     private void Refresh()
     {
         string q = _box.Text;
-        _results = string.IsNullOrWhiteSpace(q) ? RecentFromHistory() : _index.Search(q, _settings.Launcher, Categories[_category].Kind);
+        _clipMode = InClipboardMode(out string clipQuery);
+        UpdateFooter();
+        if (_clipMode)
+            _results = ClipboardResults(clipQuery);
+        else
+            _results = string.IsNullOrWhiteSpace(q) ? RecentFromHistory() : _index.Search(q, _settings.Launcher, Categories[_category].Kind);
         _selected = 0;
         _rows.Children.Clear();
         _rowViews.Clear();
@@ -225,7 +273,10 @@ public sealed class LauncherWindow : Window
             _rowViews.Add(row);
             _rows.Children.Add(row);
         }
-        _empty.Visibility = _results.Count == 0 && !string.IsNullOrWhiteSpace(q) ? Visibility.Visible : Visibility.Collapsed;
+        _empty.Text = _clipMode
+            ? (ClipboardHistory.IsRunning ? "تاریخچه کلیپ‌بورد خالی است — هر چیزی کپی کنی اینجا می‌آید" : "تاریخچه کلیپ‌بورد خاموش است (استودیو دسکتاپ › کلیپ‌بورد)")
+            : "نتیجه‌ای پیدا نشد";
+        _empty.Visibility = _results.Count == 0 && (_clipMode || !string.IsNullOrWhiteSpace(q)) ? Visibility.Visible : Visibility.Collapsed;
         UpdateSelection();
     }
 
@@ -250,8 +301,8 @@ public sealed class LauncherWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         UIElement icon;
-        BitmapSource? bmp = null;
-        if (r.IconPath != null)
+        BitmapSource? bmp = (r.Data as ClipItem)?.Thumbnail;
+        if (bmp == null && r.IconPath != null)
         {
             try { bmp = ShellThumbnailService.TryGetShellImage(r.IconPath, 64, iconOnly: true); } catch { }
         }
@@ -291,7 +342,7 @@ public sealed class LauncherWindow : Window
             Text = r.Kind switch
             {
                 LauncherKind.App => "برنامه", LauncherKind.Setting => "تنظیمات", LauncherKind.File => "فایل",
-                LauncherKind.Command => "فرمان", LauncherKind.Calc => "محاسبه", _ => "وب"
+                LauncherKind.Command => "فرمان", LauncherKind.Calc => "محاسبه", LauncherKind.Clipboard => "کلیپ‌بورد", _ => "وب"
             },
             FontSize = 11, Foreground = DesktopTheme.MutedBrush, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.75
         };
@@ -304,7 +355,11 @@ public sealed class LauncherWindow : Window
             CornerRadius = new CornerRadius(8), Background = Brushes.Transparent, Cursor = Cursors.Hand, Tag = r
         };
         border.MouseEnter += (_, _) => { _selected = _rowViews.IndexOf(border); UpdateSelection(scroll: false); };
-        border.MouseLeftButtonUp += (_, _) => Run(r, Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+        border.MouseLeftButtonUp += (_, _) =>
+        {
+            if (r.Data is ClipItem clip) RunClip(clip, copyOnly: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            else Run(r, Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+        };
         return border;
     }
 
@@ -335,9 +390,31 @@ public sealed class LauncherWindow : Window
                 BuildChips(); Refresh();
                 e.Handled = true; break;
             case Key.Enter:
-                if (_selected >= 0 && _selected < _results.Count) Run(_results[_selected], Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+                if (_selected >= 0 && _selected < _results.Count)
+                {
+                    if (_results[_selected].Data is ClipItem clip) RunClip(clip, copyOnly: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+                    else Run(_results[_selected], Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+                }
+                e.Handled = true; break;
+            case Key.Delete when SelectedClip() is { } del && (_box.Text.Length == 0 || _box.CaretIndex >= _box.Text.Length):
+                if (!_preview) ClipboardHistory.Remove(del);
+                e.Handled = true; break;
+            case Key.P when Keyboard.Modifiers.HasFlag(ModifierKeys.Control) && SelectedClip() is { } pin:
+                if (!_preview) ClipboardHistory.TogglePin(pin);
                 e.Handled = true; break;
         }
+    }
+
+    private ClipItem? SelectedClip() =>
+        _selected >= 0 && _selected < _results.Count ? _results[_selected].Data as ClipItem : null;
+
+    private void RunClip(ClipItem clip, bool copyOnly)
+    {
+        if (_preview) return;
+        var target = _previousForeground;
+        HideLauncher();
+        if (copyOnly) ClipboardHistory.CopyToClipboard(clip);
+        else ClipboardHistory.Paste(clip, target);
     }
 
     private void Run(LauncherResult r, bool openLocation)
@@ -370,13 +447,16 @@ public sealed class LauncherWindow : Window
         HideLauncher();
     }
 
-    public void ShowLauncher()
+    public void ShowLauncher(bool clipboardMode = false, string? query = null)
     {
+        var fg = ClipboardNative.GetForegroundWindow();
+        if (fg != new WindowInteropHelper(this).Handle) _previousForeground = fg;
         var wa = SystemParameters.WorkArea;
         Left = wa.Left + (wa.Width - Width) / 2;
         Top = wa.Top + wa.Height * 0.18;
+        _category = clipboardMode ? ClipboardCategory : 0;
         _box.Clear();
-        _category = 0;
+        if (!string.IsNullOrEmpty(query)) SetQuery(query);
         BuildChips();
         Refresh();
         Opacity = 0;

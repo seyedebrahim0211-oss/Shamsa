@@ -69,6 +69,10 @@ internal sealed class DockWindow : Window
     private DockItem? _pressItem, _dragItem;
     private Point _pressPoint;
     private double _dpi = 1;
+    private DockThumbnailPopup? _thumbs;
+    private DockItem? _hoverCandidate;
+    private readonly DispatcherTimer _hoverTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
+    private readonly DispatcherTimer _thumbHideTimer = new() { Interval = TimeSpan.FromMilliseconds(160) };
 
     private string Edge => _s.Dock.Position switch { "Left" => "Left", "Right" => "Right", "Top" => "Top", _ => "Bottom" };
     private bool Horizontal => Edge is "Bottom" or "Top";
@@ -119,10 +123,14 @@ internal sealed class DockWindow : Window
         };
         DpiChanged += (_, e) => { _dpi = e.NewDpi.DpiScaleX; Place(); };
         _refreshTimer.Tick += (_, _) => RefreshItems(false);
+        _hoverTimer.Tick += (_, _) => { _hoverTimer.Stop(); ShowThumbnails(); };
+        _thumbHideTimer.Tick += (_, _) => ThumbHideTick();
         _edgeTimer.Tick += (_, _) => EdgeTick();
         Closed += (_, _) =>
         {
-            _refreshTimer.Stop(); _edgeTimer.Stop();
+            _refreshTimer.Stop(); _edgeTimer.Stop(); _hoverTimer.Stop(); _thumbHideTimer.Stop();
+            try { _thumbs?.Close(); } catch { }
+            _thumbs = null;
             if (_rendering) CompositionTarget.Rendering -= OnRendering;
             if (_appBar) { ShellInterop.UnregisterAppBar(this); _appBar = false; }
         };
@@ -148,6 +156,7 @@ internal sealed class DockWindow : Window
         _label.Padding = new Thickness(10, 3, 10, 4);
         _labelText.Foreground = DesktopTheme.TextBrush;
         _labelText.FontSize = 12.5;
+        _thumbs?.ApplySettings(s);
 
         string edge = Edge;
         _stack.Orientation = Horizontal ? Orientation.Horizontal : Orientation.Vertical;
@@ -555,6 +564,7 @@ internal sealed class DockWindow : Window
             if (item.View.IsMouseOver) hovered = item;
         }
         UpdateLabel(_mouseAxis == null ? null : hovered);
+        TrackHover(_mouseAxis == null ? null : hovered);
         if (!moving && _mouseAxis == null)
         {
             CompositionTarget.Rendering -= OnRendering;
@@ -564,7 +574,7 @@ internal sealed class DockWindow : Window
 
     private void UpdateLabel(DockItem? item)
     {
-        if (item == null || !_s.Dock.ShowLabelsOnHover || _menuOpen || _dragItem != null)
+        if (item == null || !_s.Dock.ShowLabelsOnHover || _menuOpen || _dragItem != null || _thumbs is { IsVisible: true })
         {
             _label.Visibility = Visibility.Collapsed;
             return;
@@ -592,8 +602,62 @@ internal sealed class DockWindow : Window
 
     // ------------------------------------------------------------------ clicks / drag
 
+    // ------------------------------------------------------------------ live window thumbnails
+
+    private void TrackHover(DockItem? item)
+    {
+        if (ReferenceEquals(item, _hoverCandidate)) return;
+        _hoverCandidate = item;
+        _hoverTimer.Stop();
+        if (item == null || _preview || !_s.DockLivePreviews || _menuOpen || _dragItem != null) return;
+        if (!item.Windows.Any(w => ShellInterop.IsWindow(w.Hwnd))) { if (_thumbs is { IsVisible: true }) _thumbs.HidePopup(); return; }
+        if (_thumbs is { IsVisible: true } && _thumbs.CurrentKey == item.Key) return;
+        // Already browsing previews: switch quickly between apps.
+        _hoverTimer.Interval = TimeSpan.FromMilliseconds(_thumbs is { IsVisible: true } ? 120 : 400);
+        _hoverTimer.Start();
+    }
+
+    private void ShowThumbnails()
+    {
+        var item = _hoverCandidate;
+        if (item == null || _menuOpen || _dragItem != null || !item.View.IsMouseOver) return;
+        var wins = item.Windows.Where(w => ShellInterop.IsWindow(w.Hwnd)).ToList();
+        if (wins.Count == 0) return;
+        try
+        {
+            _thumbs ??= new DockThumbnailPopup(_s);
+            var tl = item.View.PointToScreen(new Point(0, 0));
+            var br = item.View.PointToScreen(new Point(item.View.ActualWidth, item.View.ActualHeight));
+            var anchor = new Rect(tl, br);
+            if (_thumbs.ShowFor(item.Key, item.Label, wins, item.Img?.Source as System.Windows.Media.Imaging.BitmapSource, anchor, Edge, _dpi))
+            {
+                _label.Visibility = Visibility.Collapsed;
+                _thumbHideTimer.Start();
+            }
+        }
+        catch (Exception ex) { AppLog.Warn("Dock thumbnails: " + ex.Message); }
+    }
+
+    private void ThumbHideTick()
+    {
+        if (_thumbs == null || !_thumbs.IsVisible) { _thumbHideTimer.Stop(); return; }
+        if (_menuOpen || _dragItem != null || (!_root.IsMouseOver && !_thumbs.ContainsCursor()))
+        {
+            _thumbs.HidePopup();
+            _thumbHideTimer.Stop();
+            _hoverCandidate = null;
+        }
+    }
+
+    private void HideThumbnails()
+    {
+        _hoverTimer.Stop();
+        _thumbs?.HidePopup();
+    }
+
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
     {
+        HideThumbnails();
         var item = _pressItem;
         _pressItem = null;
         if (item == null) return;
@@ -734,6 +798,7 @@ internal sealed class DockWindow : Window
     private void ShowMenu(DockItem? item, UIElement anchor)
     {
         if (_preview) return;
+        HideThumbnails();
         var menu = NewMenu();
         if (item != null && item.Kind != DockItemKind.Separator)
         {

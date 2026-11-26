@@ -29,8 +29,24 @@ internal sealed class TopBarView : Border
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
         Build();
         _state.Changed += Refresh;
-        Unloaded += (_, _) => _state.Changed -= Refresh;
-        Loaded += (_, _) => { _state.Changed -= Refresh; _state.Changed += Refresh; Refresh(); };
+        Plugins.TopBarPluginHost.Instance.Changed += OnPluginsChanged;
+        Unloaded += (_, _) => { _state.Changed -= Refresh; Plugins.TopBarPluginHost.Instance.Changed -= OnPluginsChanged; };
+        Loaded += (_, _) =>
+        {
+            _state.Changed -= Refresh; _state.Changed += Refresh;
+            Plugins.TopBarPluginHost.Instance.Changed -= OnPluginsChanged; Plugins.TopBarPluginHost.Instance.Changed += OnPluginsChanged;
+            Refresh();
+        };
+    }
+
+    private int _pluginCount = -1;
+
+    /// <summary>Plugin set changed (loaded/removed) → rebuild slots; plain text updates are picked up by Refresh.</summary>
+    private void OnPluginsChanged()
+    {
+        int count = Plugins.TopBarPluginHost.Instance.Active.Count;
+        if (count != _pluginCount) { _pluginCount = count; Build(); }
+        Refresh();
     }
 
     public void ApplySettings(DesktopSettings settings)
@@ -40,7 +56,11 @@ internal sealed class TopBarView : Border
         Refresh();
     }
 
-    public void Detach() => _state.Changed -= Refresh;
+    public void Detach()
+    {
+        _state.Changed -= Refresh;
+        Plugins.TopBarPluginHost.Instance.Changed -= OnPluginsChanged;
+    }
 
     // ------------------------------------------------------------------ layout
 
@@ -62,20 +82,51 @@ internal sealed class TopBarView : Border
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        grid.Children.Add(Group(t.LeftItems, HorizontalAlignment.Left, 0));
-        grid.Children.Add(Group(t.CenterItems, HorizontalAlignment.Center, 1));
-        grid.Children.Add(Group(t.RightItems, HorizontalAlignment.Right, 2));
+        var (left, center, right) = EffectiveItems();
+        grid.Children.Add(Group(left, HorizontalAlignment.Left, 0));
+        grid.Children.Add(Group(center, HorizontalAlignment.Center, 1));
+        grid.Children.Add(Group(right, HorizontalAlignment.Right, 2));
         Child = grid;
+    }
+
+    /// <summary>
+    /// The configured item lists plus items that must appear even if desktop.json predates them:
+    /// the control-center button (next to "tray") and the plugin slots for each position that has plugins.
+    /// </summary>
+    private (List<string> Left, List<string> Center, List<string> Right) EffectiveItems()
+    {
+        var t = _s.TopBar;
+        var left = t.LeftItems.Select(Norm).ToList();
+        var center = t.CenterItems.Select(Norm).ToList();
+        var right = t.RightItems.Select(Norm).ToList();
+        bool Has(string id) => left.Contains(id) || center.Contains(id) || right.Contains(id);
+
+        if (_s.ControlCenter.Enabled && !Has("controlcenter"))
+        {
+            int tray = right.IndexOf("tray");
+            if (tray >= 0) right.Insert(tray, "controlcenter"); else right.Add("controlcenter");
+        }
+        if (_s.Plugins.Enabled && !Has("plugins"))
+        {
+            var positions = Plugins.TopBarPluginHost.Instance.Active.Select(p => p.Definition.Position).ToHashSet();
+            if (positions.Contains("left")) left.Add("plugins");
+            if (positions.Contains("center")) center.Add("plugins");
+            if (positions.Contains("right")) right.Insert(0, "plugins");
+        }
+        return (left, center, right);
+
+        static string Norm(string id) => id.Trim().ToLowerInvariant();
     }
 
     private StackPanel Group(IEnumerable<string> ids, HorizontalAlignment align, int column)
     {
         var panel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = align, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(panel, column);
+        string position = column switch { 0 => "left", 1 => "center", _ => "right" };
         foreach (var id in ids)
         {
             FrameworkElement? item = null;
-            try { item = CreateItem(id.Trim().ToLowerInvariant()); }
+            try { item = id == "plugins" ? PluginsItem(position) : CreateItem(id); }
             catch (Exception ex) { AppLog.Warn($"TopBar item {id}: {ex.Message}"); }
             if (item != null) panel.Children.Add(item);
         }
@@ -84,6 +135,7 @@ internal sealed class TopBarView : Border
 
     private FrameworkElement? CreateItem(string id) => id switch
     {
+        "controlcenter" when _s.ControlCenter.Enabled => ControlCenterItem(),
         "launcher" => LauncherItem(),
         "workspaces" when _s.TopBar.ShowWorkspaces => WorkspacesItem(),
         "title" when _s.TopBar.ShowFocusedTitle => TitleItem(),
@@ -460,6 +512,57 @@ internal sealed class TopBarView : Border
             SetTip(chip, D(_state.Charging ? $"در حال شارژ: {p}٪" : $"باتری: {p}٪"));
         });
         return chip;
+    }
+
+    /// <summary>Compact icon cluster (Wi‑Fi · sound · brightness) that opens the control center.</summary>
+    private FrameworkElement ControlCenterItem()
+    {
+        double sz = IconSz - 3;
+        var row = Row(Icon("", sz), Icon("", sz), Icon("", sz));
+        foreach (UIElement c in row.Children) ((FrameworkElement)c).Margin = new Thickness(3, 0, 3, 0);
+        var chip = Chip(row, DesktopEvents.RequestControlCenter, "مرکز کنترل: وای‌فای، بلوتوث، روشنایی، صدا، تم\nکلیک راست: تنظیمات",
+            () => DesktopEvents.RequestStudio("controlcenter"));
+        chip.Padding = new Thickness(7, 0, 7, 0);
+        return chip;
+    }
+
+    /// <summary>All plugins configured for this position, kept in sync with the plugin host.</summary>
+    private FrameworkElement PluginsItem(string position)
+    {
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Stretch };
+        string last = "\0";
+        _updaters.Add(() =>
+        {
+            var items = Plugins.TopBarPluginHost.Instance.Active.Where(p => p.Definition.Position == position).ToList();
+            string sig = string.Join("|", items.Select(p => p.Definition.Id + "=" + p.Text + "!" + p.Error));
+            if (sig == last) return;
+            last = sig;
+            panel.Children.Clear();
+            foreach (var p in items)
+            {
+                var d = p.Definition;
+                var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                if (!string.IsNullOrWhiteSpace(d.Icon))
+                {
+                    bool glyph = d.Icon!.Length == 1 && d.Icon[0] >= '' && d.Icon[0] <= '';
+                    var ic = glyph ? Icon(d.Icon, IconSz - 2) : Text(d.Icon);
+                    ic.Margin = new Thickness(0, 0, string.IsNullOrEmpty(p.Text) ? 0 : 5, 0);
+                    content.Children.Add(ic);
+                }
+                if (!string.IsNullOrEmpty(p.Text))
+                {
+                    var tb = Text(p.Text);
+                    tb.MaxWidth = 260;
+                    tb.FlowDirection = HasRtl(p.Text) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+                    content.Children.Add(tb);
+                }
+                string tip = d.Title + (p.Error != null ? "\n⚠ " + p.Error : "") + (d.OnClick != null ? "\nکلیک: اجرا" : "");
+                var chip = Chip(content, d.OnClick != null ? () => Plugins.TopBarPluginHost.Click(d) : null, tip,
+                    () => DesktopEvents.RequestStudio("plugins"));
+                panel.Children.Add(chip);
+            }
+        });
+        return panel;
     }
 
     private FrameworkElement TrayItem()

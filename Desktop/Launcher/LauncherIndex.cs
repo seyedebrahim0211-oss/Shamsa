@@ -7,7 +7,7 @@ using Shamsa.Services;
 
 namespace Shamsa.Desktop.Launcher;
 
-public enum LauncherKind { App, Setting, File, Command, Calc, Web }
+public enum LauncherKind { App, Setting, File, Command, Calc, Web, Clipboard }
 
 public sealed class LauncherResult
 {
@@ -24,6 +24,8 @@ public sealed class LauncherResult
     /// <summary>File-system path for "open location" (Ctrl+Enter), when meaningful.</summary>
     public string? LocationPath { get; init; }
     public double Score { get; set; }
+    /// <summary>Extra payload (e.g. the <see cref="ClipItem"/> of a clipboard result).</summary>
+    public object? Data { get; init; }
     internal string[] Keys { get; init; } = Array.Empty<string>();
 }
 
@@ -46,6 +48,8 @@ public sealed class LauncherIndex : IDisposable
 
     public event Action? Updated;
     public bool IsReady => _apps.Count > 0;
+    /// <summary>Indexed applications (Start menu + AppsFolder); snapshot, may be empty until indexed.</summary>
+    public IReadOnlyList<LauncherResult> Apps => _apps;
 
     public void Warm(bool files)
     {

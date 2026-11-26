@@ -53,6 +53,9 @@ public static class DesktopFeature
         yield return () => new Rules.RulesModule();
         yield return () => new Widgets.WidgetsModule();
         yield return () => new Fences.FencesModule();
+        yield return () => new ControlCenter.ControlCenterModule();
+        yield return () => new AutoTheme.AutoThemeModule();
+        yield return () => new Voice.VoiceModule();
     }
 
     public static bool IsActive => DesktopSettingsStore.Current.Enabled && Modules.Any(m => m.IsRunning);

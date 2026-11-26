@@ -37,6 +37,11 @@ public sealed class DesktopStudioWindow : Window
         ("rules", "", "قوانین و حالت‌های کاری"),
         ("widgets", "", "ویجت‌ها"),
         ("fences", "", "گروه‌بندی دسکتاپ"),
+        ("controlcenter", "", "مرکز کنترل"),
+        ("autotheme", "", "تم خودکار روز و شب"),
+        ("clipboard", "", "تاریخچه کلیپ‌بورد"),
+        ("voice", "", "فرمان صوتی فارسی"),
+        ("plugins", "", "افزونه‌های نوار بالا"),
         ("hotkeys", "", "میانبرها و تداخل‌ها"),
     };
 
@@ -158,6 +163,16 @@ public sealed class DesktopStudioWindow : Window
                     () => Widgets.WidgetsStudioPage.Build(_s, Changed)); break;
                 case "fences": External("گروه‌بندی دسکتاپ", "جعبه‌های شیشه‌ای برای مرتب دیدن آیکون‌ها؛ آیکون‌های واقعی دسکتاپ حذف یا پنهان نمی‌شوند.",
                     () => Fences.FencesStudioPage.Build(_s, Changed)); break;
+                case "controlcenter": External("مرکز کنترل", "وای‌فای، بلوتوث، روشنایی، صدا، رسانه، نور شب و مزاحم نشوید — از دکمه کنار ساعت نوار بالا یا منوی سینی.",
+                    () => ControlCenter.ControlCenterStudioPage.Build(_s, Changed)); break;
+                case "autotheme": External("تم خودکار روز و شب", "تم روشن و تیره ویندوز و شمسا در ساعت دلخواه یا با طلوع و غروب خورشید شهر شما عوض می‌شود.",
+                    () => AutoTheme.AutoThemeStudioPage.Build(_s, Changed)); break;
+                case "clipboard": External(null, "هر چه کپی می‌کنی در جستجوی سریع (Ctrl+Alt+V یا «cb ») در دسترس است؛ رمزهای مدیران رمز ذخیره نمی‌شوند.",
+                    () => Launcher.ClipboardStudioPage.Build(_s, Changed)); break;
+                case "voice": External(null, "با گفتن «شمسا …» برنامه باز کن، چیدمان را عوض کن یا اسکرین‌شات بگیر. میکروفون فقط با روشن کردن این بخش فعال می‌شود.",
+                    () => Voice.VoiceStudioPage.Build(_s, Changed)); break;
+                case "plugins": External("افزونه‌های نوار بالا", "فایل‌های JSON ساده در پوشه افزونه‌ها، اجزای تازه به نوار بالا اضافه می‌کنند.",
+                    () => Plugins.PluginsStudioPage.Build(_s, Changed)); break;
             }
             _scroll.ScrollToTop();
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => _scroll.ScrollToTop());
@@ -348,6 +363,7 @@ public sealed class DesktopStudioWindow : Window
         c.Children.Add(Toggle("نام برنامه هنگام اشاره", null, d.ShowLabelsOnHover, v => d.ShowLabelsOnHover = v));
         c.Children.Add(Toggle("گروه‌بندی پنجره‌های یک برنامه", null, d.GroupWindowsByApp, v => d.GroupWindowsByApp = v));
         c.Children.Add(Toggle("دانلودها و سطل بازیافت", null, d.ShowTrashAndFolders, v => d.ShowTrashAndFolders = v));
+        try { c.Children.Add(Dock.DockStudioExtras.DockPreviewToggle(_s, Changed)); } catch (Exception ex) { AppLog.Warn("Dock preview toggle: " + ex.Message); }
         _page.Children.Add(Wrap(c));
 
         var pins = Card("موارد پین‌شده", "ترتیب را با فلش‌ها عوض کن.");
@@ -511,9 +527,10 @@ public sealed class DesktopStudioWindow : Window
     // ------------------------------------------------------------------ building blocks
 
     /// <summary>Hosts a page built by a feature module (its own controls edit <see cref="_s"/> and call Changed()).</summary>
-    private void External(string title, string subtitle, Func<UIElement> build)
+    private void External(string? title, string subtitle, Func<UIElement> build)
     {
-        Header(title, subtitle);
+        // Pages that draw their own title pass null so the header is not shown twice.
+        if (title != null) Header(title, subtitle);
         try { _page.Children.Add(build()); }
         catch (Exception ex)
         {

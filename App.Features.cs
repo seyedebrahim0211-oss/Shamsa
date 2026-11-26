@@ -16,6 +16,33 @@ public partial class App
         catch (Exception ex) { AppLog.Error("Recorder initialisation failed", ex); }
         try { DesktopFeature.Initialize(); }
         catch (Exception ex) { AppLog.Error("Desktop environment initialisation failed", ex); }
+        WireVoiceCommands();
+    }
+
+    /// <summary>Persian voice commands → window manager, saved layouts and the recorder.</summary>
+    private void WireVoiceCommands()
+    {
+        Desktop.Voice.VoiceCommands.LayoutCommand += layout => Dispatcher.BeginInvoke(() =>
+        {
+            if (!Desktop.WindowManager.WindowManagerModule.RequestLayout(layout))
+                Notifier.Show("مدیر پنجره‌ها روشن نیست؛ از استودیو دسکتاپ فعالش کن.");
+        });
+        Desktop.Voice.VoiceCommands.LayoutProfileCommand += name => Dispatcher.BeginInvoke(async () =>
+        {
+            var layouts = DesktopSettingsStore.Current.Layouts;
+            LayoutProfile? profile = name.StartsWith('#') && int.TryParse(name[1..], out int n) && n >= 1 && n <= layouts.Count
+                ? layouts[n - 1]
+                : layouts.FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase))
+                  ?? layouts.FirstOrDefault(l => l.Name.Contains(name, StringComparison.OrdinalIgnoreCase));
+            if (profile == null) { Notifier.Show($"حالت کاری «{name}» پیدا نشد."); return; }
+            try { await Desktop.Rules.LayoutProfiles.RestoreAsync(profile); }
+            catch (Exception ex) { AppLog.Error("Voice layout restore failed", ex); }
+        });
+        Desktop.Voice.VoiceCommands.AppCommand += cmd => Dispatcher.BeginInvoke(() =>
+        {
+            if (cmd == "screenshot") RecorderFeature.TakeScreenshot();
+            else if (cmd == "record") RecorderFeature.ShowWindow();
+        });
     }
 
     private void ShutdownFeatures()
@@ -73,6 +100,7 @@ public partial class App
         menu.Items.Add("🖥 استودیو دسکتاپ (نوار بالا، داک، پنجره‌ها)", null, (_, _) => DesktopFeature.ShowStudio());
         var l = DesktopSettingsStore.Current.Launcher;
         menu.Items.Add($"🔍 جستجوی سریع ({GlobalHotkeyService.FormatShortcut(l.HotkeyModifiers, l.HotkeyKey)})", null, (_, _) => DesktopFeature.ShowLauncher());
+        menu.Items.Add("🎛 مرکز کنترل", null, (_, _) => DesktopEvents.RequestControlCenter());
         menu.Items.Add("↺ بازگردانی دسکتاپ ویندوز", null, (_, _) => DesktopFeature.RestoreWindowsDesktop());
     }
 }

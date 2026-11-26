@@ -32,6 +32,8 @@ public sealed class TopBarModule : IDesktopModule
             bool want = settings.Enabled && settings.TopBar.Enabled;
             if (!want) { Stop(); return; }
             _settings = settings;
+            try { Plugins.TopBarPluginHost.Instance.Apply(settings); }
+            catch (Exception ex) { AppLog.Warn("TopBar plugins: " + ex.Message); }
             string sig = Signature(settings);
             if (IsRunning && sig == _layoutSignature)
             {
@@ -82,6 +84,7 @@ public sealed class TopBarModule : IDesktopModule
             _state?.Dispose();
             _state = null;
             _layoutSignature = null;
+            Plugins.TopBarPluginHost.Instance.Stop();
         }
         catch (Exception ex) { AppLog.Warn("TopBar stop: " + ex.Message); }
     }
@@ -90,6 +93,7 @@ public sealed class TopBarModule : IDesktopModule
     {
         var state = new TopBarState();
         state.Start(trackForeground: false);
+        try { Plugins.TopBarPluginHost.Instance.LoadOnceForPreview(settings); } catch { }
         var w = new TopBarWindow(settings, state, IntPtr.Zero, preview: true);
         w.Closed += (_, _) => state.Dispose();
         return w;
