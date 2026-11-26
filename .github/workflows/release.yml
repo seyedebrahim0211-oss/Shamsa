@@ -97,9 +97,12 @@ jobs:
           $setup = "dist/Shamsa-Setup-v$v-win-x64.exe"
           if (!(Test-Path $setup)) { throw "Installer missing" }
           Copy-Item "Shamsa-v$v-win-x64-portable.zip" dist/
-          Get-ChildItem dist -File -Exclude SHA256SUMS.txt | ForEach-Object {
+          # -Exclude without a wildcard path returns nothing in PowerShell 7, so filter explicitly.
+          $lines = Get-ChildItem dist -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()) *$($_.Name)"
-          } | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+          }
+          if (-not $lines) { throw "No files to checksum in dist" }
+          Set-Content -Path dist/SHA256SUMS.txt -Value $lines -Encoding ascii
           Get-Content dist/SHA256SUMS.txt
 
       - name: Upload build artifacts
