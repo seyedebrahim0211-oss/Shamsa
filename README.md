@@ -12,7 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-14B8A6?style=flat-square" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0B1324?style=flat-square" alt="Windows"/>
-  <img src="https://img.shields.io/badge/Version-3.0.0-F6D379?style=flat-square" alt="Version 3.0.0"/>
+  <img src="https://img.shields.io/badge/Version-3.1.0-F6D379?style=flat-square" alt="Version 3.1.0"/>
   <img src="https://img.shields.io/badge/License-MIT-E5B85B?style=flat-square" alt="MIT License"/>
 </p>
 
