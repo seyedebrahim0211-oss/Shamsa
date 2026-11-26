@@ -61,7 +61,7 @@ public static class AutoThemeStudioPage
 
         var what = Body(Card(page, "چه چیزی عوض شود"));
         what.Children.Add(Toggle("تم برنامه‌ها و خود ویندوز", "همان کلید «حالت روشن/تیره» تنظیمات ویندوز", a.ApplyToWindows, v => a.ApplyToWindows = v, Changed));
-        what.Children.Add(Toggle("شیشه نوار بالا، داک و جستجوی شمسا", "در حالت روشن رنگ شیشه روشن‌تر می‌شود و بعد به رنگ خودتان برمی‌گردد", a.ApplyToShamsa, v => a.ApplyToShamsa = v, Changed));
+        what.Children.Add(Toggle("شیشه نوار بالا، داک و جستجوی نگارخانه", "در حالت روشن رنگ شیشه روشن‌تر می‌شود و بعد به رنگ خودتان برمی‌گردد", a.ApplyToShamsa, v => a.ApplyToShamsa = v, Changed));
         what.Children.Add(Button("جابه‌جایی فوری روشن/تیره", AutoThemeModule.Toggle));
 
         var st = Body(Card(page, "وضعیت"));

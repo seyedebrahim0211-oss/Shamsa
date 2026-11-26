@@ -128,7 +128,7 @@ internal sealed class WinRtEngine : IVoiceEngine
     private async Task<WinSpeech.SpeechRecognizer> CreateAsync(IReadOnlyList<string> phrases)
     {
         var rec = new WinSpeech.SpeechRecognizer(_lang);
-        rec.Constraints.Add(new WinSpeech.SpeechRecognitionListConstraint(phrases, "shamsa"));
+        rec.Constraints.Add(new WinSpeech.SpeechRecognitionListConstraint(phrases, "negar"));
         var compiled = await rec.CompileConstraintsAsync();
         if (compiled.Status != WinSpeech.SpeechRecognitionResultStatus.Success)
         {

@@ -12,10 +12,10 @@ public static class VoiceStudioPage
         var v = s.Voice;
         var root = new StackPanel { FlowDirection = FlowDirection.RightToLeft };
         root.Children.Add(StudioUi.Title("فرمان صوتی فارسی"));
-        root.Children.Add(StudioUi.Muted("با گفتن «شمسا» و یک فرمان، برنامه باز کن، چیدمان پنجره‌ها را عوض کن یا اسکرین‌شات بگیر. میکروفون فقط وقتی این گزینه روشن است استفاده می‌شود و صدا جایی ارسال نمی‌شود."));
+        root.Children.Add(StudioUi.Muted("با گفتن «نگار» و یک فرمان، برنامه باز کن، چیدمان پنجره‌ها را عوض کن یا اسکرین‌شات بگیر. میکروفون فقط وقتی این گزینه روشن است استفاده می‌شود و صدا جایی ارسال نمی‌شود."));
 
         var card = StudioUi.Card(root, "رفتار");
-        card.Children.Add(StudioUi.Toggle("فعال", "به محیط دسکتاپ شمسا و یک میکروفون نیاز دارد", v.Enabled, x => { v.Enabled = x; changed(); }));
+        card.Children.Add(StudioUi.Toggle("فعال", "به محیط دسکتاپ نگارخانه و یک میکروفون نیاز دارد", v.Enabled, x => { v.Enabled = x; changed(); }));
         var wake = new TextBox { Text = v.WakeWord, Width = 180, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(6, 4, 6, 4) };
         wake.TextChanged += (_, _) => { v.WakeWord = wake.Text.Trim(); changed(); };
         card.Children.Add(StudioUi.Labeled("کلمه بیدارباش", wake));
@@ -30,7 +30,7 @@ public static class VoiceStudioPage
         VoiceModule.StatusChanged += onStatus;
         status.Unloaded += (_, _) => VoiceModule.StatusChanged -= onStatus;
         engine.Children.Add(status);
-        engine.Children.Add(StudioUi.Muted("برای تشخیص فارسی واقعی، اگر ویندوز بسته گفتار فارسی را پشتیبانی کند آن را از «تنظیمات › زمان و زبان › گفتار» نصب کن. بدون آن، فرمان‌ها را به فینگلیش بگو (مثلاً shamsa baz kon chrome)."));
+        engine.Children.Add(StudioUi.Muted("برای تشخیص فارسی واقعی، اگر ویندوز بسته گفتار فارسی را پشتیبانی کند آن را از «تنظیمات › زمان و زبان › گفتار» نصب کن. بدون آن، فرمان‌ها را به فینگلیش بگو (مثلاً negar baz kon chrome)."));
         var result = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
         result.SetResourceReference(TextBlock.ForegroundProperty, "GoldBrush");
         Button? test = null;
@@ -47,14 +47,14 @@ public static class VoiceStudioPage
         var help = StudioUi.Card(root, "فرمان‌ها");
         foreach (var (fa, fin, desc) in new[]
         {
-            ("شمسا باز کن کروم", "shamsa baz kon chrome", "اجرای برنامه"),
-            ("شمسا جستجو", "shamsa jostojoo", "جستجوی سریع"),
-            ("شمسا چیدمان ستونی / سطری / مارپیچی / تک پنجره", "shamsa chidman sotuni / satri / marpichi / tak panjere", "چیدمان پنجره‌ها"),
-            ("شمسا حالت کار", "shamsa halate kar · shamsa halate yek", "چیدمان ذخیره‌شده"),
-            ("شمسا قفل کن", "shamsa ghofl kon", "قفل صفحه"),
-            ("شمسا مرکز کنترل", "shamsa markaze control", "مرکز کنترل"),
-            ("شمسا عکس بگیر / ضبط کن", "shamsa screenshot / shamsa record", "اسکرین‌شات و ضبط"),
-            ("شمسا کلیپ بورد", "shamsa clipboard", "تاریخچه کلیپ‌بورد"),
+            ("نگار باز کن کروم", "negar baz kon chrome", "اجرای برنامه"),
+            ("نگار جستجو", "negar jostojoo", "جستجوی سریع"),
+            ("نگار چیدمان ستونی / سطری / مارپیچی / تک پنجره", "negar chidman sotuni / satri / marpichi / tak panjere", "چیدمان پنجره‌ها"),
+            ("نگار حالت کار", "negar halate kar · negar halate yek", "چیدمان ذخیره‌شده"),
+            ("نگار قفل کن", "negar ghofl kon", "قفل صفحه"),
+            ("نگار مرکز کنترل", "negar markaze control", "مرکز کنترل"),
+            ("نگار عکس بگیر / ضبط کن", "negar screenshot / negar record", "اسکرین‌شات و ضبط"),
+            ("نگار کلیپ بورد", "negar clipboard", "تاریخچه کلیپ‌بورد"),
         })
         {
             var row = new Grid { Margin = new Thickness(0, 3, 0, 3) };

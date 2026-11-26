@@ -6,7 +6,7 @@ using Shamsa.Services;
 namespace Shamsa.Desktop.Voice;
 
 /// <summary>
-/// «فرمان صوتی فارسی»: always-listening command grammar ("شمسا باز کن کروم", "شمسا چیدمان ستونی" …).
+/// «فرمان صوتی فارسی»: always-listening command grammar ("نگار باز کن کروم", "نگار چیدمان ستونی" …).
 /// Off by default; the microphone is opened only while the module runs and released in <see cref="Stop"/>.
 /// </summary>
 public sealed class VoiceModule : IDesktopModule
@@ -175,7 +175,7 @@ public sealed class VoiceModule : IDesktopModule
             if (index == null) { temp = new LauncherIndex(); temp.Warm(false); await Task.WhenAny(temp.WhenIndexedAsync(), Task.Delay(4000)); index = temp; }
             var phrases = VoiceCommands.Build(engine.Language, s.Voice.WakeWord, index.Apps, s.Layouts.Select(l => l.Name)).Select(c => c.Phrase).ToList();
             var heard = await engine.ListenOnceAsync(phrases, TimeSpan.FromSeconds(seconds));
-            if (heard == null) return "چیزی شناخته نشد. نزدیک‌تر به میکروفون و با «" + (engine.Language == VoiceLanguage.Persian ? "شمسا" : "shamsa") + "» شروع کن.";
+            if (heard == null) return "چیزی شناخته نشد. نزدیک‌تر به میکروفون و با «" + (engine.Language == VoiceLanguage.Persian ? "نگار" : "negar") + "» شروع کن.";
             return $"شنیده شد: «{heard.Text}» — اطمینان {DesktopTheme.Digits(((int)(heard.Confidence * 100)).ToString(), true)}٪"
                    + (heard.Confidence < MinConfidence ? " (کمتر از حد اجرا)" : "");
         }

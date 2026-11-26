@@ -591,7 +591,7 @@ internal sealed class TopBarView : Border
             item.Click += (_, _) => Run(a);
             menu.Items.Add(item);
         }
-        Add("", "داشبورد و تنظیمات شمسا", () => DesktopEvents.RequestStudio(null));
+        Add("", "داشبورد و تنظیمات نگارخانه", () => DesktopEvents.RequestStudio(null));
         Add("", "شخصی‌سازی نوار بالا", () => DesktopEvents.RequestStudio("topbar"));
         Add("", "مرکز کنترل", DesktopEvents.RequestControlCenter);
         menu.Items.Add(new Separator());

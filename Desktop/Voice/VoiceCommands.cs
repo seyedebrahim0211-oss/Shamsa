@@ -37,8 +37,8 @@ public static class VoiceCommands
         }
 
         string wake = lang == VoiceLanguage.Persian
-            ? (string.IsNullOrWhiteSpace(wakeWord) ? "شمسا" : wakeWord.Trim())
-            : (IsLatin(wakeWord) && !string.IsNullOrWhiteSpace(wakeWord) ? wakeWord.Trim().ToLowerInvariant() : "shamsa");
+            ? (string.IsNullOrWhiteSpace(wakeWord) ? "نگار" : wakeWord.Trim())
+            : (IsLatin(wakeWord) && !string.IsNullOrWhiteSpace(wakeWord) ? wakeWord.Trim().ToLowerInvariant() : "negar");
 
         var layouts = lang == VoiceLanguage.Persian
             ? new (string, string)[] { ("ستونی", "Columns"), ("سطری", "Rows"), ("مارپیچی", "Bsp"), ("تک پنجره", "Monocle"), ("اصلی", "MainStack") }

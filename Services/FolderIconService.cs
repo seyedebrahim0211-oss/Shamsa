@@ -166,7 +166,7 @@ public static class FolderIconService
     }
 
     /// <summary>
-    /// Registers or unregisters "شخصی‌سازی آیکون پوشه با شمسا" in HKCU (no Administrator required).
+    /// Registers or unregisters "شخصی‌سازی آیکون پوشه با نگارخانه" in HKCU (no Administrator required).
     /// </summary>
     public static void SetExplorerContextMenu(bool enabled, string shamsaExePath)
     {
@@ -178,7 +178,7 @@ public static class FolderIconService
         }
 
         using var key = Registry.CurrentUser.CreateSubKey(keyPath);
-        key?.SetValue("", "شخصی‌سازی آیکون و قفل پوشه با شمسا");
+        key?.SetValue("", "شخصی‌سازی آیکون و قفل پوشه با نگارخانه");
         key?.SetValue("Icon", shamsaExePath);
         using var cmd = key?.CreateSubKey("command");
         cmd?.SetValue("", $"\"{shamsaExePath}\" --folder-icon \"%1\"");

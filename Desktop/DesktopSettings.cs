@@ -152,7 +152,7 @@ public sealed class ClipboardSettings
 public sealed class VoiceSettings
 {
     public bool Enabled { get; set; } = false;           // microphone stays off until opted in
-    public string WakeWord { get; set; } = "شمسا";
+    public string WakeWord { get; set; } = "نگار";
     public bool PreferPersian { get; set; } = true;      // fa-IR recogniser when installed, else Finglish phrases
     public bool Feedback { get; set; } = true;           // small toast showing what was heard
 }
@@ -253,6 +253,8 @@ public sealed class DesktopSettings
     {
         Theme ??= new(); TopBar ??= new(); Dock ??= new(); Launcher ??= new(); WindowManager ??= new();
         ControlCenter ??= new(); AppRules ??= new(); Layouts ??= new(); Clipboard ??= new(); Voice ??= new();
+        // Renamed app: the old wake word becomes the new short one (users who chose their own word keep it).
+        if (Voice.WakeWord is "شمسا" or "shamsa") Voice.WakeWord = "نگار";
         Widgets ??= new(); Fences ??= new(); AutoTheme ??= new(); Plugins ??= new();
         Widgets.Items ??= new(); Fences.Fences ??= new(); Plugins.Disabled ??= new(); Clipboard.IgnoredProcesses ??= new();
         foreach (var l in Layouts) l.Windows ??= new();

@@ -64,7 +64,7 @@ public static class RulesStudioPage
         applyNow.HorizontalAlignment = HorizontalAlignment.Left;
         applyNow.Margin = new Thickness(0, 8, 0, 0);
         rulesCard.Children.Add(applyNow);
-        rulesCard.Children.Add(Muted("دسکتاپ مجازی: ویندوز به برنامه‌ها اجازه نمی‌دهد پنجره برنامه دیگری را خودکار به دسکتاپ دیگر ببرند؛ شمسا فقط تشخیص می‌دهد و یادآوری می‌کند."));
+        rulesCard.Children.Add(Muted("دسکتاپ مجازی: ویندوز به برنامه‌ها اجازه نمی‌دهد پنجره برنامه دیگری را خودکار به دسکتاپ دیگر ببرند؛ نگارخانه فقط تشخیص می‌دهد و یادآوری می‌کند."));
         root.Children.Add(Wrap(rulesCard));
 
         void RefillRules()

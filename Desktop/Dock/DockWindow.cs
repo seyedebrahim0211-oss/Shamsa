@@ -85,7 +85,7 @@ internal sealed class DockWindow : Window
     {
         _s = settings;
         _preview = preview;
-        Title = "داک شمسا";
+        Title = "داک نگارخانه";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         AllowsTransparency = true;

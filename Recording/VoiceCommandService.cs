@@ -23,14 +23,14 @@ internal sealed class VoiceCommandService : IDisposable
     public static readonly (string Phrase, VoiceCommand Command)[] Phrases =
     {
         ("start recording", VoiceCommand.StartRecording),
-        ("shamsa record", VoiceCommand.StartRecording),
+        ("negar record", VoiceCommand.StartRecording),
         ("stop recording", VoiceCommand.StopRecording),
-        ("shamsa stop", VoiceCommand.StopRecording),
+        ("negar stop", VoiceCommand.StopRecording),
         ("pause recording", VoiceCommand.PauseRecording),
         ("resume recording", VoiceCommand.ResumeRecording),
         ("take screenshot", VoiceCommand.Screenshot),
         ("take a screenshot", VoiceCommand.Screenshot),
-        ("shamsa screenshot", VoiceCommand.Screenshot),
+        ("negar screenshot", VoiceCommand.Screenshot),
     };
 
     public static string NoRecognizerMessage =>

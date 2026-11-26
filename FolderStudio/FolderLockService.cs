@@ -410,9 +410,9 @@ public static class FolderLockService
         try
         {
             byte[] magic = r.ReadBytes(8);
-            if (!magic.AsSpan().SequenceEqual(Magic)) throw new FolderLockException("این فایل، فایل قفل شمسا نیست.");
+            if (!magic.AsSpan().SequenceEqual(Magic)) throw new FolderLockException("این فایل، فایل قفل نگارخانه نیست.");
             ushort version = r.ReadUInt16();
-            if (version != Version) throw new FolderLockException($"نسخه فایل قفل ({version}) پشتیبانی نمی‌شود؛ شمسا را به‌روزرسانی کنید.");
+            if (version != Version) throw new FolderLockException($"نسخه فایل قفل ({version}) پشتیبانی نمی‌شود؛ نگارخانه را به‌روزرسانی کنید.");
             byte kdf = r.ReadByte();
             int iterations = r.ReadInt32();
             if (kdf != KdfPbkdf2Sha256 || iterations < 100_000 || iterations > 50_000_000) throw new FolderLockException("سرآیند فایل قفل نامعتبر است.");
