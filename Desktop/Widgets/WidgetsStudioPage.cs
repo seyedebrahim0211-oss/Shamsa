@@ -97,7 +97,7 @@ public static class WidgetsStudioPage
             buttons.Children.Add(StudioUi.Button("＋ " + title, () =>
             {
                 var (dw, dh) = WidgetViews.DefaultSize(k);
-                var wa = SystemParameters.WorkArea;
+                var wa = DesktopDisplay.RelativeWorkArea(s); // positions are relative to the chosen monitor
                 int n = w.Items.Count;
                 w.Items.Add(new WidgetPlacement
                 {
@@ -245,6 +245,32 @@ public static class WidgetsStudioPage
         loc.Children.Add(StudioUi.Muted(PersianHolidays.LunarNote));
         loc.Children.Add(StudioUi.Muted(WidgetCityData.Attribution));
         root.Children.Add(StudioUi.Card(loc));
+
+        // ---- time: system clock follows the IP (VPN), prayer times & weather follow Tehran
+        var time = new StackPanel();
+        time.Children.Add(StudioUi.Title("ساعت و تاریخ"));
+        time.Children.Add(StudioUi.Muted("ساعت و تاریخ سیستم (نوار بالا، ساعت و تقویم) با کشور IP فعلی — مثلاً سرور فیلترشکن — هماهنگ می‌شود؛ اوقات شرعی و آب‌وهوای هر شهری که انتخاب کنی با ساعت انتخابی زیر (پیش‌فرض تهران) نمایش داده می‌شود."));
+        var syncStatus = StudioUi.Muted(IpTimeZoneSync.Status);
+        time.Children.Add(StudioUi.Toggle("هماهنگ‌سازی خودکار منطقهٔ زمانی ویندوز با IP", w.SyncSystemTimeZoneWithIp, v => w.SyncSystemTimeZoneWithIp = v, changed));
+        time.Children.Add(StudioUi.Button("همگام‌سازی الان", async () =>
+        {
+            syncStatus.Text = "در حال بررسی IP…";
+            await IpTimeZoneSync.SyncNowAsync(force: true);
+            syncStatus.Text = IpTimeZoneSync.Status;
+        }));
+        time.Children.Add(syncStatus);
+        var prayerZone = new ComboBox { MinWidth = 260, HorizontalAlignment = HorizontalAlignment.Left };
+        foreach (var (id, label) in new[]
+        {
+            ("Iran Standard Time", "ساعت تهران (پیشنهادی)"), ("Arabic Standard Time", "ساعت بغداد"), ("Afghanistan Standard Time", "ساعت کابل"),
+            ("Arabian Standard Time", "ساعت دبی"), ("Turkey Standard Time", "ساعت استانبول"), (IpTimeZoneSync.SystemZoneToken, "ساعت سیستم (همان IP)"),
+        })
+            prayerZone.Items.Add(new ComboBoxItem { Content = label, Tag = id });
+        prayerZone.SelectedItem = prayerZone.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == w.PrayerWeatherZoneId) ?? prayerZone.Items[0];
+        prayerZone.SelectionChanged += (_, _) => { if (prayerZone.SelectedItem is ComboBoxItem { Tag: string id }) { w.PrayerWeatherZoneId = id; changed(); } };
+        time.Children.Add(StudioUi.Labeled("ساعت اوقات شرعی و آب‌وهوا", prayerZone));
+        root.Children.Add(StudioUi.Card(time));
+
         var world = new StackPanel();
         world.Children.Add(StudioUi.Title("ساعت جهانی"));
         var zones = new ComboBox { MaxDropDownHeight = 320, ItemsSource = TimeZoneInfo.GetSystemTimeZones(),

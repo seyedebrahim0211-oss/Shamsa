@@ -87,9 +87,10 @@ public static class DesktopTidy
     public static bool SetEnabled(bool on, DesktopSettings? working = null)
     {
         InsightsStore.Update(st => st.Settings.TidyEnabled = on);
-        if (working != null) return ApplyTo(working, on, SystemParameters.WorkArea);
+        // Fence coordinates are relative to the chosen monitor's work area.
+        if (working != null) return ApplyTo(working, on, DesktopDisplay.RelativeWorkArea(working));
         var s = DesktopSettingsStore.Current.Clone();
-        if (!ApplyTo(s, on, SystemParameters.WorkArea)) return false;
+        if (!ApplyTo(s, on, DesktopDisplay.RelativeWorkArea(s))) return false;
         DesktopSettingsStore.Save(s);
         return true;
     }

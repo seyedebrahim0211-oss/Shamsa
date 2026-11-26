@@ -308,7 +308,7 @@ public sealed class SmartModesModule : IDesktopModule
             {
                 _lastPrayerNotice = key;
                 var prayer = data.Modes.FirstOrDefault(m => m.Name == "حالت نماز");
-                SmartToast.Show($"{PrayerClock.Duration(next.Remaining)} تا {next.Name}", $"اذان ساعت {PrayerClock.Clock(next.AtCity)} به وقت {WidgetCityData.ShortName(DesktopSettingsStore.Current.Widgets.City)}", "",
+                SmartToast.Show($"{PrayerClock.Duration(next.Remaining)} تا {next.Name}", $"اذان {WidgetCityData.ShortName(DesktopSettingsStore.Current.Widgets.City)} ساعت {PrayerClock.Clock(next.AtCity)} به وقت {PrayerClock.ZoneName()}", "",
                     prayer != null ? "روشن کردن «حالت نماز»" : null,
                     prayer != null ? () => Activate(prayer.Name, "manual", DateTime.Now + next.Remaining + TimeSpan.FromMinutes(prayer.Triggers.PrayerDurationMinutes)) : null);
             }

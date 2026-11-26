@@ -112,12 +112,13 @@ public sealed class TopBarModule : IDesktopModule
     }
 
     private static string Signature(DesktopSettings s) =>
-        string.Join("|", s.TopBar.Position, s.TopBar.AllMonitors, Forms.Screen.AllScreens.Length,
+        string.Join("|", s.TopBar.Position, s.TopBar.AllMonitors, s.DisplayDevice, Forms.Screen.AllScreens.Length,
             string.Join(";", Forms.Screen.AllScreens.Select(x => x.Bounds.ToString())));
 
     private static IEnumerable<IntPtr> TargetMonitors(DesktopSettings s)
     {
-        var screens = s.TopBar.AllMonitors ? Forms.Screen.AllScreens : new[] { Forms.Screen.PrimaryScreen ?? Forms.Screen.AllScreens[0] };
+        // Single-monitor mode uses the display chosen for the whole desktop environment (default: Windows primary).
+        var screens = s.TopBar.AllMonitors ? Forms.Screen.AllScreens : new[] { DesktopDisplay.Target(s) };
         foreach (var sc in screens)
         {
             var b = sc.Bounds;

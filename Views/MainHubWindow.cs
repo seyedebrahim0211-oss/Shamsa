@@ -92,6 +92,10 @@ public sealed class MainHubWindow : Window
     private readonly TextBlock _searchHint = new();
     private readonly Grid _searchRow = new();
     private readonly StackPanel _brandText = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+    private readonly DockPanel _brand = new();
+    private readonly StackPanel _brandRow = new();
+    private readonly Button _collapseButton = new();
+    private readonly Button _exitButton = new();
     private readonly Button _restore = new();
     private readonly TextBlock _restoreLabel = new();
     private readonly TextBlock _title = new();
@@ -144,6 +148,7 @@ public sealed class MainHubWindow : Window
 
         PreviewKeyDown += OnPreviewKeyDown;
         Navigate("home");
+        if (SettingsService.Current.HubSidebarCollapsed) SetCollapsed(true, persist: false);
     }
 
     // ================================================================== registry
@@ -350,6 +355,11 @@ public sealed class MainHubWindow : Window
             _search.SelectAll();
             e.Handled = true;
         }
+        else if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            SetCollapsed(!_collapsed);
+            e.Handled = true;
+        }
         else if (e.Key == Key.Escape && _search.IsKeyboardFocused && _search.Text.Length > 0)
         {
             _search.Text = "";
@@ -363,21 +373,33 @@ public sealed class MainHubWindow : Window
     {
         var side = new DockPanel();
 
-        // brand: logo + name + collapse toggle
-        var brand = new DockPanel { Margin = new Thickness(14, 14, 10, 10), Height = 44 };
-        var collapse = IconButton("", "جمع/باز کردن نوار کناری");
-        collapse.Click += (_, _) => SetCollapsed(!_collapsed);
-        DockPanel.SetDock(collapse, WDock.Left);
+        // brand: logo + name + collapse toggle.
+        // The toggle is docked FIRST so it always keeps its space: in the narrow (icons-only) sidebar the
+        // logo and the exit button are hidden, otherwise they pushed the toggle out of view and the
+        // sidebar could never be opened again.
+        var brand = _brand;
+        brand.Margin = new Thickness(14, 14, 10, 10);
+        brand.Height = 44;
+        _collapseButton.Content = "";
+        _collapseButton.ToolTip = "جمع/باز کردن نوار کناری (Ctrl+B)";
+        _collapseButton.VerticalAlignment = VerticalAlignment.Center;
+        TryStyle(_collapseButton, "HubIconButton");
+        _collapseButton.Click += (_, _) => SetCollapsed(!_collapsed);
+        DockPanel.SetDock(_collapseButton, WDock.Left);
         // In RTL the "Left" dock edge is the far (inner) side of the sidebar.
-        var exit = IconButton("", "خروج کامل از نگارخانه");
-        exit.Click += (_, _) => _actions.ExitApp?.Invoke();
-        DockPanel.SetDock(exit, WDock.Left);
-        brand.Children.Add(exit);
-        brand.Children.Add(collapse);
+        _exitButton.Content = "";
+        _exitButton.ToolTip = "خروج کامل از نگارخانه";
+        _exitButton.VerticalAlignment = VerticalAlignment.Center;
+        TryStyle(_exitButton, "HubIconButton");
+        _exitButton.Click += (_, _) => _actions.ExitApp?.Invoke();
+        DockPanel.SetDock(_exitButton, WDock.Left);
+        brand.Children.Add(_collapseButton);
+        brand.Children.Add(_exitButton);
         var logo = new Image { Width = 36, Height = 36, VerticalAlignment = VerticalAlignment.Center };
         RenderOptions.SetBitmapScalingMode(logo, BitmapScalingMode.HighQuality);
         try { logo.Source = new BitmapImage(new Uri("pack://application:,,,/Assets/Shamsa-logo.png")); } catch { }
-        var brandRow = new StackPanel { Orientation = Orientation.Horizontal };
+        var brandRow = _brandRow;
+        brandRow.Orientation = Orientation.Horizontal;
         brandRow.Children.Add(logo);
         var name = new TextBlock { Text = AppTitle, FontSize = 20, FontWeight = FontWeights.Bold, LineHeight = 26 };
         name.SetResourceReference(TextBlock.ForegroundProperty, "GoldBrush");
@@ -484,14 +506,22 @@ public sealed class MainHubWindow : Window
         return rb;
     }
 
-    private void SetCollapsed(bool collapsed)
+    private void SetCollapsed(bool collapsed, bool persist = true)
     {
         _collapsed = collapsed;
         _sideColumn.Width = new GridLength(collapsed ? 64 : 248);
         var vis = collapsed ? Visibility.Collapsed : Visibility.Visible;
         _brandText.Visibility = vis;
+        _brandRow.Visibility = vis;          // logo would steal the toggle's room
+        _exitButton.Visibility = vis;        // exit stays reachable from Help and the tray menu
+        _brand.Margin = collapsed ? new Thickness(0, 14, 0, 10) : new Thickness(14, 14, 10, 10);
+        _collapseButton.HorizontalAlignment = collapsed ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+        DockPanel.SetDock(_collapseButton, collapsed ? WDock.Top : WDock.Left);
         _searchRow.Visibility = vis;
         _restoreLabel.Visibility = vis;
+        foreach (var header in _groupHeaders.Values) header.Visibility = vis;
+        if (persist && SettingsService.Current.HubSidebarCollapsed != collapsed)
+            SettingsService.Update(x => x.HubSidebarCollapsed = collapsed);
         foreach (var section in _sections.Values) section.IsExpanded = collapsed || section == _sections.GetValueOrDefault(Find(_currentId)?.Group ?? "");
         foreach (var p in _pages)
             if (p.Nav?.Content is Grid g)

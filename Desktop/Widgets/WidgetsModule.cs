@@ -117,8 +117,8 @@ internal sealed class WidgetWindow : DesktopLevelWindow
         var (dw, dh) = WidgetViews.DefaultSize(p.Kind);
         Width = p.Width > 60 ? p.Width : dw;
         Height = p.Height > 60 ? p.Height : dh;
-        Left = p.X; Top = p.Y;
-        if (!preview) FitPrimary();
+        if (preview) { Left = p.X; Top = p.Y; }
+        else PlaceRelative(p.X, p.Y); // on the monitor chosen for the desktop environment
         Locked = s.Widgets.LockPositions;
         Render();
         ContextMenu = BuildMenu();
@@ -142,9 +142,11 @@ internal sealed class WidgetWindow : DesktopLevelWindow
         bool rebuild = p.Kind != "note" || p.ColorHex != _p.ColorHex || s.Theme.GlassOpacity != _s.Theme.GlassOpacity || s.Theme.CornerRadius != _s.Theme.CornerRadius;
         bool dataChanged = s.Widgets.City != _s.Widgets.City || s.Widgets.Latitude != _s.Widgets.Latitude || s.Widgets.Longitude != _s.Widgets.Longitude
                            || s.Widgets.PrayerMethod != _s.Widgets.PrayerMethod || s.Widgets.WeatherOnline != _s.Widgets.WeatherOnline
-                           || s.Theme.AccentHex != _s.Theme.AccentHex || s.Theme.GlassTintHex != _s.Theme.GlassTintHex;
+                           || s.Theme.AccentHex != _s.Theme.AccentHex || s.Theme.GlassTintHex != _s.Theme.GlassTintHex
+                           || s.Widgets.PrayerWeatherZoneId != _s.Widgets.PrayerWeatherZoneId;
         _p = p; _s = s;
         Locked = s.Widgets.LockPositions;
+        if (!_preview) FollowArea(p.X, p.Y);
         ContextMenu = BuildMenu();
         // Notes keep their editor (and caret) unless the look changed.
         if ((p.Kind == "note" && rebuild) || (p.Kind != "note" && (dataChanged || rebuild))) Render();

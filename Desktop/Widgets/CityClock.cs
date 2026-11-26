@@ -29,9 +29,36 @@ internal static class CityClock
         return new(w.City, w.Latitude, w.Longitude,
             Zone(w.ZoneId) ?? WidgetViews.CityTimeZone(w.City, w.Latitude, w.Longitude) ?? TimeZoneInfo.Local, false);
     }
-    internal static TimeZoneInfo LocalZone(WidgetsSettings w) => Resolve(w).Zone;
+    internal static TimeZoneInfo LocalZone(WidgetsSettings w) =>
+        w.SyncSystemTimeZoneWithIp ? TimeZoneInfo.Local : Resolve(w).Zone;
+
+    /// <summary>
+    /// "Now" for the top bar, clock and calendars. With IP sync on this is simply the system clock, which
+    /// <see cref="IpTimeZoneSync"/> keeps in the IP's (VPN's) time zone.
+    /// </summary>
     internal static DateTime Now(WidgetsSettings w) =>
-        TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, LocalZone(w));
+        w.SyncSystemTimeZoneWithIp ? DateTime.Now : TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, LocalZone(w));
+
+    private static TimeZoneInfo? _tehran;
+    private static TimeZoneInfo Tehran => _tehran ??= Zone("Iran Standard Time") ?? Zone("Asia/Tehran") ?? TimeZoneInfo.Local;
+
+    /// <summary>
+    /// Clock in which prayer times and weather are shown for ANY chosen city — Tehran time by default,
+    /// independent of the (VPN-synced) system clock.
+    /// </summary>
+    internal static TimeZoneInfo PrayerZone(WidgetsSettings w) =>
+        w.PrayerWeatherZoneId == IpTimeZoneSync.SystemZoneToken ? TimeZoneInfo.Local : Zone(w.PrayerWeatherZoneId) ?? Tehran;
+
+    internal static string PrayerZoneName(WidgetsSettings w) => w.PrayerWeatherZoneId switch
+    {
+        "Iran Standard Time" or "Asia/Tehran" or null or "" => "تهران",
+        "Arabic Standard Time" => "بغداد",
+        "Afghanistan Standard Time" => "کابل",
+        "Arabian Standard Time" => "دبی",
+        "Turkey Standard Time" => "استانبول",
+        IpTimeZoneSync.SystemZoneToken => "سیستم",
+        var other => other
+    };
 
     // Called only by the visible IP lookup button. No IP or device identifier is retained.
     internal static async Task<(string City, double Lat, double Lng, string Zone)> LookupAsync()

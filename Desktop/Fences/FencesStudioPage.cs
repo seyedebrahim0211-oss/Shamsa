@@ -55,12 +55,35 @@ public static class FencesStudioPage
         general.Children.Add(StudioUi.Toggle("قفل موقعیت و اندازه", f.LockPositions, v => f.LockPositions = v, changed));
         root.Children.Add(StudioUi.Card(general));
 
+        // ---- where & how: monitor, theme, icons
+        var look = new StackPanel();
+        look.Children.Add(StudioUi.Title("نمایشگر و هماهنگی با تم"));
+        look.Children.Add(StudioUi.Muted("گروه‌ها، ویجت‌ها، داک و نوار بالا روی همین نمایشگر قرار می‌گیرند. اگر آیکون‌های دسکتاپ تو روی مانیتور دیگری است، همان را انتخاب کن."));
+        look.Children.Add(StudioUi.Labeled("نمایشگر دسکتاپ", DesktopDisplay.Picker(s.DisplayDevice, v => { s.DisplayDevice = v; changed(); })));
+        look.Children.Add(StudioUi.Toggle("رنگ گروه‌ها هماهنگ با تم دسکتاپ (شیشه و رنگ تأکیدی)", f.FollowTheme, v => f.FollowTheme = v, changed));
+        var style = new ComboBox { MinWidth = 260, HorizontalAlignment = HorizontalAlignment.Left };
+        foreach (var (id, label) in new[] { ("plate", "کاشی هم‌رنگ تم زیر آیکون واقعی (پیشنهادی)"), ("glyph", "آیکون تک‌رنگ هم‌رنگ تم"), ("plain", "آیکون‌های اصلی ویندوز") })
+            style.Items.Add(new ComboBoxItem { Content = label, Tag = id });
+        style.SelectedItem = style.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == f.IconStyle) ?? style.Items[0];
+        style.SelectionChanged += (_, _) => { if (style.SelectedItem is ComboBoxItem { Tag: string id }) { f.IconStyle = id; changed(); } };
+        look.Children.Add(StudioUi.Labeled("سبک آیکون‌ها", style));
+        look.Children.Add(StudioUi.Toggle("فقط گروه‌ها نمایش داده شوند (آیکون‌های ویندوز پشت گروه‌ها پنهان شوند)", f.HideDesktopIcons, v => f.HideDesktopIcons = v, changed));
+        look.Children.Add(StudioUi.Muted("فایل‌ها جابه‌جا یا حذف نمی‌شوند؛ فقط نمای آیکون‌های ویندوز پنهان می‌شود و با خاموش کردن گروه‌ها، خروج یا «بازگردانی دسکتاپ» فوراً برمی‌گردد. گروه «پوشه‌ها و سایر» هر چیزی را که در گروه دیگری نیست نشان می‌دهد."));
+        look.Children.Add(StudioUi.Toggle("نمایش «این رایانه»، «سطل بازیافت» و… در گروه «سایر»", f.ShowSystemIcons, v => f.ShowSystemIcons = v, changed));
+        look.Children.Add(StudioUi.Button("چیدمان خودکار گروه‌ها روی نمایشگر انتخابی", () =>
+        {
+            FencesModule.Arrange(f.Fences, DesktopDisplay.RelativeWorkArea(s));
+            changed();
+        }));
+        root.Children.Add(StudioUi.Card(look));
+
         var groups = new StackPanel();
         groups.Children.Add(StudioUi.Title("گروه‌ها"));
-        groups.Children.Add(StudioUi.Button("✨ ساخت گروه‌های پیشنهادی (تصاویر، اسناد، برنامه‌ها، فشرده‌ها)", () =>
+        groups.Children.Add(StudioUi.Button("✨ ساخت گروه‌های پیشنهادی (تصاویر، اسناد، برنامه‌ها، فشرده‌ها، پوشه‌ها و سایر)", () =>
         {
             foreach (var sug in FencesModule.SuggestedFences())
                 if (!f.Fences.Any(x => x.Title == sug.Title)) f.Fences.Add(sug);
+            FencesModule.Arrange(f.Fences, DesktopDisplay.RelativeWorkArea(s));
             f.Enabled = true;
             Refill();
             changed();
@@ -118,7 +141,7 @@ public static class FencesStudioPage
                     .Distinct().ToList();
                 if (def.Extensions.Count == 0) { status.Text = "حداقل یک پسوند بنویس."; return; }
             }
-            var wa = SystemParameters.WorkArea;
+            var wa = DesktopDisplay.RelativeWorkArea(s);
             int n = f.Fences.Count;
             def.X = Math.Round(wa.Left + 60 + (n % 3) * 380);
             def.Y = Math.Round(wa.Top + 60 + (n / 3 % 3) * 270);

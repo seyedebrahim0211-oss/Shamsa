@@ -45,6 +45,24 @@ public static class FolderIconService
         string? overlayImagePath = null)
     {
         Directory.CreateDirectory(IconLibraryDir);
+        try
+        {
+            bool hasImage = !string.IsNullOrWhiteSpace(overlayImagePath) && File.Exists(overlayImagePath);
+            var design = new Shamsa.FolderStudio.IconDesign
+            {
+                Name = string.IsNullOrWhiteSpace(name) ? "پوشه" : name,
+                BaseHex = bottomHex,
+                GradientHex = topHex,
+                Overlay = hasImage ? Shamsa.FolderStudio.IconOverlayKind.Image
+                        : string.IsNullOrWhiteSpace(badgeText) ? Shamsa.FolderStudio.IconOverlayKind.None : Shamsa.FolderStudio.IconOverlayKind.Text,
+                OverlayText = badgeText?.Trim() ?? "",
+                ImagePath = hasImage ? overlayImagePath! : "",
+                ImageMode = Shamsa.FolderStudio.IconImageMode.Badge
+            };
+            if (Shamsa.FolderStudio.FolderIconRenderer.IsValidHex(bottomHex))
+                return Shamsa.FolderStudio.FolderIconRenderer.EnsureIcoFile(design);
+        }
+        catch (Exception ex) { AppLog.Warn("High-quality folder icon failed, using fallback: " + ex.Message); }
         string safeName = string.Concat(name.Split(Path.GetInvalidFileNameChars()));
         if (string.IsNullOrWhiteSpace(safeName)) safeName = "folder";
         string icoPath = Path.Combine(IconLibraryDir, $"{safeName}_{DateTime.UtcNow:yyyyMMddHHmmss}.ico");
@@ -103,6 +121,23 @@ public static class FolderIconService
             File.Copy(imagePath, copyDest, overwrite: true);
             return copyDest;
         }
+
+        // Preferred path: the Folder Studio renderer writes every Explorer size (16…256) with high-quality
+        // resampling and keeps the picture's proportions. The old single 256-px frame below stretched the
+        // picture and let Windows shrink it, which looked soft.
+        try
+        {
+            var design = new Shamsa.FolderStudio.IconDesign
+            {
+                Name = Path.GetFileNameWithoutExtension(imagePath),
+                Overlay = Shamsa.FolderStudio.IconOverlayKind.Image,
+                ImagePath = imagePath,
+                ImageMode = Shamsa.FolderStudio.FolderIconRenderer.SuggestMode(imagePath),
+                RoundedImage = true
+            };
+            return Shamsa.FolderStudio.FolderIconRenderer.EnsureIcoFile(design);
+        }
+        catch (Exception ex) { AppLog.Warn("High-quality icon conversion failed, using fallback: " + ex.Message); }
 
         using var src = Image.FromFile(imagePath);
         using var bmp = new Bitmap(256, 256, PixelFormat.Format32bppArgb);

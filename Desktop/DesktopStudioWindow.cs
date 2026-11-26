@@ -220,9 +220,56 @@ public sealed class DesktopStudioView : UserControl
             _s.Enabled, v => { _s.Enabled = v; ShowPageLater(); }));
         master.Children.Add(Toggle("پنهان کردن تسک‌بار ویندوز", "فقط وقتی نوار بالا یا داک نگارخانه روشن است؛ هنگام خروج، خطا یا «بازگردانی» حتماً برمی‌گردد",
             _s.HideWindowsTaskbar, v => _s.HideWindowsTaskbar = v));
+        master.Children.Add(Muted("نمایشگر محیط دسکتاپ — گروه‌های آیکون، ویجت‌ها، داک و نوار بالا روی این نمایشگر قرار می‌گیرند (همان‌جا که آیکون‌های دسکتاپت هستند):"));
+        master.Children.Add(DesktopDisplay.Picker(_s.DisplayDevice, v => { _s.DisplayDevice = v; Changed(); }));
         _page.Children.Add(Wrap(master));
 
-        var presets = Card("حالت‌های آماده", "یک سبک را انتخاب کن؛ بعداً هر جزئیاتی را می‌توانی تغییر دهی.");
+        // ---- whole-desktop themes
+        var themes = Card("تم‌های کامل دسکتاپ", "نوار بالا، داک، جستجو، ویجت‌ها، گروه‌های آیکون، آیکون‌های سیستمی ویندوز و ظاهر خود نگارخانه با یک کلیک هم‌رنگ می‌شوند.");
+        bool gather = true, sysIcons = true, palette = true;
+        var opts = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+        CheckBox Opt(string text, bool value, Action<bool> set)
+        {
+            var cb = new CheckBox { Content = text, IsChecked = value, Margin = new Thickness(0, 2, 18, 2) };
+            cb.Checked += (_, _) => set(true);
+            cb.Unchecked += (_, _) => set(false);
+            return cb;
+        }
+        opts.Children.Add(Opt("همه آیکون‌ها، برنامه‌ها و فایل‌های دسکتاپ داخل گروه‌های هم‌رنگ تم", gather, v => gather = v));
+        opts.Children.Add(Opt("آیکون‌های سیستمی ویندوز (این رایانه، سطل بازیافت…)", sysIcons, v => sysIcons = v));
+        opts.Children.Add(Opt("ظاهر پنجرهٔ نگارخانه", palette, v => palette = v));
+        themes.Children.Add(opts);
+        var gallery = new UniformGrid { Columns = 4 };
+        gallery.SizeChanged += (_, e) => gallery.Columns = e.NewSize.Width < 560 ? 2 : e.NewSize.Width < 820 ? 3 : 4;
+        foreach (var preset in DesktopThemePresets.All)
+        {
+            var p = preset;
+            bool current = _s.ThemePresetId == p.Id;
+            var card = new StackPanel();
+            card.Children.Add(DesktopThemePresets.Swatch(p, current));
+            card.Children.Add(new TextBlock { Text = p.Name + (current ? "  ✓" : ""), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 0) });
+            var d = Muted(p.Description); d.Margin = new Thickness(0);
+            card.Children.Add(d);
+            var b = new Button { Content = card, Margin = new Thickness(4), Padding = new Thickness(8), HorizontalContentAlignment = HorizontalAlignment.Stretch, ToolTip = "اعمال تم «" + p.Name + "»" };
+            b.Click += (_, _) =>
+            {
+                Mouse.OverrideCursor = Cursors.Wait;
+                try
+                {
+                    _s.Enabled = true;
+                    DesktopThemePresets.Apply(_s, p, gather, sysIcons, palette);
+                }
+                finally { Mouse.OverrideCursor = null; }
+                Changed();
+                SetStatus("تم «" + p.Name + "» روی همه بخش‌ها اعمال شد");
+                ShowPageLater();
+            };
+            gallery.Children.Add(b);
+        }
+        themes.Children.Add(gallery);
+        _page.Children.Add(Wrap(themes));
+
+        var presets = Card("چیدمان‌های آماده", "رفتار محیط دسکتاپ (بدون تغییر رنگ‌ها)؛ بعداً هر جزئیاتی را می‌توانی تغییر دهی.");
         var grid = new UniformGrid { Columns = 2 };
         grid.Children.Add(PresetButton("🖼 شیشه‌ای (Seelen)", "نوار بالای شیشه‌ای + داک + پنهان شدن تسک‌بار", s =>
         {
@@ -245,20 +292,6 @@ public sealed class DesktopStudioView : UserControl
             s.TopBar.Enabled = false; s.Dock.Enabled = false; s.Launcher.Enabled = true;
             s.WindowManager.Enabled = true; s.WindowManager.AutoTile = false; s.HideWindowsTaskbar = false;
         }));
-        foreach (var (title, detail, accent, tint, size, radius) in new[]
-        {
-            ("شمسه", "فیروزه و لاجورد · کاشی ایرانی", "#28D5BD", "#10244C", 48, 16),
-            ("تذهیب", "طلایی و سبز یشمی", "#EBC26D", "#13392F", 46, 12),
-            ("بازی", "داک جمع‌وجور با تأکید سبز", "#9FEA69", "#14191E", 36, 4),
-            ("طراحی", "خاکستری خنثی با تأکید مرجانی", "#FF967D", "#272629", 50, 8),
-            ("استریم", "بنفش و سرمه‌ای با آیکون‌های درشت", "#C8A4FF", "#211831", 56, 18)
-        })
-            grid.Children.Add(PresetButton(title, detail, s =>
-            {
-                s.Theme.AccentHex = accent; s.Theme.GlassTintHex = tint; s.Theme.CornerRadius = radius;
-                s.Dock.IconSize = size; s.Dock.Enabled = true; s.TopBar.Enabled = true;
-                s.Launcher.Enabled = true; s.Dock.Position = "Bottom"; s.HideWindowsTaskbar = true;
-            }));
         presets.Children.Add(grid);
         _page.Children.Add(Wrap(presets));
 
@@ -816,9 +849,8 @@ public sealed class DesktopStudioView : UserControl
             _s.WindowManager.AutoTile = false;
             _s.WindowManager.Enabled = false;
             _s.Dock.Magnification = 145;
-            _s.Dock.IconSize = 46;
-            _s.Theme = new();
             _s.TopBar.Position = "Top";
+            // Layout presets keep the colours of the chosen theme (they used to reset them to the default).
             apply(_s);
             _s.Enabled = true;
             Changed();

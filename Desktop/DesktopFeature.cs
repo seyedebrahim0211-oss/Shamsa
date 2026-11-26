@@ -34,6 +34,7 @@ public static class DesktopFeature
         _initialised = true;
         // A previous run that crashed while the taskbar was hidden: bring it back first.
         ShellInterop.RestoreTaskbarIfLeftHidden();
+        Fences.DesktopIconsNative.RestoreIfLeftHidden();
         foreach (var factory in ModuleFactories())
         {
             try { Modules.Add(factory()); }
@@ -63,6 +64,8 @@ public static class DesktopFeature
 
     public static void Apply(DesktopSettings s)
     {
+        try { Widgets.IpTimeZoneSync.Apply(s); }
+        catch (Exception ex) { AppLog.Warn("IP time zone sync: " + ex.Message); }
         foreach (var m in Modules)
         {
             try { m.Apply(s); }
@@ -81,6 +84,7 @@ public static class DesktopFeature
         {
             try { m.Stop(); } catch (Exception ex) { AppLog.Warn($"Stopping {m.Id}: {ex.Message}"); }
         }
+        Fences.DesktopIconsNative.SetHidden(false);
         ShellInterop.RestoreWindowsDesktop();
         if (persist)
         {
@@ -97,6 +101,7 @@ public static class DesktopFeature
         {
             try { m.Stop(); } catch { }
         }
+        Fences.DesktopIconsNative.SetHidden(false);
         ShellInterop.RestoreWindowsDesktop();
     }
 
@@ -104,6 +109,7 @@ public static class DesktopFeature
     public static void EmergencyRestore()
     {
         try { ShellInterop.RestoreWindowsDesktop(); } catch { }
+        try { Fences.DesktopIconsNative.SetHidden(false); } catch { }
     }
 
     public static void ShowStudio(string? page = null)

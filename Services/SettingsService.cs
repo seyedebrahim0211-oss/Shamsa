@@ -37,6 +37,8 @@ public sealed class AppSettings
     public int SettingsVersion { get; set; } = 6;
     /// <summary>PersianTurquoise, LapisGlass, EmeraldGlass, AmethystGlass</summary>
     public string ThemeId { get; set; } = "PersianTurquoise";
+    /// <summary>Main window sidebar shown as icons only (remembered between runs).</summary>
+    public bool HubSidebarCollapsed { get; set; }
     /// <summary>Custom accent in #RRGGBB format; empty = palette default.</summary>
     public string ThemeAccentHex { get; set; } = string.Empty;
     /// <summary>Opacity of layered glass cards, 45..97 percent.</summary>

@@ -38,8 +38,29 @@ public class DesktopLevelWindow : Window
     }
     private bool _locked;
 
-    /// <summary>Raised ~0.6 s after the user stops moving/resizing.</summary>
+    /// <summary>Raised ~0.6 s after the user stops moving/resizing. X/Y are relative to <see cref="Area"/>'s top-left.</summary>
     public event Action<Rect>? BoundsCommitted;
+
+    private Rect _placedArea = Rect.Empty;
+
+    /// <summary>Work area (DIP) of the monitor chosen for the desktop environment.</summary>
+    protected static Rect Area => DesktopDisplay.WorkAreaDip(DesktopSettingsStore.Current);
+
+    /// <summary>Places the window at (x, y) relative to the target monitor's work area.</summary>
+    internal void PlaceRelative(double x, double y)
+    {
+        var a = Area;
+        _placedArea = a;
+        Left = a.Left + x;
+        Top = a.Top + y;
+        FitPrimary();
+    }
+
+    /// <summary>Moves the window when the chosen monitor (or its work area) changed since it was placed.</summary>
+    internal void FollowArea(double x, double y)
+    {
+        if (Area != _placedArea) PlaceRelative(x, y);
+    }
 
     public DesktopLevelWindow()
     {
@@ -60,7 +81,12 @@ public class DesktopLevelWindow : Window
         _commitTimer.Tick += (_, _) =>
         {
             _commitTimer.Stop();
-            if (_ready) { FitPrimary(); BoundsCommitted?.Invoke(new Rect(Left, Top, Width, Height)); }
+            if (_ready)
+            {
+                FitPrimary();
+                var a = Area;
+                BoundsCommitted?.Invoke(new Rect(Left - a.Left, Top - a.Top, Width, Height));
+            }
         };
         LocationChanged += (_, _) => Touch();
         SizeChanged += (_, _) => Touch();
@@ -80,9 +106,10 @@ public class DesktopLevelWindow : Window
 
     private void DisplayChanged(object? sender, EventArgs args) => Dispatcher.BeginInvoke(() => { if (IsLoaded) FitPrimary(); });
 
+    /// <summary>Keeps the window inside the chosen monitor's work area (name kept for existing callers).</summary>
     internal void FitPrimary()
     {
-        var area = SystemParameters.WorkArea;
+        var area = Area;
         if (area.IsEmpty || area.Width < MinWidth || area.Height < MinHeight) return;
         Width = Math.Clamp(Width, MinWidth, area.Width);
         Height = Math.Clamp(Height, MinHeight, area.Height);

@@ -18,20 +18,28 @@ public static class WeatherService
     private static readonly object CacheGate = new();
     private static Report? _cache;
     private static (double, double) _cacheKey;
+    private static string _cacheZone = "";
 
     static WeatherService()
     {
         Http.DefaultRequestHeaders.UserAgent.ParseAdd("Shamsa-Desktop/3");
     }
 
-    public static async Task<Report?> GetAsync(double lat, double lng, bool force = false)
+    /// <param name="zone">Clock the daily forecast is aligned to (Tehran by default); null = the city's own zone.</param>
+    public static async Task<Report?> GetAsync(double lat, double lng, bool force = false, TimeZoneInfo? zone = null)
     {
+        string tz = "auto";
+        if (zone != null)
+        {
+            string id = zone.HasIanaId ? zone.Id : TimeZoneInfo.TryConvertWindowsIdToIanaId(zone.Id, out var iana) ? iana! : "auto";
+            if (id.All(c => char.IsLetterOrDigit(c) || c is '/' or '_' or '-' or '+')) tz = id;
+        }
         lock (CacheGate)
-            if (!force && _cache != null && _cacheKey == (lat, lng) && DateTime.UtcNow - _cache.FetchedAt < TimeSpan.FromMinutes(25))
+            if (!force && _cache != null && _cacheKey == (lat, lng) && _cacheZone == tz && DateTime.UtcNow - _cache.FetchedAt < TimeSpan.FromMinutes(25))
                 return _cache;
         string url = string.Format(CultureInfo.InvariantCulture,
-            "https://api.open-meteo.com/v1/forecast?latitude={0:0.####}&longitude={1:0.####}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=4",
-            lat, lng);
+            "https://api.open-meteo.com/v1/forecast?latitude={0:0.####}&longitude={1:0.####}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone={2}&forecast_days=4",
+            lat, lng, Uri.EscapeDataString(tz));
         try
         {
             using var stream = await Http.GetStreamAsync(url).ConfigureAwait(false);
@@ -50,7 +58,7 @@ public static class WeatherService
             }
             var report = new Report(cur.GetProperty("temperature_2m").GetDouble(), cur.GetProperty("wind_speed_10m").GetDouble(),
                 cur.GetProperty("weather_code").GetInt32(), days, DateTime.UtcNow);
-            lock (CacheGate) { _cache = report; _cacheKey = (lat, lng); }
+            lock (CacheGate) { _cache = report; _cacheKey = (lat, lng); _cacheZone = tz; }
             return report;
         }
         catch (Exception ex)

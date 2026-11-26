@@ -48,7 +48,8 @@ public sealed class IconDesign
                 }
                 catch { }
             }
-            string raw = string.Join("\u001F", "v1", BaseHex, GradientHex, Overlay, OverlayText, OverlayHex, OverlayBold,
+            // v2: high-quality resampling + more icon frames — old (soft) .ico files are regenerated.
+            string raw = string.Join("\u001F", "v2", BaseHex, GradientHex, Overlay, OverlayText, OverlayHex, OverlayBold,
                 imageStamp, ImageMode, RoundedImage);
             return Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
         }
@@ -58,7 +59,8 @@ public sealed class IconDesign
 /// <summary>Draws the Windows 11 style folder in WPF vectors and writes multi-size PNG-compressed .ico files.</summary>
 public static class FolderIconRenderer
 {
-    public static readonly int[] IcoSizes = { 16, 24, 32, 48, 64, 128, 256 };
+    /// <summary>Every size Explorer asks for at 100–200 % display scaling, so Windows never has to resample (blur) a frame.</summary>
+    public static readonly int[] IcoSizes = { 16, 20, 24, 32, 40, 48, 64, 72, 96, 128, 256 };
     private static readonly FontFamily EmojiFont = new("Segoe UI Emoji, Segoe UI Symbol");
     private static readonly FontFamily TextFont = new("Vazirmatn, Segoe UI, Tahoma");
 
@@ -87,6 +89,10 @@ public static class FolderIconRenderer
     public static BitmapSource Render(IconDesign d, int size)
     {
         var visual = new DrawingVisual();
+        // Pictures are drawn much smaller than their source: the default (linear) filter aliases and
+        // blurs them. Fant/HighQuality averages every source pixel, which keeps photos crisp.
+        RenderOptions.SetBitmapScalingMode(visual, BitmapScalingMode.HighQuality);
+        RenderOptions.SetEdgeMode(visual, EdgeMode.Unspecified);
         using (var dc = visual.RenderOpen())
         {
             dc.PushTransform(new ScaleTransform(size / 256.0, size / 256.0));
@@ -99,10 +105,57 @@ public static class FolderIconRenderer
         return rtb;
     }
 
+    /// <summary>
+    /// Resamples <paramref name="image"/> so that, once drawn into a <paramref name="logical"/> rectangle (256-unit
+    /// design space) of an icon rendered at <paramref name="pixelSize"/>, it is used at ~1:1 pixels. Big downscales
+    /// are done in halving steps (each one a high-quality box filter), which looks far sharper than one huge jump.
+    /// </summary>
+    private static BitmapSource FitForIcon(BitmapSource image, Size logical, int pixelSize, bool fill)
+    {
+        try
+        {
+            double targetW = logical.Width * pixelSize / 256.0, targetH = logical.Height * pixelSize / 256.0;
+            double scale = fill
+                ? Math.Max(targetW / image.PixelWidth, targetH / image.PixelHeight)
+                : Math.Min(targetW / image.PixelWidth, targetH / image.PixelHeight);
+            if (scale >= 0.98) return image; // already small enough; WPF draws it directly
+            BitmapSource current = image;
+            while (scale < 0.5)
+            {
+                current = Resample(current, Math.Max(1, (int)Math.Round(current.PixelWidth * 0.5)), Math.Max(1, (int)Math.Round(current.PixelHeight * 0.5)));
+                scale *= 2;
+            }
+            return Resample(current, Math.Max(1, (int)Math.Round(current.PixelWidth * scale)), Math.Max(1, (int)Math.Round(current.PixelHeight * scale)));
+        }
+        catch { return image; }
+    }
+
+    private static BitmapSource Resample(BitmapSource src, int w, int h)
+    {
+        var dv = new DrawingVisual();
+        RenderOptions.SetBitmapScalingMode(dv, BitmapScalingMode.HighQuality);
+        using (var dc = dv.RenderOpen()) dc.DrawImage(src, new Rect(0, 0, w, h));
+        var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(dv);
+        rtb.Freeze();
+        return rtb;
+    }
+
     private static void Draw(DrawingContext dc, IconDesign d, int pixelSize)
     {
         var baseColor = ParseColor(d.BaseHex, Color.FromRgb(0xF4, 0xB7, 0x40));
         var image = d.Overlay == IconOverlayKind.Image ? LoadImage(d.ImagePath) : null;
+        if (image != null)
+        {
+            var (box, fill) = d.ImageMode switch
+            {
+                IconImageMode.Fit => (new Size(248, 248), false),
+                IconImageMode.Full => (new Size(236, 236), true),
+                _ => (new Size(104, 104), true),
+            };
+            // The layout below only uses the picture's aspect ratio, which resampling keeps.
+            image = FitForIcon(image, box, pixelSize, fill);
+        }
 
         if (image != null && d.ImageMode == IconImageMode.Fit)
         {
@@ -365,15 +418,38 @@ public static class FolderIconRenderer
             {
                 try
                 {
-                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    var bmp = new BitmapImage();
-                    bmp.BeginInit();
-                    bmp.CacheOption = BitmapCacheOption.OnLoad;
-                    bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
-                    bmp.DecodePixelWidth = 512;
-                    bmp.StreamSource = fs;
-                    bmp.EndInit();
-                    result = ApplyExifRotation(path, bmp);
+                    // Decode so the SHORT side is at least 1024 px. A fixed width of 512 left wide/panorama
+                    // pictures only ~130 px tall, which the "fill" crop then had to enlarge → blurry icons.
+                    int decodeW = 0, decodeH = 0;
+                    try
+                    {
+                        using var probe = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        var frame = BitmapFrame.Create(probe, BitmapCreateOptions.DelayCreation | BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.None);
+                        int pw = frame.PixelWidth, ph = frame.PixelHeight;
+                        const int shortSide = 1024;
+                        if (pw > 0 && ph > 0 && Math.Min(pw, ph) > shortSide)
+                        {
+                            if (pw <= ph) decodeW = shortSide; else decodeH = shortSide;
+                        }
+                    }
+                    catch { decodeW = 1024; }
+                    BitmapImage Decode(bool ignoreProfile)
+                    {
+                        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        var bmp = new BitmapImage();
+                        bmp.BeginInit();
+                        bmp.CacheOption = BitmapCacheOption.OnLoad;
+                        // Keep the colour profile (phone photos are often Display-P3); ignoring it washes colours out.
+                        if (ignoreProfile) bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                        if (decodeW > 0) bmp.DecodePixelWidth = decodeW;
+                        if (decodeH > 0) bmp.DecodePixelHeight = decodeH;
+                        bmp.StreamSource = fs;
+                        bmp.EndInit();
+                        return bmp;
+                    }
+                    BitmapImage decoded;
+                    try { decoded = Decode(false); } catch { decoded = Decode(true); } // broken embedded profile
+                    result = ApplyExifRotation(path, decoded);
                 }
                 catch { result = null; }
             }
@@ -382,7 +458,7 @@ public static class FolderIconRenderer
             if (result == null)
             {
                 bool iconOnly = IconSourceExtensions.Contains(ext);
-                result = Services.ShellThumbnailService.TryGetShellImage(path, 256, thumbnailOnly: !iconOnly, iconOnly: iconOnly);
+                result = Services.ShellThumbnailService.TryGetShellImage(path, iconOnly ? 256 : 768, thumbnailOnly: !iconOnly, iconOnly: iconOnly);
             }
             if (result == null) return null;
             if (!result.IsFrozen) result.Freeze();

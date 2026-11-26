@@ -29,11 +29,40 @@ public sealed class FencesModule : IDesktopModule
         new() { Title = "اسناد", Mode = "filter", Extensions = new() { ".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt", ".txt", ".md", ".odt", ".csv" }, X = 440, Y = 60, TintHex = "#052E2B" },
         new() { Title = "برنامه‌ها و میانبرها", Mode = "filter", Extensions = new() { ".lnk", ".url", ".exe", ".appref-ms" }, X = 60, Y = 330, TintHex = "#3B0764" },
         new() { Title = "فشرده‌ها", Mode = "filter", Extensions = new() { ".zip", ".rar", ".7z", ".tar", ".gz", ".iso" }, X = 440, Y = 330, Height = 180, TintHex = "#1F2937" },
+        // Catch-all: folders, This PC / Recycle Bin and every file no other group takes, so nothing is lost
+        // when the Windows icons are hidden behind the groups.
+        new() { Title = "پوشه‌ها و سایر", Mode = "filter", Extensions = new() { AnyExtension }, X = 820, Y = 60, Height = 450, TintHex = "#0F3D3E" },
     };
+
+    /// <summary>Filter value meaning "everything the other filter groups don't show".</summary>
+    public const string AnyExtension = "*";
+
+    /// <summary>
+    /// Lays the given fences out in columns from the right edge (RTL) of the chosen monitor's work area.
+    /// Coordinates are relative to that work area.
+    /// </summary>
+    public static void Arrange(IList<FenceDefinition> fences, Rect relativeArea)
+    {
+        const double Gap = 16;
+        double x = relativeArea.Right - Gap, y = relativeArea.Top + Gap, colWidth = 0;
+        foreach (var f in fences)
+        {
+            double h = Math.Min(f.Height, relativeArea.Height - 2 * Gap);
+            if (y + h > relativeArea.Bottom - Gap && y > relativeArea.Top + Gap)
+            {
+                x -= colWidth + Gap; y = relativeArea.Top + Gap; colWidth = 0;
+            }
+            f.X = Math.Round(Math.Max(relativeArea.Left + Gap, x - f.Width));
+            f.Y = Math.Round(y);
+            y += h + Gap;
+            colWidth = Math.Max(colWidth, f.Width);
+        }
+    }
 
     public void Apply(DesktopSettings settings)
     {
         if (!settings.Enabled || !settings.Fences.Enabled) { Stop(); return; }
+        DesktopIconsNative.SetHidden(settings.Fences.HideDesktopIcons && settings.Fences.Fences.Count > 0);
         var wanted = settings.Fences.Fences.ToDictionary(f => f.Id);
         foreach (var id in _windows.Keys.Where(k => !wanted.ContainsKey(k)).ToList())
         {
@@ -71,6 +100,7 @@ public sealed class FencesModule : IDesktopModule
     {
         foreach (var w in _windows.Values) { try { w.Close(); } catch { } }
         _windows.Clear();
+        DesktopIconsNative.SetHidden(false);
     }
 
     /// <summary>Preview with fake sample items so no real file names appear.</summary>
@@ -100,7 +130,12 @@ public sealed class FencesModule : IDesktopModule
     }
 }
 
-public sealed record FenceItem(string Path, string Name, bool IsDirectory);
+public sealed record FenceItem(string Path, string Name, bool IsDirectory)
+{
+    public bool IsSystem => Path.StartsWith(FenceWindow.SystemPrefix, StringComparison.Ordinal);
+    public Personalize.SystemIconDef? SystemDef =>
+        IsSystem ? Personalize.SystemIcons.All.FirstOrDefault(d => d.Id == Path[FenceWindow.SystemPrefix.Length..]) : null;
+}
 
 internal sealed class FenceWindow : DesktopLevelWindow
 {
@@ -117,10 +152,10 @@ internal sealed class FenceWindow : DesktopLevelWindow
     {
         _def = def; _s = s;
         Title = "Shamsa fence " + def.Title;
-        Left = def.X; Top = def.Y; Width = Math.Max(200, def.Width);
+        Width = Math.Max(200, def.Width);
         Height = def.Collapsed ? HeaderHeight + 6 : Math.Max(120, def.Height);
         MinHeight = HeaderHeight + 6;
-        FitPrimary();
+        PlaceRelative(def.X, def.Y); // on the monitor chosen for the desktop environment
         Locked = s.Fences.LockPositions;
         AllowDrop = true;
         Drop += OnDrop;
@@ -137,6 +172,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
         Locked = s.Fences.LockPositions;
         if (sourceChanged) { DisposeWatchers(); Watch(); }
         Height = def.Collapsed ? HeaderHeight + 6 : Math.Max(120, def.Height);
+        FollowArea(def.X, def.Y);
         Render();
     }
 
@@ -180,7 +216,19 @@ internal sealed class FenceWindow : DesktopLevelWindow
         if (_def.Mode == "manual")
             return _def.Members.OrderBy(x => x.Value).Select(x => new FenceItem(x.Key, x.Value, Directory.Exists(x.Key))).ToList();
         var list = new List<FenceItem>();
-        var exts = new HashSet<string>(_def.Extensions.Select(e => e.StartsWith('.') ? e : "." + e), StringComparer.OrdinalIgnoreCase);
+        static string Norm(string e) => e == FencesModule.AnyExtension ? e : e.StartsWith('.') ? e : "." + e;
+        var exts = new HashSet<string>(_def.Extensions.Select(Norm), StringComparer.OrdinalIgnoreCase);
+        bool catchAll = _def.Mode == "filter" && exts.Contains(FencesModule.AnyExtension);
+        HashSet<string>? taken = null; // extensions shown by the other filter groups
+        if (catchAll)
+        {
+            taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var other in _s.Fences.Fences.Where(f => f.Id != _def.Id && f.Mode == "filter"))
+                foreach (var e in other.Extensions.Select(Norm)) if (e != FencesModule.AnyExtension) taken.Add(e);
+            foreach (var other in _s.Fences.Fences.Where(f => f.Id != _def.Id && f.Mode == "manual"))
+                foreach (var m in other.Members.Keys) taken.Add("path:" + m);
+            if (_s.Fences.ShowSystemIcons) list.AddRange(SystemItems());
+        }
         foreach (var folder in SourceFolders().Distinct(StringComparer.OrdinalIgnoreCase))
         {
             try
@@ -192,7 +240,13 @@ internal sealed class FenceWindow : DesktopLevelWindow
                         var attr = File.GetAttributes(path);
                         if ((attr & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
                         bool dir = (attr & FileAttributes.Directory) != 0;
-                        if (_def.Mode != "folder")
+                        if (catchAll)
+                        {
+                            if (taken!.Contains("path:" + path)) continue;
+                            if (dir ? taken.Contains(".folder") : taken.Contains(Path.GetExtension(path))) continue;
+                            if (Path.GetFileName(path).Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
+                        }
+                        else if (_def.Mode != "folder")
                         {
                             if (dir) { if (!exts.Contains(".folder")) continue; }
                             else if (!exts.Contains(Path.GetExtension(path))) continue;
@@ -208,8 +262,21 @@ internal sealed class FenceWindow : DesktopLevelWindow
             }
             catch (Exception ex) { AppLog.Warn("Fence listing: " + ex.Message); }
         }
-        return list.OrderByDescending(i => i.IsDirectory).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        return list.OrderByDescending(i => i.IsSystem).ThenByDescending(i => i.IsDirectory).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
     }
+
+    /// <summary>This PC, Recycle Bin, … that the user shows on the Windows desktop (Personalize › system icons).</summary>
+    private static IEnumerable<FenceItem> SystemItems()
+    {
+        foreach (var d in Personalize.SystemIcons.All)
+        {
+            bool visible;
+            try { visible = Personalize.SystemIcons.IsVisible(d); } catch { visible = false; }
+            if (visible) yield return new FenceItem(SystemPrefix + d.Id, d.Name, false);
+        }
+    }
+
+    internal const string SystemPrefix = "shamsa-system:";
 
     private void Render()
     {
@@ -228,18 +295,34 @@ internal sealed class FenceWindow : DesktopLevelWindow
     /// <summary>Builds the glass fence (header + icon grid). <paramref name="host"/> is null for previews.</summary>
     public static Border BuildBody(FenceDefinition def, DesktopSettings s, List<FenceItem> items, FenceWindow? host, Action<bool>? collapse, bool preview)
     {
-        var tint = DesktopTheme.ParseColor(def.TintHex, DesktopTheme.ParseColor(s.Theme.GlassTintHex, Color.FromRgb(0x0B, 0x13, 0x24)));
+        var themeTint = DesktopTheme.ParseColor(s.Theme.GlassTintHex, Color.FromRgb(0x0B, 0x13, 0x24));
+        // With «هماهنگ با تم» every group wears the theme's glass; its own colour survives only as a small dot.
+        var tint = s.Fences.FollowTheme ? themeTint : DesktopTheme.ParseColor(def.TintHex, themeTint);
         tint.A = (byte)Math.Clamp(s.Theme.GlassOpacity * 2.55 * 0.9, 50, 240);
+        var accent = DesktopTheme.Accent(s);
         var root = new DockPanel();
 
         // header
         var header = new Border
         {
             Height = HeaderHeight, Padding = new Thickness(12, 0, 8, 0), Cursor = Cursors.SizeAll,
-            Background = new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)),
+            Background = s.Fences.FollowTheme
+                ? new LinearGradientBrush(Color.FromArgb(0x55, accent.R, accent.G, accent.B), Color.FromArgb(0x14, accent.R, accent.G, accent.B), 0)
+                : new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)),
             CornerRadius = new CornerRadius(Math.Max(6, s.Theme.CornerRadius), Math.Max(6, s.Theme.CornerRadius), 0, 0)
         };
         var hp = new DockPanel();
+        if (s.Fences.FollowTheme && !string.IsNullOrEmpty(def.TintHex))
+        {
+            var own = DesktopTheme.ParseColor(def.TintHex, accent);
+            var dot = new Border
+            {
+                Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(Lighten(own, 0.45))
+            };
+            DockPanel.SetDock(dot, System.Windows.Controls.Dock.Left);
+            hp.Children.Add(dot);
+        }
         var count = new TextBlock
         {
             Text = def.Collapsed && !preview ? "▸" : DesktopTheme.Digits(items.Count.ToString(), true),
@@ -277,7 +360,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
         if (!def.Collapsed || preview)
         {
             var grid = new WrapPanel { Margin = new Thickness(6) };
-            foreach (var item in items) grid.Children.Add(ItemTile(item, preview));
+            foreach (var item in items) grid.Children.Add(ItemTile(item, s, preview));
             if (items.Count == 0)
             {
                 grid.Children.Add(new TextBlock
@@ -299,18 +382,48 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     private static readonly SolidColorBrush TileHover = new(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
 
-    private static FrameworkElement ItemTile(FenceItem item, bool preview)
+    private static Color Lighten(Color c, double t) =>
+        Color.FromRgb((byte)(c.R + (255 - c.R) * t), (byte)(c.G + (255 - c.G) * t), (byte)(c.B + (255 - c.B) * t));
+
+    private static Color Darken(Color c, double f) => Color.FromRgb((byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f));
+
+    private static FrameworkElement ItemTile(FenceItem item, DesktopSettings s, bool preview)
     {
-        var stack = new StackPanel { Width = 78, Margin = new Thickness(2) };
-        var img = new Image { Width = 40, Height = 40, Margin = new Thickness(0, 6, 0, 2), HorizontalAlignment = HorizontalAlignment.Center };
+        string style = s.Fences.IconStyle;
+        var accent = DesktopTheme.Accent(s);
+        var stack = new StackPanel { Width = 80, Margin = new Thickness(2) };
+        var img = new Image { Width = style == "plate" ? 34 : 40, Height = style == "plate" ? 34 : 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
         var glyph = new TextBlock
         {
-            Text = GlyphFor(item), FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 30,
-            Foreground = DesktopTheme.TextBrush, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 4)
+            Text = GlyphFor(item), FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = style == "plate" ? 24 : 30,
+            Foreground = style == "glyph" ? new SolidColorBrush(Lighten(accent, 0.25)) : DesktopTheme.TextBrush,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
         };
-        var iconHost = new Grid();
+        var iconHost = new Grid { Width = 52, Height = 52, Margin = new Thickness(0, 6, 0, 2), HorizontalAlignment = HorizontalAlignment.Center };
+        if (style is "plate" or "glyph")
+        {
+            // A themed tile behind every icon: apps, files and folders all share the theme's shape and colour.
+            var r = Math.Clamp(s.Theme.CornerRadius, 6, 18);
+            iconHost.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(r),
+                Background = style == "plate"
+                    ? new LinearGradientBrush(Color.FromArgb(0xE0, accent.R, accent.G, accent.B), Color.FromArgb(0xE0, Darken(accent, 0.55).R, Darken(accent, 0.55).G, Darken(accent, 0.55).B), 90)
+                    : new SolidColorBrush(Color.FromArgb(0x30, accent.R, accent.G, accent.B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1)
+            });
+            if (style == "plate")
+                iconHost.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(r, r, 0, 0), Height = 22, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(1, 1, 1, 0),
+                    Background = new LinearGradientBrush(Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF), Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 90),
+                    IsHitTestVisible = false
+                });
+        }
         iconHost.Children.Add(glyph);
-        iconHost.Children.Add(img);
+        if (style != "glyph") iconHost.Children.Add(img);
         stack.Children.Add(iconHost);
         var name = new TextBlock
         {
@@ -318,20 +431,26 @@ internal sealed class FenceWindow : DesktopLevelWindow
             TextWrapping = TextWrapping.Wrap, MaxHeight = 32, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2, 0, 2, 6)
         };
         stack.Children.Add(name);
-        var tile = new Border { Child = stack, CornerRadius = new CornerRadius(8), Background = Brushes.Transparent, ToolTip = preview ? null : item.Path };
+        var tile = new Border { Child = stack, CornerRadius = new CornerRadius(8), Background = Brushes.Transparent, ToolTip = preview ? null : item.IsSystem ? item.Name : item.Path };
         tile.MouseEnter += (_, _) => tile.Background = TileHover;
         tile.MouseLeave += (_, _) => tile.Background = Brushes.Transparent;
         if (!preview)
         {
-            tile.Loaded += (_, _) => tile.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
-            {
-                try
+            if (style != "glyph")
+                tile.Loaded += (_, _) => tile.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
                 {
-                    BitmapSource? bmp = ShellThumbnailService.TryGetShellImage(item.Path, 48);
-                    if (bmp != null) { img.Source = bmp; glyph.Visibility = Visibility.Collapsed; }
-                }
-                catch { }
-            });
+                    try
+                    {
+                        BitmapSource? bmp;
+                        if (item.SystemDef is { } sys)
+                            // Shows the Personalize icon theme (if one is applied) — same look as the real desktop.
+                            bmp = Personalize.SystemIcons.LoadIcon(Personalize.SystemIcons.CurrentIconLocation(sys), 64);
+                        else
+                            bmp = ShellThumbnailService.TryGetShellImage(item.Path, 64); // 64 px: sharp at 125–150 % scaling
+                        if (bmp != null) { img.Source = bmp; glyph.Visibility = Visibility.Collapsed; }
+                    }
+                    catch { }
+                });
             tile.MouseLeftButtonDown += (_, e) => { if (e.ClickCount == 2) { Open(item.Path); e.Handled = true; } };
             var menu = new ContextMenu { FlowDirection = FlowDirection.RightToLeft, FontFamily = DesktopTheme.Font };
             var open = new MenuItem { Header = "باز کردن" };
@@ -347,6 +466,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     private static string GlyphFor(FenceItem item)
     {
+        if (item.SystemDef is { } sys) return sys.Glyph;
         if (item.IsDirectory) return "";
         return Path.GetExtension(item.Path).ToLowerInvariant() switch
         {
@@ -362,12 +482,21 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     private static void Open(string path)
     {
+        if (path.StartsWith(SystemPrefix, StringComparison.Ordinal))
+        {
+            var sys = Personalize.SystemIcons.All.FirstOrDefault(d => d.Id == path[SystemPrefix.Length..]);
+            if (sys != null)
+                try { Process.Start(new ProcessStartInfo("explorer.exe", "shell:::" + sys.Clsid) { UseShellExecute = true }); }
+                catch (Exception ex) { AppLog.Warn("Fence open system item: " + ex.Message); }
+            return;
+        }
         try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
         catch (Exception ex) { AppLog.Warn("Fence open: " + ex.Message); }
     }
 
     private static void Reveal(string path)
     {
+        if (path.StartsWith(SystemPrefix, StringComparison.Ordinal)) { Open(path); return; }
         try { Process.Start("explorer.exe", $"/select,\"{path}\""); }
         catch (Exception ex) { AppLog.Warn("Fence reveal: " + ex.Message); }
     }

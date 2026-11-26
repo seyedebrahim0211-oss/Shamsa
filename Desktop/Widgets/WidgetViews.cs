@@ -212,11 +212,10 @@ public static class WidgetViews
             head.Children.Add(Glyph("", 15, DesktopTheme.AccentBrush(_s)));
             head.Children.Add(new TextBlock { Text = "  اوقات شرعی " + WidgetCityData.ShortName(location.City), FontSize = 14.5, FontWeight = FontWeights.Bold, Foreground = DesktopTheme.TextBrush });
             Children.Add(head);
-            Children.Add(Text(PersianDate.Long(CityClock.Now(_s.Widgets).Date, true), 11.5, brush: DesktopTheme.MutedBrush));
-
-            // Prayer times belong to the city, not to the PC's clock: a laptop set to another zone must
-            // still show Tehran's Fajr in Tehran time.
-            var cityZone = location.Zone;
+            // Prayer times are computed for the chosen city's coordinates but SHOWN in Tehran time (or the clock
+            // picked in the studio) — never in the system clock, which follows the VPN's country.
+            var cityZone = CityClock.PrayerZone(w);
+            Children.Add(Text(PersianDate.Long(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, cityZone).Date, true), 11.5, brush: DesktopTheme.MutedBrush));
             var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, cityZone);
             double? offset = cityZone.GetUtcOffset(DateTime.UtcNow).TotalHours;
             PrayerTimes.Times times;
@@ -224,8 +223,9 @@ public static class WidgetViews
             catch { Children.Add(Text("محاسبه ممکن نشد.")); return; }
             var nextName = times.All.Where(x => x.At > now && x.Name != "طلوع آفتاب" && x.Name != "غروب آفتاب")
                 .Select(x => x.Name).FirstOrDefault();
-            if (cityZone != null && Math.Abs((cityZone.GetUtcOffset(now) - TimeZoneInfo.Local.GetUtcOffset(DateTime.Now)).TotalMinutes) > 1)
-                Children.Add(Text("ساعت‌ها به وقت " + location.City + " است", 10.5, brush: DesktopTheme.MutedBrush));
+            if (Math.Abs((cityZone.GetUtcOffset(DateTime.UtcNow) - TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow)).TotalMinutes) > 1
+                || location.Zone.BaseUtcOffset != cityZone.BaseUtcOffset)
+                Children.Add(Text("ساعت‌ها به وقت " + CityClock.PrayerZoneName(w) + " است", 10.5, brush: DesktopTheme.MutedBrush));
             var rows = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
             foreach (var (name, at) in times.All)
             {
@@ -248,7 +248,7 @@ public static class WidgetViews
             var eyvan = EyvanBridge.Read(w.EyvanFile);
             if (location.FromEyvan && eyvan != null && eyvan.NextAt > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() && eyvan.At >= DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeMilliseconds())
             {
-                var at = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeMilliseconds(eyvan.NextAt), cityZone!).ToString("HH:mm");
+                var at = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeMilliseconds(eyvan.NextAt), cityZone).ToString("HH:mm");
                 Children.Add(Text(D($"ایوان · {eyvan.City} · {eyvan.NextName}  {at}"), 12, brush: DesktopTheme.AccentBrush(_s)));
                 return;
             }
@@ -295,7 +295,7 @@ public static class WidgetViews
             if (_loading || (_shownCoordinates == coordinates && DateTime.UtcNow - _lastRefresh < TimeSpan.FromMinutes(25))) return;
             _loading = true;
             WeatherService.Report? r;
-            try { r = await WeatherService.GetAsync(location.Latitude, location.Longitude); }
+            try { r = await WeatherService.GetAsync(location.Latitude, location.Longitude, zone: CityClock.PrayerZone(w)); }
             finally { _loading = false; }
             var current = CityClock.Resolve(w);
             if (!IsLoaded || !_s.Widgets.WeatherOnline || current.Latitude != location.Latitude || current.Longitude != location.Longitude) return;
@@ -317,7 +317,8 @@ public static class WidgetViews
                 mid.Children.Add(Text($"{name} · {WidgetCityData.ShortName(location.City)}", 12.5, brush: DesktopTheme.MutedBrush));
                 top.Children.Add(mid);
                 Children.Add(top);
-                Children.Add(Text(D($"باد {Math.Round(r.Wind)} کیلومتر بر ساعت"), 11.5, brush: DesktopTheme.MutedBrush));
+                var updated = TimeZoneInfo.ConvertTimeFromUtc(r.FetchedAt, CityClock.PrayerZone(w));
+                Children.Add(Text(D($"باد {Math.Round(r.Wind)} کیلومتر بر ساعت · به‌روز {updated:HH:mm} به وقت {CityClock.PrayerZoneName(w)}"), 11.5, brush: DesktopTheme.MutedBrush));
                 var days = new UniformGrid { Columns = 3, Margin = new Thickness(0, 10, 0, 0) };
                 foreach (var d in r.Days.Skip(1).Take(3))
                 {

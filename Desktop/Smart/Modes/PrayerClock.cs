@@ -6,6 +6,9 @@ namespace Shamsa.Desktop.Smart.Modes;
 public static class PrayerClock
 {
     public sealed record NextAzan(string Name, DateTime AtCity, TimeSpan Remaining);
+
+    /// <summary>Name of the clock the times are shown in («تهران» by default).</summary>
+    public static string ZoneName(WidgetsSettings? w = null) => CityClock.PrayerZoneName(w ?? DesktopSettingsStore.Current.Widgets);
     public sealed record SunTimes(DateTime Sunrise, DateTime Sunset);
 
     // Iran's three daily azans (صبح، ظهر، مغرب); عشا is prayed with مغرب, so it gets no separate notice.
@@ -17,9 +20,10 @@ public static class PrayerClock
 
     private static (DateTime CityNow, double? Offset) CityNow(WidgetsSettings w)
     {
-        var zone = WidgetViews.CityTimeZone(w.City, w.Latitude, w.Longitude);
+        // Azan times of the chosen city, expressed in Tehran time (or the clock picked in the studio) —
+        // not in the system clock, which follows the VPN's country.
+        var zone = CityClock.PrayerZone(w);
         var utc = UtcNow;
-        if (zone == null) return (utc.ToLocalTime(), null);
         var cityNow = TimeZoneInfo.ConvertTimeFromUtc(utc, zone);
         return (cityNow, zone.GetUtcOffset(cityNow).TotalHours);
     }

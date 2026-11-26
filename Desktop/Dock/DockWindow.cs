@@ -207,7 +207,9 @@ internal sealed class DockWindow : Window
             Height = Horizontal ? StripThickness + 40 : 780;
             return;
         }
-        IntPtr monitor = ShellInterop.MonitorFromWindow(IntPtr.Zero, 1 /* MONITOR_DEFAULTTOPRIMARY */);
+        // The monitor chosen for the desktop environment (Windows primary unless the user picked another).
+        IntPtr monitor = DesktopDisplay.Monitor(_s);
+        if (monitor == IntPtr.Zero) monitor = ShellInterop.MonitorFromWindow(IntPtr.Zero, 1 /* MONITOR_DEFAULTTOPRIMARY */);
         var (monPx, workPx) = ShellInterop.GetMonitorRects(monitor);
         if (monPx.IsEmpty) { monPx = new Rect(0, 0, SystemParameters.PrimaryScreenWidth * _dpi, SystemParameters.PrimaryScreenHeight * _dpi); workPx = monPx; }
 

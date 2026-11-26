@@ -186,6 +186,13 @@ public sealed class WidgetsSettings
     /// <summary>Weather is fetched from Open-Meteo (no key) only when enabled — sends the city coordinates.</summary>
     public bool WeatherOnline { get; set; } = false;
     public bool LockPositions { get; set; } = false;
+    /// <summary>
+    /// Keep the Windows time zone (system clock and date) in step with the public IP's location — e.g. the
+    /// VPN exit country. Sends one request to ipwho.is on start, every 30 minutes and when the network changes.
+    /// </summary>
+    public bool SyncSystemTimeZoneWithIp { get; set; } = true;
+    /// <summary>Clock used to show prayer times and weather for any chosen city (default: Tehran time).</summary>
+    public string PrayerWeatherZoneId { get; set; } = "Iran Standard Time";
 }
 
 public sealed class FenceDefinition
@@ -211,6 +218,17 @@ public sealed class FencesSettings
     public List<FenceDefinition> Fences { get; set; } = new();
     public bool RollUpOnTitleClick { get; set; } = true;
     public bool LockPositions { get; set; } = false;
+    /// <summary>Groups take the desktop theme's glass and accent instead of their own fixed tint.</summary>
+    public bool FollowTheme { get; set; } = true;
+    /// <summary>"plate" = real icon on a themed tile, "glyph" = monochrome theme glyphs, "plain" = Windows icons as-is.</summary>
+    public string IconStyle { get; set; } = "plate";
+    /// <summary>
+    /// Hide the Windows desktop icons while groups are shown, so every file, folder and shortcut appears only
+    /// inside the themed groups (a "سایر" group catches the rest). Always restored on exit / «بازگردانی».
+    /// </summary>
+    public bool HideDesktopIcons { get; set; } = false;
+    /// <summary>Also show This PC / Recycle Bin / … inside the catch-all group.</summary>
+    public bool ShowSystemIcons { get; set; } = true;
 }
 
 public sealed class AutoThemeSettings
@@ -237,6 +255,10 @@ public sealed class DesktopSettings
     public bool Enabled { get; set; } = false;
     /// <summary>Hide the Windows taskbar while the Shamsa top bar or dock is running (always restored on exit).</summary>
     public bool HideWindowsTaskbar { get; set; } = false;
+    /// <summary>Monitor (Screen.DeviceName, e.g. \\.\DISPLAY2) for fences, widgets, dock and top bar; empty = Windows primary.</summary>
+    public string DisplayDevice { get; set; } = "";
+    /// <summary>Id of the last whole-desktop theme applied from «حالت‌های آماده» (for the ✓ mark).</summary>
+    public string? ThemePresetId { get; set; }
     /// <summary>Empty = embedded Vazirmatn.</summary>
     public string UiFontFamily { get; set; } = "";
     public DesktopThemeSettings Theme { get; set; } = new();
@@ -265,6 +287,9 @@ public sealed class DesktopSettings
         Widgets ??= new(); Fences ??= new(); AutoTheme ??= new(); Plugins ??= new();
         Widgets.Items ??= new(); Fences.Fences ??= new(); Plugins.Disabled ??= new(); Clipboard.IgnoredProcesses ??= new();
         Widgets.WorldZones ??= new(Shamsa.Desktop.Widgets.CityClock.Defaults);
+        DisplayDevice ??= "";
+        if (string.IsNullOrWhiteSpace(Widgets.PrayerWeatherZoneId)) Widgets.PrayerWeatherZoneId = "Iran Standard Time";
+        if (Fences.IconStyle is not ("plate" or "glyph" or "plain")) Fences.IconStyle = "plate";
         foreach (var fence in Fences.Fences) { fence.Extensions ??= new(); fence.Members ??= new(); }
         foreach (var l in Layouts) l.Windows ??= new();
         Clipboard.MaxItems = Math.Clamp(Clipboard.MaxItems, 10, 200);
