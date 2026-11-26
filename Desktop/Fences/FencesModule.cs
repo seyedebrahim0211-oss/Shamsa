@@ -120,6 +120,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
         Left = def.X; Top = def.Y; Width = Math.Max(200, def.Width);
         Height = def.Collapsed ? HeaderHeight + 6 : Math.Max(120, def.Height);
         MinHeight = HeaderHeight + 6;
+        FitPrimary();
         Locked = s.Fences.LockPositions;
         AllowDrop = true;
         Drop += OnDrop;
@@ -141,6 +142,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     private IEnumerable<string> SourceFolders()
     {
+        if (_def.Mode == "manual") yield break;
         if (_def.Mode == "folder")
         {
             if (!string.IsNullOrEmpty(_def.FolderPath) && Directory.Exists(_def.FolderPath)) yield return _def.FolderPath;
@@ -175,6 +177,8 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     private List<FenceItem> LoadItems()
     {
+        if (_def.Mode == "manual")
+            return _def.Members.OrderBy(x => x.Value).Select(x => new FenceItem(x.Key, x.Value, Directory.Exists(x.Key))).ToList();
         var list = new List<FenceItem>();
         var exts = new HashSet<string>(_def.Extensions.Select(e => e.StartsWith('.') ? e : "." + e), StringComparer.OrdinalIgnoreCase);
         foreach (var folder in SourceFolders().Distinct(StringComparer.OrdinalIgnoreCase))
@@ -190,7 +194,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
                         bool dir = (attr & FileAttributes.Directory) != 0;
                         if (_def.Mode != "folder")
                         {
-                            if (dir) { if (!exts.Contains("folder")) continue; }
+                            if (dir) { if (!exts.Contains(".folder")) continue; }
                             else if (!exts.Contains(Path.GetExtension(path))) continue;
                         }
                         string name = dir ? Path.GetFileName(path) : Path.GetFileNameWithoutExtension(path);
@@ -395,6 +399,17 @@ internal sealed class FenceWindow : DesktopLevelWindow
     /// <summary>Dropping onto a folder fence moves the files into that folder after confirmation.</summary>
     private void OnDrop(object sender, DragEventArgs e)
     {
+        if (_def.Mode == "manual" && e.Data.GetData(DataFormats.FileDrop) is string[] dropped)
+        {
+            WidgetsModule.Mutate(s =>
+            {
+                var group = s.Fences.Fences.FirstOrDefault(x => x.Id == _def.Id);
+                if (group == null) return;
+                foreach (var path in dropped) group.Members[path] = Path.GetFileName(path);
+            });
+            e.Handled = true;
+            return;
+        }
         if (_def.Mode != "folder" || string.IsNullOrEmpty(_def.FolderPath) || !Directory.Exists(_def.FolderPath)) return;
         if (e.Data.GetData(DataFormats.FileDrop) is not string[] files || files.Length == 0) return;
         string msg = files.Length == 1

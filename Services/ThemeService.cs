@@ -10,7 +10,7 @@ namespace Shamsa.Services;
 /// </summary>
 public static class ThemeService
 {
-    public static readonly string[] Themes = { "PersianTurquoise", "LapisGlass", "EmeraldGlass", "AmethystGlass" };
+    public static readonly string[] Themes = { "PersianTurquoise", "LapisGlass", "EmeraldGlass", "AmethystGlass", "Ivory" };
 
     public static bool IsKnownTheme(string? id) => Array.IndexOf(Themes, id) >= 0;
 
@@ -33,6 +33,8 @@ public static class ThemeService
 
     private static Palette GetPalette(string themeId) => themeId switch
     {
+        "Ivory" => new(Hex("#F5F3EC"), Hex("#FFFDF7"), Hex("#E9E5D9"), Hex("#A9B1A7"),
+                       Hex("#006A62"), Hex("#80540D"), Hex("#172D31"), Hex("#435B60")),
         "LapisGlass" => new(Hex("#080F24"), Hex("#122145"), Hex("#213763"), Hex("#39588D"),
                             Hex("#70A5FF"), Hex("#F3D99B"), Hex("#F6F8FF"), Hex("#BDD0EF")),
         "EmeraldGlass" => new(Hex("#081A19"), Hex("#12312E"), Hex("#1B4841"), Hex("#326C61"),

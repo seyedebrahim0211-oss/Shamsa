@@ -16,6 +16,7 @@ public static class WidgetViews
         ("prayer", "اوقات شرعی", ""),
         ("weather", "آب‌وهوا", ""),
         ("note", "یادداشت", ""),
+        ("world", "ساعت جهانی", ""),
         ("clock", "ساعت", ""),
     };
 
@@ -71,7 +72,8 @@ public static class WidgetViews
         "prayer" => new PrayerWidget(s),
         "weather" => new WeatherWidget(s),
         "note" => new NoteWidget(p.Text ?? "", noteChanged),
-        "clock" => new ClockWidget(),
+        "clock" => new ClockWidget(s.Widgets),
+        "world" => new WorldClock(s.Widgets),
         _ => Text("ویجت ناشناخته"),
     };
 
@@ -88,7 +90,7 @@ public static class WidgetViews
         public CalendarWidget(DesktopSettings s)
         {
             _s = s;
-            var (y, m, _) = PersianDate.Parts(DateTime.Today);
+            var (y, m, _) = PersianDate.Parts(CityClock.Now(_s.Widgets).Date);
             _year = y; _month = m;
 
             var header = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
@@ -99,7 +101,7 @@ public static class WidgetViews
             header.Children.Add(prev);
             header.Children.Add(next);
             _title.TextAlignment = TextAlignment.Center;
-            _title.MouseLeftButtonUp += (_, _) => { var (yy, mm, _) = PersianDate.Parts(DateTime.Today); _year = yy; _month = mm; Render(); };
+            _title.MouseLeftButtonUp += (_, _) => { var (yy, mm, _) = PersianDate.Parts(CityClock.Now(_s.Widgets).Date); _year = yy; _month = mm; Render(); };
             _title.ToolTip = "برگشت به امروز";
             header.Children.Add(_title);
             DockPanel.SetDock(header, System.Windows.Controls.Dock.Top);
@@ -159,7 +161,7 @@ public static class WidgetViews
                 var date = first.AddDays(d - 1);
                 var occ = PersianHolidays.For(date);
                 bool holiday = date.DayOfWeek == DayOfWeek.Friday || occ.Any(o => o.IsHoliday);
-                bool today = date == DateTime.Today;
+                bool today = date == CityClock.Now(_s.Widgets).Date;
                 var t = Text(D(d.ToString()), 12.5, today ? FontWeights.Bold : FontWeights.Normal, today ? Brushes.White : holiday ? HolidayBrush : DesktopTheme.TextBrush);
                 t.TextAlignment = TextAlignment.Center;
                 t.VerticalAlignment = VerticalAlignment.Center;
@@ -206,11 +208,11 @@ public static class WidgetViews
             head.Children.Add(Glyph("", 15, DesktopTheme.AccentBrush(_s)));
             head.Children.Add(new TextBlock { Text = "  اوقات شرعی " + WidgetCityData.ShortName(w.City), FontSize = 14.5, FontWeight = FontWeights.Bold, Foreground = DesktopTheme.TextBrush });
             Children.Add(head);
-            Children.Add(Text(PersianDate.Long(DateTime.Today, true), 11.5, brush: DesktopTheme.MutedBrush));
+            Children.Add(Text(PersianDate.Long(CityClock.Now(_s.Widgets).Date, true), 11.5, brush: DesktopTheme.MutedBrush));
 
             // Prayer times belong to the city, not to the PC's clock: a laptop set to another zone must
             // still show Tehran's Fajr in Tehran time.
-            var cityZone = CityTimeZone(w.City, w.Latitude, w.Longitude);
+            var cityZone = CityClock.LocalZone(w);
             var now = cityZone != null ? TimeZoneInfo.ConvertTime(DateTime.Now, cityZone) : DateTime.Now;
             double? offset = cityZone?.GetUtcOffset(now).TotalHours;
             PrayerTimes.Times times;
@@ -239,6 +241,13 @@ public static class WidgetViews
                 rows.Children.Add(row);
             }
             Children.Add(rows);
+            var eyvan = EyvanBridge.Read(w.EyvanFile);
+            if (eyvan != null && eyvan.NextAt > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() && eyvan.At >= DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeMilliseconds())
+            {
+                var at = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeMilliseconds(eyvan.NextAt), cityZone!).ToString("HH:mm");
+                Children.Add(Text(D($"ایوان · {eyvan.City} · {eyvan.NextName}  {at}"), 12, brush: DesktopTheme.AccentBrush(_s)));
+                return;
+            }
             var nextAt = times.All.FirstOrDefault(x => x.Name == nextName).At;
             if (nextName != null && nextAt > now)
             {
@@ -354,8 +363,10 @@ public static class WidgetViews
         private readonly TextBlock _date = Text("", 13.5, brush: DesktopTheme.MutedBrush);
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
-        public ClockWidget()
+        private readonly WidgetsSettings _settings;
+        public ClockWidget(WidgetsSettings settings)
         {
+            _settings = settings;
             VerticalAlignment = VerticalAlignment.Center;
             var row = new StackPanel { Orientation = Orientation.Horizontal, FlowDirection = FlowDirection.LeftToRight, HorizontalAlignment = HorizontalAlignment.Center };
             row.Children.Add(_time);
@@ -373,10 +384,29 @@ public static class WidgetViews
 
         private void Tick()
         {
-            var now = DateTime.Now;
+            var now = CityClock.Now(_settings);
             _time.Text = D(now.ToString("HH:mm"));
             _sec.Text = D(now.ToString("ss"));
             _date.Text = PersianDate.Long(now, true) + " · \u202A" + now.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture) + "\u202C";
+        }
+    }
+
+    private sealed class WorldClock : ScrollViewer
+    {
+        public WorldClock(WidgetsSettings settings)
+        {
+            var list = new StackPanel();
+            Content = list; VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            void Tick()
+            {
+                var instant = DateTimeOffset.UtcNow;
+                list.Children.Clear();
+                foreach (var (id, label) in settings.WorldZones)
+                    if (CityClock.Zone(id) is { } z)
+                        list.Children.Add(Text(label + "   " + D(TimeZoneInfo.ConvertTime(instant, z).ToString("HH:mm")), 15));
+            }
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+            timer.Tick += (_, _) => Tick(); Loaded += (_, _) => { Tick(); timer.Start(); }; Unloaded += (_, _) => timer.Stop();
         }
     }
 

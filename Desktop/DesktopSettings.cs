@@ -173,6 +173,9 @@ public sealed class WidgetsSettings
 {
     public bool Enabled { get; set; } = false;
     public List<WidgetPlacement> Items { get; set; } = new();
+    public string? EyvanFile { get; set; }
+    public string? ZoneId { get; set; }
+    public Dictionary<string, string> WorldZones { get; set; } = new(Shamsa.Desktop.Widgets.CityClock.Defaults);
     public string City { get; set; } = "تهران";
     public double Latitude { get; set; } = 35.6892;
     public double Longitude { get; set; } = 51.3890;
@@ -189,6 +192,7 @@ public sealed class FenceDefinition
     /// <summary>"folder" = shows a folder's content (portal); "filter" = desktop items matching Extensions.</summary>
     public string Mode { get; set; } = "filter";
     public string? FolderPath { get; set; }
+    public Dictionary<string, string> Members { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<string> Extensions { get; set; } = new();
     public double X { get; set; } = 60;
     public double Y { get; set; } = 60;
@@ -257,6 +261,8 @@ public sealed class DesktopSettings
         if (Voice.WakeWord is "شمسا" or "shamsa") Voice.WakeWord = "نگار";
         Widgets ??= new(); Fences ??= new(); AutoTheme ??= new(); Plugins ??= new();
         Widgets.Items ??= new(); Fences.Fences ??= new(); Plugins.Disabled ??= new(); Clipboard.IgnoredProcesses ??= new();
+        Widgets.WorldZones ??= new(Shamsa.Desktop.Widgets.CityClock.Defaults);
+        foreach (var fence in Fences.Fences) { fence.Extensions ??= new(); fence.Members ??= new(); }
         foreach (var l in Layouts) l.Windows ??= new();
         Clipboard.MaxItems = Math.Clamp(Clipboard.MaxItems, 10, 200);
         Theme.GlassOpacity = Math.Clamp(Theme.GlassOpacity, 20, 100);

@@ -41,7 +41,8 @@ public partial class App
         Desktop.Voice.VoiceCommands.AppCommand += cmd => Dispatcher.BeginInvoke(() =>
         {
             if (cmd == "screenshot") RecorderFeature.TakeScreenshot();
-            else if (cmd == "record") OpenHub("capture.recorder");
+            else if (cmd == "record") RecorderFeature.ToggleRecording();
+            else if (cmd == "pause") RecorderFeature.PauseResume();
         });
     }
 

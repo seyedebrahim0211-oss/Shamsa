@@ -9,7 +9,7 @@ public enum RecorderState { Idle, Starting, Recording, Paused, Finalizing }
 
 /// <summary>Immutable description of one recording job.</summary>
 internal sealed record RecordingJob(PixelRect Rect, int Fps, int Quality, string Encoder, string Container,
-    bool DrawMouse, bool UseDesktopDuplication, int? DdaOutputIndex, bool SystemAudio, bool Microphone, string OutputPath);
+    bool DrawMouse, bool UseDesktopDuplication, int? DdaOutputIndex, bool SystemAudio, bool Microphone, string OutputPath, string CameraDevice, int CameraCorner, int CameraPercent);
 
 /// <summary>
 /// Segment-based FFmpeg screen recorder. Each start/resume launches one FFmpeg segment (MKV, video only);
@@ -162,7 +162,7 @@ internal sealed class ScreenRecorderEngine
             int ox = mon != null ? r.X - mon.Bounds.X : 0, oy = mon != null ? r.Y - mon.Bounds.Y : 0;
             a.AddRange(new[] { "-f", "lavfi", "-i",
                 $"ddagrab=output_idx={job.DdaOutputIndex ?? 0}:framerate={fps}:draw_mouse={(job.DrawMouse ? 1 : 0)}:offset_x={ox}:offset_y={oy}:video_size={r.Width}x{r.Height}" });
-            a.AddRange(new[] { "-vf", "hwdownload,format=bgra" });
+
         }
         else
         {
@@ -171,6 +171,20 @@ internal sealed class ScreenRecorderEngine
                 "-offset_x", r.X.ToString(CultureInfo.InvariantCulture), "-offset_y", r.Y.ToString(CultureInfo.InvariantCulture),
                 "-video_size", $"{r.Width}x{r.Height}", "-i", "desktop" });
         }
+
+        if (!string.IsNullOrWhiteSpace(job.CameraDevice))
+        {
+            int maxW = Math.Max(2, r.Width * job.CameraPercent / 200 * 2);
+            int maxH = Math.Max(2, r.Height * job.CameraPercent / 200 * 2);
+            string x = job.CameraCorner % 2 == 0 ? "4" : "W-w-4";
+            string y = job.CameraCorner < 2 ? "4" : "H-h-4";
+            string screen = dda ? "[0:v]hwdownload,format=bgra[desktop];" : "";
+            string input = dda ? "[desktop]" : "[0:v]";
+            a.AddRange(new[] { "-thread_queue_size", "128", "-f", "dshow", "-i", "video=" + job.CameraDevice,
+                "-filter_complex", $"{screen}[1:v]scale={maxW}:{maxH}:force_original_aspect_ratio=decrease,setsar=1[cam];{input}[cam]overlay={x}:{y}:eof_action=pass[out]",
+                "-map", "[out]" });
+        }
+        else if (dda) a.AddRange(new[] { "-vf", "hwdownload,format=bgra" });
 
         int q = Math.Clamp(job.Quality, 10, 100);
         int crf = (int)Math.Round(36 - q * 0.2);           // 70% → 22

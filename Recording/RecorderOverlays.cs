@@ -228,8 +228,8 @@ internal sealed class ClickHighlightOverlay : Window
     private readonly Canvas _canvas = new();
     private readonly DispatcherTimer _timer = new(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(15) };
     private bool _wasLeft, _wasRight;
-    private static readonly Brush LeftBrush = OverlayNative.Frozen("#F6D379");
-    private static readonly Brush RightBrush = OverlayNative.Frozen("#2DD4BF");
+    private readonly Brush LeftBrush = OverlayNative.Frozen(RecorderSettingsStore.Current.LeftClickColor);
+    private readonly Brush RightBrush = OverlayNative.Frozen(RecorderSettingsStore.Current.RightClickColor);
 
     public ClickHighlightOverlay()
     {
@@ -263,7 +263,7 @@ internal sealed class ClickHighlightOverlay : Window
         Point p;
         try { p = PointFromScreen(new Point(x, y)); } catch { return; }
         const double size = 44;
-        var ring = new Ellipse { Width = size, Height = size, Stroke = brush, StrokeThickness = 4, Fill = OverlayNative.Frozen("#33F6D379"), RenderTransformOrigin = new Point(0.5, 0.5) };
+        var ring = new Ellipse { Width = size, Height = size, Stroke = brush, StrokeThickness = 4, Fill = Brushes.Transparent, RenderTransformOrigin = new Point(0.5, 0.5) };
         var st = new ScaleTransform(0.3, 0.3);
         ring.RenderTransform = st;
         Canvas.SetLeft(ring, p.X - size / 2);

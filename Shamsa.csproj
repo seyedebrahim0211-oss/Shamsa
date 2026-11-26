@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <StartupObject>Shamsa.Desktop.Widgets.DesktopEntry</StartupObject>
     <!-- Windows 10 SDK projection: Windows.Data.Pdf first-page previews (Windows 10 1809+). -->
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>    <Nullable>enable</Nullable>
@@ -52,6 +53,8 @@
     <!-- PrivateAssets: don't copy ~150 MB of native VLC into referencing (test) projects -->
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" PrivateAssets="all" />
     <!-- Screen recorder: WASAPI loopback (system sound) + microphone capture. MIT licence. -->
+    <PackageReference Include="Vosk" Version="0.3.38" />
+    <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <!-- Offline voice commands through the installed Windows speech recogniser. MIT licence. -->
     <PackageReference Include="System.Speech" Version="8.0.0" />

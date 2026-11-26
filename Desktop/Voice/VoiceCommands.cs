@@ -53,6 +53,8 @@ public static class VoiceCommands
             Add($"{wake} مرکز کنترل", "مرکز کنترل", DesktopEvents.RequestControlCenter);
             Add($"{wake} اسکرین شات", "اسکرین‌شات", () => AppCommand?.Invoke("screenshot"));
             Add($"{wake} عکس بگیر", "اسکرین‌شات", () => AppCommand?.Invoke("screenshot"));
+            Add($"{wake} مکث ضبط", "مکث یا ادامهٔ ضبط", () => AppCommand?.Invoke("pause"));
+            Add($"{wake} پایان ضبط", "پایان ضبط", () => { if (Recording.RecorderFeature.IsBusy) AppCommand?.Invoke("record"); });
             Add($"{wake} ضبط کن", "شروع/توقف ضبط", () => AppCommand?.Invoke("record"));
             Add($"{wake} کلیپ بورد", "تاریخچه کلیپ‌بورد", OpenClipboard);
             Add($"{wake} تنظیمات", "استودیو دسکتاپ", () => DesktopEvents.RequestStudio(null));

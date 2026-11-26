@@ -30,6 +30,7 @@ public partial class RecorderWindow : Window
     {
         InitializeComponent();
         SourceInitialized += (_, _) => TryDarkTitleBar();
+        VoiceControls.Children.Add(Desktop.Voice.VoiceModule.HoldButton(() => Desktop.DesktopSettingsStore.Current, text => VoiceStatusText.Text = text));
         LoadMonitors();
         LoadWindows();
         LoadSettingsIntoUi();
@@ -137,6 +138,11 @@ public partial class RecorderWindow : Window
         QualityText.Text = $"{s.Quality}%";
         DrawMouseCheck.IsChecked = s.DrawMouse;
         ClicksCheck.IsChecked = s.HighlightClicks;
+        LeftColor.BorderBrush = OverlayNative.Frozen(s.LeftClickColor);
+        RightColor.BorderBrush = OverlayNative.Frozen(s.RightClickColor);
+        FillCameras(Array.Empty<string>(), s.CameraDevice);
+        CameraCorner.SelectedIndex = s.CameraCorner;
+        CameraSize.Value = s.CameraPercent;
         CountdownCheck.IsChecked = s.Countdown;
         ToolbarCheck.IsChecked = s.ShowToolbar;
         DdaCheck.IsChecked = s.UseDesktopDuplication;
@@ -148,10 +154,63 @@ public partial class RecorderWindow : Window
         ShotFolderBox.Text = s.EffectiveScreenshotFolder;
         OutputFolderBox.Text = s.EffectiveOutputFolder;
         HotkeysCheck.IsChecked = s.HotkeysEnabled;
-        VoiceCheck.IsChecked = s.VoiceCommandsEnabled;
         UpdateHotkeyBoxes();
         UpdateModePanels();
         LoadRecent();
+    }
+
+    private void PickClickColor(object sender, RoutedEventArgs e)
+    {
+        bool left = sender == LeftColor;
+        var s = RecorderSettingsStore.Current;
+        using var picker = new System.Windows.Forms.ColorDialog { FullOpen = true,
+            Color = System.Drawing.ColorTranslator.FromHtml(left ? s.LeftClickColor : s.RightClickColor) };
+        if (picker.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+        string hex = $"#{picker.Color.R:X2}{picker.Color.G:X2}{picker.Color.B:X2}";
+        RecorderSettingsStore.Update(v => { if (left) v.LeftClickColor = hex; else v.RightClickColor = hex; });
+        ((Button)sender).BorderBrush = OverlayNative.Frozen(hex);
+    }
+
+    private void FillCameras(IEnumerable<string> devices, string selected)
+    {
+        Cameras.Items.Clear();
+        Cameras.Items.Add(new ComboBoxItem { Content = "بدون دوربین", Tag = "" });
+        foreach (var name in devices.Append(selected).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
+            Cameras.Items.Add(new ComboBoxItem { Content = name, Tag = name });
+        SelectByTag(Cameras, selected);
+    }
+
+    private async void ScanCameras(object sender, RoutedEventArgs e)
+    {
+        var ffmpeg = FfmpegManager.GetFfmpegPath(refresh: true);
+        if (ffmpeg == null) { MessageText.Text = "ابتدا FFmpeg را نصب کنید."; return; }
+        DetectCameras.IsEnabled = false;
+        try
+        {
+            var (_, output) = await FfmpegProcess.RunAsync(ffmpeg,
+                new[] { "-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy" }, TimeSpan.FromSeconds(10));
+            var devices = System.Text.RegularExpressions.Regex.Matches(output, @"""([^""]+)""\s+\(video\)")
+                .Select(m => m.Groups[1].Value).Distinct().ToList();
+            _loading = true;
+            FillCameras(devices, RecorderSettingsStore.Current.CameraDevice);
+            MessageText.Text = devices.Count == 0 ? "دوربینی پیدا نشد. اتصال و مجوز دوربین را بررسی کنید." : "دوربین را از فهرست انتخاب کنید.";
+        }
+        catch (Exception ex) { MessageText.Text = ex.Message; }
+        finally { _loading = false; DetectCameras.IsEnabled = true; }
+    }
+
+    private void CameraChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (!_loading) RecorderSettingsStore.Update(s =>
+        {
+            s.CameraDevice = TagOf(Cameras) ?? "";
+            s.CameraCorner = CameraCorner.SelectedIndex;
+        });
+    }
+
+    private void CameraSizeChanged(object sender, RoutedPropertyChangedEventArgs<double> args)
+    {
+        if (!_loading) RecorderSettingsStore.Update(s => s.CameraPercent = (int)args.NewValue);
     }
 
     private void LoadEncoders(IEnumerable<string> encoders, string selected)
@@ -231,7 +290,6 @@ public partial class RecorderWindow : Window
         RecordBtn.IsEnabled = active || (!busy && state == RecorderState.Idle);
         PauseBtn.IsEnabled = active;
         PauseBtn.Content = state == RecorderState.Paused ? "▶ ادامه" : "⏸ مکث";
-        VoiceStatusText.Text = string.IsNullOrEmpty(RecorderFeature.VoiceStatus) ? (VoiceCheck.IsChecked == true ? "" : "خاموش") : RecorderFeature.VoiceStatus;
     }
 
     // ------------------------------------------------------------------ actions
@@ -487,15 +545,5 @@ public partial class RecorderWindow : Window
         UpdateHotkeyBoxes();
     }
 
-    private void Voice_Changed(object sender, RoutedEventArgs e)
-    {
-        bool want = VoiceCheck.IsChecked == true;
-        string? error = RecorderFeature.SetVoiceEnabled(want);
-        if (error != null)
-        {
-            VoiceCheck.IsChecked = false;
-            MessageBox.Show(Dlg, error, "فرمان صوتی", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        RefreshStatus();
-    }
+    private void VoiceSettings_Click(object sender, RoutedEventArgs e) => Desktop.DesktopFeature.ShowStudio("voice");
 }

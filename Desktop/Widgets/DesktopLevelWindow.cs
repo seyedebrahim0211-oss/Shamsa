@@ -60,11 +60,34 @@ public class DesktopLevelWindow : Window
         _commitTimer.Tick += (_, _) =>
         {
             _commitTimer.Stop();
-            if (_ready) BoundsCommitted?.Invoke(new Rect(Left, Top, ActualWidth, ActualHeight));
+            if (_ready) { FitPrimary(); BoundsCommitted?.Invoke(new Rect(Left, Top, Width, Height)); }
         };
         LocationChanged += (_, _) => Touch();
         SizeChanged += (_, _) => Touch();
+        Loaded += (_, _) =>
+        {
+            FitPrimary();
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += DisplayChanged;
+        };
+        Closed += (_, _) =>
+        {
+            _ready = false;
+            _commitTimer.Stop();
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplayChanged;
+        };
         ContentRendered += (_, _) => _ready = true;
+    }
+
+    private void DisplayChanged(object? sender, EventArgs args) => Dispatcher.BeginInvoke(() => { if (IsLoaded) FitPrimary(); });
+
+    internal void FitPrimary()
+    {
+        var area = SystemParameters.WorkArea;
+        if (area.IsEmpty || area.Width < MinWidth || area.Height < MinHeight) return;
+        Width = Math.Clamp(Width, MinWidth, area.Width);
+        Height = Math.Clamp(Height, MinHeight, area.Height);
+        Left = Math.Clamp(Left, area.Left, area.Right - Width);
+        Top = Math.Clamp(Top, area.Top, area.Bottom - Height);
     }
 
     private void Touch()

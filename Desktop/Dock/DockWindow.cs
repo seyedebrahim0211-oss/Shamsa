@@ -123,11 +123,14 @@ internal sealed class DockWindow : Window
         };
         DpiChanged += (_, e) => { _dpi = e.NewDpi.DpiScaleX; Place(); };
         _refreshTimer.Tick += (_, _) => RefreshItems(false);
+        void DisplayChanged(object? sender, EventArgs args) => Dispatcher.BeginInvoke(() => { if (IsLoaded) Place(); });
+        if (!preview) Microsoft.Win32.SystemEvents.DisplaySettingsChanged += DisplayChanged;
         _hoverTimer.Tick += (_, _) => { _hoverTimer.Stop(); ShowThumbnails(); };
         _thumbHideTimer.Tick += (_, _) => ThumbHideTick();
         _edgeTimer.Tick += (_, _) => EdgeTick();
         Closed += (_, _) =>
         {
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplayChanged;
             _refreshTimer.Stop(); _edgeTimer.Stop(); _hoverTimer.Stop(); _thumbHideTimer.Stop();
             try { _thumbs?.Close(); } catch { }
             _thumbs = null;
@@ -247,7 +250,7 @@ internal sealed class DockWindow : Window
     private void RefreshItems(bool force)
     {
         List<AppWindow> windows;
-        try { windows = _preview || IsVisible || force ? ShellInterop.GetAppWindows() : new(); }
+        try { windows = _preview || IsVisible || force ? ShellInterop.GetAppWindows(includeOwnProcess: true) : new(); }
         catch (Exception ex) { AppLog.Warn("Dock window scan: " + ex.Message); windows = new(); }
 
         var model = BuildModel(windows);
@@ -275,9 +278,15 @@ internal sealed class DockWindow : Window
         var list = new List<DockItem>();
         var byKey = new Dictionary<string, DockItem>(StringComparer.OrdinalIgnoreCase);
 
-        for (int i = 0; i < _s.Dock.Pinned.Count; i++)
+        var pins = new List<string>(_s.Dock.Pinned);
+        string nativePins = IOPath.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            @"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar");
+        try { if (Directory.Exists(nativePins)) pins.AddRange(Directory.GetFiles(nativePins, "*.lnk").OrderBy(x => x)); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        for (int i = 0; i < pins.Count; i++)
         {
-            string pin = _s.Dock.Pinned[i];
+            string pin = pins[i];
             if (string.IsNullOrWhiteSpace(pin)) continue;
             DockItemKind kind;
             bool isUri = (pin.Contains(':') && !IOPath.IsPathRooted(pin)) || pin.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
@@ -290,7 +299,7 @@ internal sealed class DockWindow : Window
             if (byKey.ContainsKey(key)) continue;
             var item = new DockItem
             {
-                Key = key, Kind = kind, Pin = pin, PinIndex = i, LaunchTarget = pin, Exe = exe,
+                Key = key, Kind = kind, Pin = pin, PinIndex = i, BuiltIn = i >= _s.Dock.Pinned.Count, LaunchTarget = pin, Exe = exe,
                 Label = LabelForPin(pin, kind, exe)
             };
             byKey[key] = item;
@@ -501,7 +510,7 @@ internal sealed class DockWindow : Window
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
         var p = e.GetPosition(_root);
-        if (_pressItem != null && _dragItem == null && _pressItem.IsPinned && !_preview &&
+        if (_pressItem != null && _dragItem == null && _pressItem.IsPinned && !_pressItem.BuiltIn && !_preview &&
             (Math.Abs(p.X - _pressPoint.X) > 8 || Math.Abs(p.Y - _pressPoint.Y) > 8))
         {
             _dragItem = _pressItem;
@@ -731,7 +740,7 @@ internal sealed class DockWindow : Window
 
     private void FinishReorder(DockItem drag, Point inStack)
     {
-        var pinnedItems = _items.Where(i => i.IsPinned).ToList();
+        var pinnedItems = _items.Where(i => i.IsPinned && !i.BuiltIn).ToList();
         if (pinnedItems.Count < 2) return;
         double axis = Horizontal ? inStack.X : inStack.Y;
         int newOrder = 0;
@@ -804,7 +813,7 @@ internal sealed class DockWindow : Window
         {
             menu.AddHeader(item.Label);
             var wins = item.Windows.Where(w => ShellInterop.IsWindow(w.Hwnd)).ToList();
-            foreach (var w in wins.Take(8))
+            foreach (var w in wins)
             {
                 var hwnd = w.Hwnd;
                 menu.AddItem("", string.IsNullOrWhiteSpace(w.Title) ? item.Label : w.Title, () => ShellInterop.Activate(hwnd));

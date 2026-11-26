@@ -159,6 +159,7 @@ public static class WidgetsStudioPage
         {
             if (syncing || counties.SelectedItem is not ListBoxItem { Tag: WidgetCityData.Place p }) return;
             syncing = true;
+            w.EyvanFile = null; w.ZoneId = null;
             w.City = p.Display; w.Latitude = p.Lat; w.Longitude = p.Lng;
             latBox.Text = p.Lat.ToString("0.####", CultureInfo.InvariantCulture);
             lngBox.Text = p.Lng.ToString("0.####", CultureInfo.InvariantCulture);
@@ -176,6 +177,7 @@ public static class WidgetsStudioPage
             if (double.TryParse(latBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var la) && la is >= -90 and <= 90 &&
                 double.TryParse(lngBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var lo) && lo is >= -180 and <= 180)
             {
+                w.EyvanFile = null; w.ZoneId = null;
                 w.Latitude = la; w.Longitude = lo;
                 if (WidgetCityData.All.All(c => Math.Abs(c.Lat - la) > 0.0001 || Math.Abs(c.Lng - lo) > 0.0001)) w.City = "موقعیت دلخواه";
                 selected.Text = "انتخاب فعلی: " + w.City;
@@ -184,6 +186,45 @@ public static class WidgetsStudioPage
         }
         latBox.TextChanged += (_, _) => CoordChanged();
         lngBox.TextChanged += (_, _) => CoordChanged();
+        var source = StudioUi.Muted(w.EyvanFile == null ? "" : "منبع شهر و اذان بعدی: ایوان");
+        var ip = new Button { Content = "تشخیص شهر با IP", ToolTip = "استعلام یک‌بارهٔ موقعیت تقریبی از ipwho.is" };
+        ip.Click += async (_, _) =>
+        {
+            ip.IsEnabled = false;
+            try
+            {
+                var place = await CityClock.LookupAsync();
+                if (!ip.IsLoaded) return;
+                syncing = true;
+                w.City = place.City; w.Latitude = place.Lat; w.Longitude = place.Lng; w.ZoneId = place.Zone; w.EyvanFile = null;
+                latBox.Text = place.Lat.ToString("0.####", CultureInfo.InvariantCulture);
+                lngBox.Text = place.Lng.ToString("0.####", CultureInfo.InvariantCulture);
+                selected.Text = "انتخاب فعلی: " + place.City;
+                source.Text = "موقعیت تقریبی IP · " + place.Zone;
+                changed();
+            }
+            catch { source.Text = "دریافت موقعیت ممکن نشد؛ شهر را دستی انتخاب کنید."; }
+            finally { syncing = false; ip.IsEnabled = true; }
+        };
+        loc.Children.Add(ip);
+        loc.Children.Add(StudioUi.Button("اتصال به افزونهٔ ایوان", () =>
+        {
+            try { source.Text = EyvanBridge.Register(); w.EyvanFile = EyvanBridge.Snapshot; changed(); }
+            catch (Exception ex) { source.Text = ex.Message; }
+        }));
+        loc.Children.Add(StudioUi.Button("فایل ایوان…", () =>
+        {
+            var pick = new Microsoft.Win32.OpenFileDialog { Filter = "Eyvan JSON|*.json" };
+            if (pick.ShowDialog() != true) return;
+            var state = EyvanBridge.Read(pick.FileName);
+            if (state == null) { source.Text = "فایل وضعیت رابط ایوان (schema 1) را انتخاب کنید."; return; }
+            w.EyvanFile = pick.FileName; source.Text = "متصل به وضعیت ایوان · " + state.City; changed();
+        }));
+        loc.Children.Add(StudioUi.Button("قطع اتصال ایوان", () =>
+        {
+            EyvanBridge.Unregister(); w.EyvanFile = null; source.Text = "شهر دستی فعال است."; changed();
+        }));
+        loc.Children.Add(source);
         loc.Children.Add(selected);
         loc.Children.Add(StudioUi.Labeled("استان / کشور", province));
         loc.Children.Add(StudioUi.Labeled("جست‌وجوی شهرستان", search));
@@ -204,6 +245,30 @@ public static class WidgetsStudioPage
         loc.Children.Add(StudioUi.Muted(PersianHolidays.LunarNote));
         loc.Children.Add(StudioUi.Muted(WidgetCityData.Attribution));
         root.Children.Add(StudioUi.Card(loc));
+        var world = new StackPanel();
+        world.Children.Add(StudioUi.Title("ساعت جهانی"));
+        var zones = new ComboBox { MaxDropDownHeight = 320, ItemsSource = TimeZoneInfo.GetSystemTimeZones(),
+            DisplayMemberPath = "DisplayName", IsTextSearchEnabled = true };
+        var name = new TextBox { ToolTip = "نام کشور یا شهر" };
+        var clocks = new StackPanel();
+        void FillClocks()
+        {
+            clocks.Children.Clear();
+            foreach (var (id, label) in w.WorldZones.ToArray())
+                clocks.Children.Add(StudioUi.Button(label + "  ×", () => { w.WorldZones.Remove(id); FillClocks(); changed(); }));
+        }
+        world.Children.Add(StudioUi.Labeled("منطقهٔ زمانی", zones));
+        world.Children.Add(StudioUi.Labeled("نام نمایشی", name));
+        world.Children.Add(StudioUi.Button("افزودن ساعت", () =>
+        {
+            if (zones.SelectedItem is not TimeZoneInfo z) return;
+            string id = TimeZoneInfo.TryConvertWindowsIdToIanaId(z.Id, out var iana) ? iana : z.Id;
+            w.WorldZones[id] = string.IsNullOrWhiteSpace(name.Text) ? z.DisplayName : name.Text.Trim();
+            FillClocks(); changed();
+        }));
+        world.Children.Add(clocks);
+        FillClocks();
+        root.Children.Add(StudioUi.Card(world));
         return root;
     }
 }
