@@ -33,13 +33,20 @@ public static class WidgetViews
 
     internal static string D(string s) => DesktopTheme.Digits(s, true);
 
-    /// <summary>Time zone of a widget city (Iran, Afghanistan, Tajikistan); null = use the PC's zone.</summary>
+    /// <summary>Time zone of a widget city (Iran, Iraq, Afghanistan, Tajikistan); null = use the PC's zone.</summary>
     internal static TimeZoneInfo? CityTimeZone(string? city, double lat, double lng)
     {
-        string? id = city switch
+        // Country comes from the city dataset («شهرستان، استان» or a bare name); for hand-typed
+        // coordinates the nearest listed place (within ~55 km) decides.
+        var place = WidgetCityData.Find(city);
+        if (place != null && (Math.Abs(place.Lat - lat) > 1 || Math.Abs(place.Lng - lng) > 1)) place = null; // name and coords disagree
+        place ??= WidgetCityData.Nearest(lat, lng);
+        string? id = place?.Country switch
         {
-            "کابل" or "هرات" or "مزار شریف" or "قندهار" => "Afghanistan Standard Time",
-            "دوشنبه" or "خجند" => "West Asia Standard Time",
+            "IR" => "Iran Standard Time",
+            "IQ" => "Arabic Standard Time",
+            "AF" => "Afghanistan Standard Time",
+            "TJ" => "West Asia Standard Time",
             _ => lat is >= 25 and <= 40 && lng is >= 44 and <= 63.5 ? "Iran Standard Time" : null,
         };
         if (id == null) return null;
@@ -197,7 +204,7 @@ public static class WidgetViews
             var w = _s.Widgets;
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
             head.Children.Add(Glyph("", 15, DesktopTheme.AccentBrush(_s)));
-            head.Children.Add(new TextBlock { Text = "  اوقات شرعی " + w.City, FontSize = 14.5, FontWeight = FontWeights.Bold, Foreground = DesktopTheme.TextBrush });
+            head.Children.Add(new TextBlock { Text = "  اوقات شرعی " + WidgetCityData.ShortName(w.City), FontSize = 14.5, FontWeight = FontWeights.Bold, Foreground = DesktopTheme.TextBrush });
             Children.Add(head);
             Children.Add(Text(PersianDate.Long(DateTime.Today, true), 11.5, brush: DesktopTheme.MutedBrush));
 
@@ -282,7 +289,7 @@ public static class WidgetViews
                 top.Children.Add(Glyph(glyph, 38, DesktopTheme.AccentBrush(_s)));
                 var mid = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
                 mid.Children.Add(Text(D($"{Math.Round(r.Temperature)}°"), 30, FontWeights.Bold));
-                mid.Children.Add(Text($"{name} · {w.City}", 12.5, brush: DesktopTheme.MutedBrush));
+                mid.Children.Add(Text($"{name} · {WidgetCityData.ShortName(w.City)}", 12.5, brush: DesktopTheme.MutedBrush));
                 top.Children.Add(mid);
                 Children.Add(top);
                 Children.Add(Text(D($"باد {Math.Round(r.Wind)} کیلومتر بر ساعت"), 11.5, brush: DesktopTheme.MutedBrush));

@@ -31,6 +31,15 @@ internal sealed class VoiceCommandService : IDisposable
         ("take screenshot", VoiceCommand.Screenshot),
         ("take a screenshot", VoiceCommand.Screenshot),
         ("negar screenshot", VoiceCommand.Screenshot),
+        // Persian commands spoken in Finglish (Windows ships no Persian desktop recogniser).
+        ("negar zabt kon", VoiceCommand.StartRecording),
+        ("shoroe zabt", VoiceCommand.StartRecording),
+        ("negar tavaghof", VoiceCommand.StopRecording),
+        ("payane zabt", VoiceCommand.StopRecording),
+        ("negar maks", VoiceCommand.PauseRecording),
+        ("negar edame", VoiceCommand.ResumeRecording),
+        ("negar aks begir", VoiceCommand.Screenshot),
+        ("aks begir", VoiceCommand.Screenshot),
     };
 
     public static string NoRecognizerMessage =>

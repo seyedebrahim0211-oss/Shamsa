@@ -62,6 +62,7 @@ public static class VoiceCommands
                 Add($"{wake} {n}", "چیدمان ذخیره‌شده: " + n, () => LayoutProfileCommand?.Invoke(n));
             }
             Add($"{wake} حالت کار", "چیدمان «حالت کار»", () => LayoutProfileCommand?.Invoke("حالت کار"));
+            foreach (var (phrase, desc, run) in SystemCommands(VoiceLanguage.Persian)) Add($"{wake} {phrase}", desc, run);
         }
         else
         {
@@ -89,6 +90,7 @@ public static class VoiceCommands
                 string n = name;
                 Add($"{wake} {n}", "چیدمان ذخیره‌شده: " + n, () => LayoutProfileCommand?.Invoke(n));
             }
+            foreach (var (phrase, desc, run) in SystemCommands(VoiceLanguage.Finglish)) Add($"{wake} {phrase}", desc, run);
         }
 
         // Apps last (most phrases). Persian grammar accepts Persian and Latin names; Finglish only Latin.
@@ -111,6 +113,101 @@ public static class VoiceCommands
             if (list.Count > before) count++;
         }
         return list;
+    }
+
+    // ------------------------------------------------------------------ Persian system commands
+
+    [DllImport("user32.dll")] private static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+    private const byte VK_VOLUME_MUTE = 0xAD, VK_VOLUME_DOWN = 0xAE, VK_VOLUME_UP = 0xAF;
+    private const byte VK_MEDIA_NEXT = 0xB0, VK_MEDIA_PREV = 0xB1, VK_MEDIA_PLAY_PAUSE = 0xB3;
+
+    private static void Tap(byte vk, int times = 1)
+    {
+        for (int i = 0; i < times; i++)
+        {
+            keybd_event(vk, 0, 0, UIntPtr.Zero);
+            keybd_event(vk, 0, 2 /* KEYUP */, UIntPtr.Zero);
+        }
+    }
+
+    private static void Shell(string target)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true }); }
+        catch (Exception ex) { AppLog.Warn("Voice shell command failed: " + ex.Message); }
+    }
+
+    private static void ShowDesktop()
+    {
+        try
+        {
+            var type = Type.GetTypeFromProgID("Shell.Application");
+            if (type == null) return;
+            dynamic shell = Activator.CreateInstance(type)!;
+            shell.ToggleDesktop();
+        }
+        catch (Exception ex) { AppLog.Warn("Voice show desktop failed: " + ex.Message); }
+    }
+
+    /// <summary>Windows light/dark for apps and taskbar (HKCU only, the same switch as Settings › Personalization).</summary>
+    private static void SetWindowsDark(bool dark)
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            key.SetValue("AppsUseLightTheme", dark ? 0 : 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key.SetValue("SystemUsesLightTheme", dark ? 0 : 1, Microsoft.Win32.RegistryValueKind.DWord);
+        }
+        catch (Exception ex) { AppLog.Warn("Voice theme switch failed: " + ex.Message); }
+    }
+
+    private static void OpenFolderStudio()
+    {
+        try { FolderStudio.FolderStudioFeature.ShowWindow(); }
+        catch (Exception ex) { AppLog.Warn("Voice folder studio failed: " + ex.Message); }
+    }
+
+    /// <summary>Everyday Persian commands (and their Finglish twins) that do not depend on other modules.</summary>
+    private static IEnumerable<(string Phrase, string Description, Action Run)> SystemCommands(VoiceLanguage lang)
+    {
+        bool fa = lang == VoiceLanguage.Persian;
+        (string, string, string, Action)[] all =
+        {
+            ("صدا بیشتر", "sedaa bishtar", "بلندتر کردن صدا", () => Tap(VK_VOLUME_UP, 5)),
+            ("صدا کمتر", "sedaa kamtar", "کم کردن صدا", () => Tap(VK_VOLUME_DOWN, 5)),
+            ("بی صدا", "bi sedaa", "قطع/وصل صدا", () => Tap(VK_VOLUME_MUTE)),
+            ("پخش", "pakhsh", "پخش/مکث رسانه", () => Tap(VK_MEDIA_PLAY_PAUSE)),
+            ("مکث", "maks", "پخش/مکث رسانه", () => Tap(VK_MEDIA_PLAY_PAUSE)),
+            ("آهنگ بعدی", "ahang badi", "آهنگ بعدی", () => Tap(VK_MEDIA_NEXT)),
+            ("آهنگ قبلی", "ahang ghabli", "آهنگ قبلی", () => Tap(VK_MEDIA_PREV)),
+            ("دسکتاپ", "desktop", "نمایش دسکتاپ", ShowDesktop),
+            ("این کامپیوتر", "in computer", "باز کردن This PC", () => Shell("shell:MyComputerFolder")),
+            ("مای کامپیوتر", "my computer", "باز کردن This PC", () => Shell("shell:MyComputerFolder")),
+            ("سطل زباله", "satle zobale", "باز کردن سطل بازیافت", () => Shell("shell:RecycleBinFolder")),
+            ("دانلودها", "downloads", "پوشه دانلودها", () => Shell("shell:Downloads")),
+            ("تنظیمات ویندوز", "tanzimate windows", "تنظیمات ویندوز", () => Shell("ms-settings:")),
+            ("وای فای", "wifi", "تنظیمات وای‌فای", () => Shell("ms-settings:network-wifi")),
+            ("بلوتوث", "bluetooth", "تنظیمات بلوتوث", () => Shell("ms-settings:bluetooth")),
+            ("مدیر وظایف", "task manager", "Task Manager", () => Shell("taskmgr.exe")),
+            ("حالت تاریک", "halate tarik", "تم تیره ویندوز", () => SetWindowsDark(true)),
+            ("حالت روشن", "halate roshan", "تم روشن ویندوز", () => SetWindowsDark(false)),
+            ("نگارخانه", "negarkhaneh", "باز کردن نگارخانه", () => DesktopEvents.RequestStudio(null)),
+            ("داشبورد", "dashboard", "باز کردن نگارخانه", () => DesktopEvents.RequestStudio(null)),
+            ("اوقات شرعی", "oghate sharei", "اوقات شرعی و ابزارک‌ها", () => DesktopEvents.RequestStudio("widgets")),
+            ("آب و هوا", "ab o hava", "آب‌وهوا و ابزارک‌ها", () => DesktopEvents.RequestStudio("widgets")),
+            ("شخصی سازی", "shakhsi sazi", "شخصی‌سازی ویندوز", () => DesktopEvents.RequestStudio("personalize")),
+            ("استودیو پوشه", "studio pooshe", "استودیو پوشه", OpenFolderStudio),
+            ("آیکون پوشه", "icon pooshe", "استودیو پوشه", OpenFolderStudio),
+        };
+        foreach (var (faPhrase, enPhrase, desc, run) in all)
+            yield return (fa ? faPhrase : enPhrase, desc, run);
+    }
+
+    /// <summary>Command table for the help page: (Persian, Finglish, what it does).</summary>
+    public static IEnumerable<(string Persian, string Finglish, string Description)> SystemCommandHelp()
+    {
+        var fa = SystemCommands(VoiceLanguage.Persian).ToList();
+        var en = SystemCommands(VoiceLanguage.Finglish).ToList();
+        for (int i = 0; i < fa.Count; i++) yield return (fa[i].Phrase, en[i].Phrase, fa[i].Description);
     }
 
     private static void OpenLauncher()

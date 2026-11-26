@@ -55,7 +55,7 @@ public static class VoiceStudioPage
             ("نگار مرکز کنترل", "negar markaze control", "مرکز کنترل"),
             ("نگار عکس بگیر / ضبط کن", "negar screenshot / negar record", "اسکرین‌شات و ضبط"),
             ("نگار کلیپ بورد", "negar clipboard", "تاریخچه کلیپ‌بورد"),
-        })
+        }.Concat(VoiceCommands.SystemCommandHelp().Select(h => ("نگار " + h.Persian, "negar " + h.Finglish, h.Description))))
         {
             var row = new Grid { Margin = new Thickness(0, 3, 0, 3) };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) });
