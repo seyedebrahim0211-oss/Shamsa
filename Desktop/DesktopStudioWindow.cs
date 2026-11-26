@@ -237,7 +237,7 @@ public sealed class DesktopStudioView : UserControl
         }));
         grid.Children.Add(PresetButton("🧩 کاشی‌کاری حرفه‌ای", "نوار بالا + مدیر پنجره با چیدمان خودکار", s =>
         {
-            s.TopBar.Enabled = true; s.Dock.Enabled = false; s.Launcher.Enabled = true;
+            s.TopBar.Enabled = true; s.Dock.Enabled = true; s.Launcher.Enabled = true;
             s.WindowManager.Enabled = true; s.WindowManager.AutoTile = true; s.WindowManager.Layout = "Bsp"; s.HideWindowsTaskbar = true;
         }));
         grid.Children.Add(PresetButton("🌿 مینیمال", "فقط جستجوی سریع و چسباندن پنجره‌ها؛ تسک‌بار ویندوز می‌ماند", s =>
@@ -245,6 +245,20 @@ public sealed class DesktopStudioView : UserControl
             s.TopBar.Enabled = false; s.Dock.Enabled = false; s.Launcher.Enabled = true;
             s.WindowManager.Enabled = true; s.WindowManager.AutoTile = false; s.HideWindowsTaskbar = false;
         }));
+        foreach (var (title, detail, accent, tint, size, radius) in new[]
+        {
+            ("شمسه", "فیروزه و لاجورد · کاشی ایرانی", "#28D5BD", "#10244C", 48, 16),
+            ("تذهیب", "طلایی و سبز یشمی", "#EBC26D", "#13392F", 46, 12),
+            ("بازی", "داک جمع‌وجور با تأکید سبز", "#9FEA69", "#14191E", 36, 4),
+            ("طراحی", "خاکستری خنثی با تأکید مرجانی", "#FF967D", "#272629", 50, 8),
+            ("استریم", "بنفش و سرمه‌ای با آیکون‌های درشت", "#C8A4FF", "#211831", 56, 18)
+        })
+            grid.Children.Add(PresetButton(title, detail, s =>
+            {
+                s.Theme.AccentHex = accent; s.Theme.GlassTintHex = tint; s.Theme.CornerRadius = radius;
+                s.Dock.IconSize = size; s.Dock.Enabled = true; s.TopBar.Enabled = true;
+                s.Launcher.Enabled = true; s.Dock.Position = "Bottom"; s.HideWindowsTaskbar = true;
+            }));
         presets.Children.Add(grid);
         _page.Children.Add(Wrap(presets));
 
@@ -537,6 +551,33 @@ public sealed class DesktopStudioView : UserControl
             c.Children.Add(row);
         }
         _page.Children.Add(Wrap(c));
+        var editor = Card("تغییر میانبرهای مدیر پنجره‌ها");
+        foreach (var (id, label, mods, key) in new[] {
+            ("left", "نیمه چپ", 3u, 0x25),
+            ("right", "نیمه راست", 3u, 0x27),
+            ("up", "نیمه بالا", 3u, 0x26),
+            ("down", "نیمه پایین", 3u, 0x28),
+            ("tl", "ربع بالا-چپ", 3u, 0x55),
+            ("tr", "ربع بالا-راست", 3u, 0x49),
+            ("bl", "ربع پایین-چپ", 3u, 0x4A),
+            ("br", "ربع پایین-راست", 3u, 0x4B),
+            ("max", "تمام‌صفحه با فاصله / بازگردانی", 3u, 0x0D),
+            ("center", "وسط صفحه (۷۰٪)", 3u, 0x43),
+            ("tile", "روشن/خاموش چیدمان خودکار", 3u, 0x54),
+            ("layout", "چیدمان بعدی", 3u, 0x4C),
+            ("float", "شناور کردن پنجره", 3u, 0x46),
+            ("prev", "پنجره قبلی", 3u, 0xDB),
+            ("next", "پنجره بعدی", 3u, 0xDD),
+            ("swapl", "جابه‌جایی با قبلی", 7u, 0x25),
+            ("swapr", "جابه‌جایی با بعدی", 7u, 0x27)
+        })
+        {
+            var value = _s.WindowManager.Hotkeys.TryGetValue(id, out var custom) && custom != null ? custom : new WindowHotkey(mods, key);
+            editor.Children.Add(Labeled(label, HotkeyBox(value.Modifiers, value.Key, "wm." + id,
+                (m, k) => _s.WindowManager.Hotkeys[id] = new WindowHotkey(m, k))));
+        }
+        editor.Children.Add(SmallButton("بازنشانی میانبرها", () => { _s.WindowManager.Hotkeys.Clear(); Changed(); ShowPageLater(); }));
+        _page.Children.Add(Wrap(editor));
         var note = Card("پیشنهاد");
         note.Children.Add(Muted("از ترکیب‌های Alt+Shift و Ctrl+Shift تنها استفاده نکن؛ در ویندوز فارسی برای تغییر زبان صفحه‌کلید به کار می‌روند. کلیدهای Win+… هم بیشتر در اختیار خود ویندوز هستند."));
         note.Children.Add(Muted("میانبر منوی دایره‌ای و ضبط صفحه از داشبورد نگارخانه و پنجره ضبط تغییر می‌کنند؛ میانبر جستجوی سریع از همین استودیو."));
@@ -770,6 +811,14 @@ public sealed class DesktopStudioView : UserControl
         var b = new Button { Content = content, Margin = new Thickness(4), Padding = new Thickness(12, 10, 12, 10), HorizontalContentAlignment = HorizontalAlignment.Stretch };
         b.Click += (_, _) =>
         {
+            // A preset starts from stable shell defaults even after switching from auto-tiling.
+            _s.TopBar.AllMonitors = false;
+            _s.WindowManager.AutoTile = false;
+            _s.WindowManager.Enabled = false;
+            _s.Dock.Magnification = 145;
+            _s.Dock.IconSize = 46;
+            _s.Theme = new();
+            _s.TopBar.Position = "Top";
             apply(_s);
             _s.Enabled = true;
             Changed();

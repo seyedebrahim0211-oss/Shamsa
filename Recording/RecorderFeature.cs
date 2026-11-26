@@ -8,7 +8,6 @@ public static class RecorderFeature
 {
     private static readonly ScreenRecorderEngine Engine = new();
     private static RecorderHotkeys? _hotkeys;
-    private static VoiceCommandService? _voice;
     private static RecordingToolbar? _toolbar;
     private static ClickHighlightOverlay? _clickOverlay;
     private static RecorderWindow? _window;
@@ -22,7 +21,6 @@ public static class RecorderFeature
     internal static event Action? StatusChanged;
     internal static event Action<string>? Message;
     internal static string HotkeyStatus { get; private set; } = string.Empty;
-    internal static string VoiceStatus { get; private set; } = string.Empty;
 
     internal static RecorderState State => Engine.State;
     internal static TimeSpan Elapsed => Engine.Elapsed;
@@ -43,7 +41,6 @@ public static class RecorderFeature
             if (Engine.State == RecorderState.Recording) await StopAsync();
         });
         ApplyHotkeys();
-        if (RecorderSettingsStore.Current.VoiceCommandsEnabled) SetVoiceEnabled(true, persist: false);
     }
 
     public static void ShowWindow()
@@ -130,8 +127,6 @@ public static class RecorderFeature
         CloseRecordingUi();
         _hotkeys?.Dispose();
         _hotkeys = null;
-        _voice?.Dispose();
-        _voice = null;
     }
 
     // ------------------------------------------------------------------ internals
@@ -161,46 +156,6 @@ public static class RecorderFeature
         return h;
     }
 
-    /// <summary>Turns voice commands on/off. Returns a Persian error, or null when it worked.</summary>
-    internal static string? SetVoiceEnabled(bool enabled, bool persist = true)
-    {
-        string? error = null;
-        if (enabled)
-        {
-            _voice ??= CreateVoice();
-            error = _voice.Start();
-            VoiceStatus = error ?? $"در حال گوش دادن · {_voice.RecognizerName}";
-        }
-        else
-        {
-            _voice?.Stop();
-            VoiceStatus = "خاموش";
-        }
-        bool effective = enabled && error == null;
-        if (persist || (!effective && RecorderSettingsStore.Current.VoiceCommandsEnabled))
-            RecorderSettingsStore.Update(s => s.VoiceCommandsEnabled = effective);
-        StatusChanged?.Invoke();
-        return error;
-    }
-
-    private static VoiceCommandService CreateVoice()
-    {
-        var v = new VoiceCommandService();
-        v.Recognized += (cmd, text) => Dispatch(() =>
-        {
-            Message?.Invoke($"🎙 فرمان صوتی: «{text}»");
-            switch (cmd)
-            {
-                case VoiceCommand.StartRecording when Engine.State == RecorderState.Idle: ToggleRecording(); break;
-                case VoiceCommand.StopRecording when Engine.State is RecorderState.Recording or RecorderState.Paused: ToggleRecording(); break;
-                case VoiceCommand.PauseRecording when Engine.State == RecorderState.Recording: PauseResume(); break;
-                case VoiceCommand.ResumeRecording when Engine.State == RecorderState.Paused: PauseResume(); break;
-                case VoiceCommand.Screenshot: TakeScreenshot(); break;
-            }
-        });
-        return v;
-    }
-
     private static async Task StartAsync()
     {
         var s = RecorderSettingsStore.Current;
@@ -228,7 +183,7 @@ public static class RecorderFeature
             Directory.CreateDirectory(folder);
             string output = ScreenshotService.UniquePath(Path.Combine(folder, $"Shamsa_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.{s.Container}"));
             var job = new RecordingJob(r, s.Fps, s.Quality, s.Encoder, s.Container, s.DrawMouse,
-                s.UseDesktopDuplication, DdaOutputFor(r), s.RecordSystemAudio, s.RecordMicrophone, output);
+                s.UseDesktopDuplication, DdaOutputFor(r), s.RecordSystemAudio, s.RecordMicrophone, output, s.CameraDevice, s.CameraCorner, s.CameraPercent);
 
             if (s.HighlightClicks) { _clickOverlay = new ClickHighlightOverlay(); _clickOverlay.Show(); }
             try { await Engine.StartAsync(job); }

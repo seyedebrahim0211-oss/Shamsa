@@ -118,7 +118,7 @@ internal sealed class WidgetWindow : DesktopLevelWindow
         Width = p.Width > 60 ? p.Width : dw;
         Height = p.Height > 60 ? p.Height : dh;
         Left = p.X; Top = p.Y;
-        EnsureOnScreen();
+        if (!preview) FitPrimary();
         Locked = s.Widgets.LockPositions;
         Render();
         ContextMenu = BuildMenu();
@@ -135,16 +135,6 @@ internal sealed class WidgetWindow : DesktopLevelWindow
         for (var cur = d; cur != null; cur = cur is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(cur) : LogicalTreeHelper.GetParent(cur))
             if (cur is T) return true;
         return false;
-    }
-
-    private void EnsureOnScreen()
-    {
-        var vs = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
-        if (!vs.IntersectsWith(new Rect(Left, Top, Width, Height)) || Left + 40 > vs.Right || Top + 40 > vs.Bottom)
-        {
-            Left = SystemParameters.WorkArea.Left + 60;
-            Top = SystemParameters.WorkArea.Top + 60;
-        }
     }
 
     public void UpdateFrom(WidgetPlacement p, DesktopSettings s)

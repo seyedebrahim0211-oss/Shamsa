@@ -36,6 +36,11 @@ public sealed class RecorderSettings
     public string Container { get; set; } = "mp4";
     public bool UseDesktopDuplication { get; set; }
     public bool DrawMouse { get; set; } = true;
+    public string LeftClickColor { get; set; } = "#F6D379";
+    public string RightClickColor { get; set; } = "#2DD4BF";
+    public string CameraDevice { get; set; } = "";
+    public int CameraCorner { get; set; } = 3;
+    public int CameraPercent { get; set; } = 24;
     public bool HighlightClicks { get; set; }
     public bool Countdown { get; set; } = true;
     public bool RecordSystemAudio { get; set; } = true;
@@ -67,6 +72,10 @@ public sealed class RecorderSettings
 
     public void Normalize()
     {
+        CameraCorner = Math.Clamp(CameraCorner, 0, 3);
+        CameraPercent = Math.Clamp(CameraPercent, 12, 45);
+        if (!ThemeService.TryParseAccent(LeftClickColor, out _)) LeftClickColor = "#F6D379";
+        if (!ThemeService.TryParseAccent(RightClickColor, out _)) RightClickColor = "#2DD4BF";
         Fps = Fps is 15 or 24 or 30 or 60 ? Fps : 30;
         Quality = Math.Clamp(Quality, 10, 100);
         Encoder = Encoder is "x264" or "h264_nvenc" or "h264_qsv" or "h264_amf" ? Encoder : "x264";

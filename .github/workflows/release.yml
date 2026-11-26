@@ -66,10 +66,39 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build Shamsa.csproj --no-restore -c Release -r win-x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Test-Path Tests/Shamsa.Tests.csproj) {
-            dotnet test Tests/Shamsa.Tests.csproj -c Release
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          if (!(Test-Path Tests/Shamsa.Tests.csproj)) { throw "Regression tests missing" }
+          dotnet test Tests/Shamsa.Tests.csproj -c Release --logger "console;verbosity=normal"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Audit NuGet dependencies
+        shell: pwsh
+        run: |
+          $report = dotnet list Shamsa.csproj package --vulnerable --include-transitive --format json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $audit = $report | ConvertFrom-Json
+          if (-not $audit.projects) { throw "Dependency audit returned no projects" }
+          $vulns = @(
+            foreach ($project in $audit.projects) {
+              foreach ($framework in $project.frameworks) {
+                foreach ($package in (@($framework.topLevelPackages) + @($framework.transitivePackages))) {
+                  foreach ($vulnerability in $package.vulnerabilities) {
+                    if ($null -ne $vulnerability) {
+                      [pscustomobject]@{
+                        package = $package.id
+                        version = $package.resolvedVersion
+                        framework = $framework.framework
+                        severity = $vulnerability.severity
+                        advisoryurl = $vulnerability.advisoryurl
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          )
+          if ($vulns.Count -eq 0) { Write-Output "No known NuGet vulnerabilities found." }
+          else { $vulns | ConvertTo-Json -Depth 8 | Write-Output }
+          if ($vulns | Where-Object { $_.severity -in @('High', 'Critical') }) { throw "High or critical NuGet vulnerability" }
 
       - name: Publish self-contained Windows x64 application
         shell: pwsh

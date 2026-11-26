@@ -109,7 +109,7 @@ internal sealed class TopBarState : IDisposable
 
     // ------------------------------------------------------------ providers
 
-    private void UpdateClock() => Now = DateTime.Now;
+    private void UpdateClock() => Now = Widgets.CityClock.Now(DesktopSettingsStore.Current.Widgets);
 
     private void UpdateStats()
     {

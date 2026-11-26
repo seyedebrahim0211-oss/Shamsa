@@ -61,6 +61,7 @@ public sealed class WindowManagerModule : IDesktopModule
     private IntPtr _ffmCandidate;
     private DateTime _ffmSince;
     private readonly List<string> _hotkeyIds = new();
+    private string _hotkeySignature = "";
 
     // ------------------------------------------------------------------ IDesktopModule
 
@@ -83,6 +84,8 @@ public sealed class WindowManagerModule : IDesktopModule
             if (_appliedLayout != _cfg.Layout) { _layout = TileLayout.Parse(_cfg.Layout); _appliedLayout = _cfg.Layout; }
             if (_appliedAutoTile != _cfg.AutoTile) { _appliedAutoTile = _cfg.AutoTile; SetTiling(_cfg.AutoTile, announce: false); }
 
+            string signature = string.Join("|", _cfg.Hotkeys.OrderBy(x => x.Key).Select(x => $"{x.Key}:{x.Value?.Modifiers}:{x.Value?.Key}"));
+            if (signature != _hotkeySignature) { UnregisterHotkeys(); _hotkeySignature = signature; }
             if (_cfg.HotkeysEnabled) RegisterHotkeys(); else UnregisterHotkeys();
 
             if (_cfg.FocusFollowsMouse)
@@ -135,6 +138,8 @@ public sealed class WindowManagerModule : IDesktopModule
         const uint CAS = CA | NativeMethods.MOD_SHIFT;
         void Add(string id, string label, uint mods, int vk, Action a)
         {
+            if (_cfg.Hotkeys.TryGetValue(id, out var custom) && custom != null && custom.Key is > 0 and <= 255 && custom.Modifiers is > 0 and <= 15)
+            { mods = custom.Modifiers; vk = custom.Key; }
             HotkeyRegistry.Register(new HotkeyBinding("wm." + id, Owner, label, mods, vk), () => Safe(a));
             _hotkeyIds.Add("wm." + id);
         }

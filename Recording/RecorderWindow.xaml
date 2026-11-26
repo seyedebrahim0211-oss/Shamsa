@@ -132,6 +132,25 @@
                             <CheckBox x:Name="ToolbarCheck" Content="نوار شناور هنگام ضبط" Click="Setting_Changed" Margin="0,4,18,4"/>
                             <CheckBox x:Name="DdaCheck" Content="ضبط با Desktop Duplication (کم‌مصرف‌تر، فقط مانیتور اصلی)" Click="Setting_Changed" Margin="0,4,18,4"/>
                         </WrapPanel>
+                        <WrapPanel>
+                            <Button Content="رنگ کلیک چپ" Name="LeftColor" Click="PickClickColor"/>
+                            <Button Content="رنگ کلیک راست" Name="RightColor" Click="PickClickColor"/>
+                        </WrapPanel>
+                        <Expander Header="دوربین روی تصویر ضبط">
+                            <StackPanel Margin="8">
+                                <WrapPanel>
+                                    <ComboBox Name="Cameras" MinWidth="190" SelectionChanged="CameraChanged"/>
+                                    <Button Name="DetectCameras" Content="شناسایی دوربین‌ها" Click="ScanCameras"/>
+                                </WrapPanel>
+                                <TextBlock Text="جای تصویر دوربین"/>
+                                <ComboBox Name="CameraCorner" SelectionChanged="CameraChanged">
+                                    <ComboBoxItem Content="بالا چپ"/><ComboBoxItem Content="بالا راست"/>
+                                    <ComboBoxItem Content="پایین چپ"/><ComboBoxItem Content="پایین راست"/>
+                                </ComboBox>
+                                <TextBlock Text="اندازهٔ تصویر دوربین (درصد عرض و ارتفاع ضبط)"/>
+                                <Slider Name="CameraSize" Minimum="12" Maximum="45" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="CameraSizeChanged"/>
+                            </StackPanel>
+                        </Expander>
                         <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0" Text="نوار شناور و شمارش معکوس در ویندوز ۱۰ (2004 به بعد) و ۱۱ در فیلم ضبط‌شده دیده نمی‌شوند. اگر انکودر کارت گرافیک یا Desktop Duplication کار نکند، خودکار به روش استاندارد برمی‌گردد."/>
                     </StackPanel>
                 </Border>
@@ -192,11 +211,9 @@
 
                             <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,10"/>
                             <TextBlock Text="🎙 فرمان صوتی" Style="{StaticResource SectionTitle}"/>
-                            <CheckBox x:Name="VoiceCheck" Content="کنترل ضبط و اسکرین‌شات با صدا" Click="Voice_Changed"/>
-                            <TextBlock x:Name="VoiceStatusText" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,4"/>
-                            <TextBlock Style="{StaticResource Muted}" FontSize="11" FlowDirection="LeftToRight" TextAlignment="Right"
-                                       Text="“start recording” · “stop recording” · “pause recording” · “resume recording” · “take screenshot”"/>
-                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0" Text="ویندوز موتور تشخیص گفتار فارسی ندارد؛ فرمان‌ها انگلیسی و کاملاً آفلاین هستند."/>
+                            <StackPanel x:Name="VoiceControls"/>
+                            <TextBlock x:Name="VoiceStatusText" TextWrapping="Wrap"/>
+                            <Button Content="تنظیم و نصب گفتار فارسی" Click="VoiceSettings_Click"/>
                         </StackPanel>
                     </Border>
                 </UniformGrid>

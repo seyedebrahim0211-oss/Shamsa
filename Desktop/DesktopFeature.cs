@@ -69,7 +69,7 @@ public static class DesktopFeature
             catch (Exception ex) { AppLog.Error($"Desktop module {m.Id} failed to apply", ex); }
         }
         // Only hide the Windows taskbar when one of our replacements is actually on screen.
-        bool replacementRunning = (Find("topbar")?.IsRunning ?? false) || (Find("dock")?.IsRunning ?? false);
+        bool replacementRunning = Find("dock")?.IsRunning == true;
         bool hide = s.Enabled && s.HideWindowsTaskbar && replacementRunning;
         if (hide != ShellInterop.IsTaskbarHidden) ShellInterop.SetWindowsTaskbarHidden(hide);
     }

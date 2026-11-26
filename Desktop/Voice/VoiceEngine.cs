@@ -1,175 +1,80 @@
+using System.IO.Compression;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Speech.AudioFormat;
 using System.Speech.Recognition;
+using System.Text.Json;
 using Shamsa.Services;
-using WinSpeech = Windows.Media.SpeechRecognition;
+using Vosk;
 
 namespace Shamsa.Desktop.Voice;
 
-/// <summary>One recognised utterance.</summary>
-public sealed record VoiceHeard(string Text, double Confidence);
-
-/// <summary>Common shape of the three recogniser back-ends.</summary>
-internal interface IVoiceEngine : IDisposable
+internal static class VoiceEngine
 {
-    VoiceLanguage Language { get; }
-    string Description { get; }
-    event Action<VoiceHeard>? Heard;
-    Task StartAsync(IReadOnlyList<string> phrases);
-    /// <summary>Listens once (up to <paramref name="timeout"/>) and returns the phrase heard, or null.</summary>
-    Task<VoiceHeard?> ListenOnceAsync(IReadOnlyList<string> phrases, TimeSpan timeout);
-}
+    private const string ModelName = "vosk-model-small-fa-0.42";
+    private const string Digest = "977cb5faa538f3a835ccfd35f5f6d8284b5c450b89c700b9bd4736b66536ad46";
+    private static readonly string Parent = Path.Combine(AppPaths.DataDir, "speech");
+    private static string Location => Path.Combine(Parent, ModelName);
+    internal static bool Installed => File.Exists(Path.Combine(Location, "am", "final.mdl"));
+    private static readonly SemaphoreSlim InstallGate = new(1);
+    private static readonly object RecognitionGate = new();
+    private static Model? _model;
 
-internal static class VoiceEngineFactory
-{
-    /// <summary>
-    /// Picks the best available engine: an installed Persian SAPI recogniser, then the Windows
-    /// (WinRT) recogniser for fa-IR, then an English recogniser with Finglish phrases.
-    /// Returns null when the machine has no speech recogniser at all.
-    /// </summary>
-    public static IVoiceEngine? Create(bool preferPersian)
+    internal static async Task InstallAsync()
     {
-        if (preferPersian)
-        {
-            try
-            {
-                var fa = SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(r => r.Culture.TwoLetterISOLanguageName == "fa");
-                if (fa != null) return new SapiEngine(fa, VoiceLanguage.Persian);
-            }
-            catch (Exception ex) { AppLog.Warn("SAPI recogniser query failed: " + ex.Message); }
-            try
-            {
-                var lang = WinSpeech.SpeechRecognizer.SupportedGrammarLanguages.FirstOrDefault(l => l.LanguageTag.StartsWith("fa", StringComparison.OrdinalIgnoreCase));
-                if (lang != null) return new WinRtEngine(lang);
-            }
-            catch (Exception ex) { AppLog.Warn("Windows speech languages query failed: " + ex.Message); }
-        }
+        await InstallGate.WaitAsync();
+        string stage = Path.Combine(Parent, Guid.NewGuid().ToString("N"));
         try
         {
-            var all = SpeechRecognitionEngine.InstalledRecognizers();
-            var en = all.FirstOrDefault(r => r.Culture.Name.Equals("en-US", StringComparison.OrdinalIgnoreCase))
-                     ?? all.FirstOrDefault(r => r.Culture.TwoLetterISOLanguageName == "en")
-                     ?? all.FirstOrDefault();
-            if (en != null) return new SapiEngine(en, VoiceLanguage.Finglish);
+            if (Installed) return;
+            Directory.CreateDirectory(stage);
+            string archive = Path.Combine(stage, "model.zip");
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            using var response = await http.GetAsync($"https://alphacephei.com/vosk/models/{ModelName}.zip", HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+            using (var output = File.Create(archive))
+            using (var source = await response.Content.ReadAsStreamAsync())
+            {
+                byte[] buffer = new byte[65536];
+                int count;
+                while ((count = await source.ReadAsync(buffer)) > 0)
+                {
+                    if (output.Length + count > 60L * 1024 * 1024) throw new InvalidDataException("حجم بسته نامعتبر است.");
+                    await output.WriteAsync(buffer.AsMemory(0, count));
+                }
+            }
+            using (var file = File.OpenRead(archive))
+                if (!Convert.ToHexString(await SHA256.HashDataAsync(file)).Equals(Digest, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("بستهٔ فارسی تأیید نشد.");
+            await Task.Run(() => ZipFile.ExtractToDirectory(archive, stage));
+            Directory.Move(Path.Combine(stage, ModelName), Location);
         }
-        catch (Exception ex) { AppLog.Warn("SAPI recogniser query failed: " + ex.Message); }
-        return null;
-    }
-}
-
-/// <summary>System.Speech (SAPI desktop recogniser) with a fixed phrase grammar.</summary>
-internal sealed class SapiEngine : IVoiceEngine
-{
-    private readonly RecognizerInfo _info;
-    private SpeechRecognitionEngine? _engine;
-
-    public SapiEngine(RecognizerInfo info, VoiceLanguage lang) { _info = info; Language = lang; }
-
-    public VoiceLanguage Language { get; }
-    public string Description => Language == VoiceLanguage.Persian
-        ? $"تشخیص گفتار فارسی ویندوز ({_info.Culture.Name})"
-        : $"تشخیص گفتار انگلیسی با عبارت‌های فینگلیش ({_info.Culture.Name}) — بسته گفتار فارسی روی ویندوز نصب نیست";
-    public event Action<VoiceHeard>? Heard;
-
-    private SpeechRecognitionEngine CreateEngine(IReadOnlyList<string> phrases)
-    {
-        var engine = new SpeechRecognitionEngine(_info);
-        var builder = new GrammarBuilder(new Choices(phrases.ToArray())) { Culture = _info.Culture };
-        engine.LoadGrammar(new Grammar(builder) { Name = "ShamsaDesktopVoice" });
-        engine.SetInputToDefaultAudioDevice();
-        return engine;
+        finally { try { if (Directory.Exists(stage)) Directory.Delete(stage, true); } finally { InstallGate.Release(); } }
     }
 
-    public Task StartAsync(IReadOnlyList<string> phrases)
+    internal static string Decode(byte[] pcm, VoiceLanguage language, List<VoiceCommand> commands)
     {
-        Dispose();
-        if (phrases.Count == 0) return Task.CompletedTask;
-        var engine = CreateEngine(phrases);
-        engine.SpeechRecognized += (_, e) =>
+        lock (RecognitionGate)
         {
-            if (e.Result != null) Heard?.Invoke(new VoiceHeard(e.Result.Text, e.Result.Confidence));
-        };
-        engine.RecognizeAsync(RecognizeMode.Multiple);
-        _engine = engine;
-        return Task.CompletedTask;
-    }
-
-    public Task<VoiceHeard?> ListenOnceAsync(IReadOnlyList<string> phrases, TimeSpan timeout) => Task.Run(() =>
-    {
-        if (phrases.Count == 0) return (VoiceHeard?)null;
-        using var engine = CreateEngine(phrases);
-        engine.InitialSilenceTimeout = timeout;
-        engine.BabbleTimeout = timeout;
-        var r = engine.Recognize(timeout);
-        return r == null ? null : new VoiceHeard(r.Text, r.Confidence);
-    });
-
-    public void Dispose()
-    {
-        var e = _engine;
-        _engine = null;
-        if (e == null) return;
-        try { e.RecognizeAsyncCancel(); } catch { }
-        try { e.SetInputToNull(); } catch { }
-        try { e.Dispose(); } catch { }
-    }
-}
-
-/// <summary>Windows.Media.SpeechRecognition (WinRT) with a list constraint — used for fa-IR when available.</summary>
-internal sealed class WinRtEngine : IVoiceEngine
-{
-    private readonly Windows.Globalization.Language _lang;
-    private WinSpeech.SpeechRecognizer? _recognizer;
-
-    public WinRtEngine(Windows.Globalization.Language lang) { _lang = lang; }
-
-    public VoiceLanguage Language => VoiceLanguage.Persian;
-    public string Description => $"تشخیص گفتار فارسی ویندوز (WinRT، {_lang.LanguageTag})";
-    public event Action<VoiceHeard>? Heard;
-
-    private async Task<WinSpeech.SpeechRecognizer> CreateAsync(IReadOnlyList<string> phrases)
-    {
-        var rec = new WinSpeech.SpeechRecognizer(_lang);
-        rec.Constraints.Add(new WinSpeech.SpeechRecognitionListConstraint(phrases, "negar"));
-        var compiled = await rec.CompileConstraintsAsync();
-        if (compiled.Status != WinSpeech.SpeechRecognitionResultStatus.Success)
-        {
-            rec.Dispose();
-            throw new InvalidOperationException("Speech constraints failed: " + compiled.Status);
+            if (language == VoiceLanguage.Persian)
+            {
+                _model ??= new Model(Location);
+                using var rec = new VoskRecognizer(_model, 16000);
+                rec.SetWords(true);
+                rec.AcceptWaveform(pcm, pcm.Length);
+                using var result = JsonDocument.Parse(rec.FinalResult());
+                if (!result.RootElement.TryGetProperty("result", out var words) || words.GetArrayLength() == 0 ||
+                    words.EnumerateArray().Average(w => w.GetProperty("conf").GetDouble()) < 0.65) return "";
+                return result.RootElement.GetProperty("text").GetString() ?? "";
+            }
+            var info = SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(r => r.Culture.TwoLetterISOLanguageName == "en")
+                ?? throw new InvalidOperationException("بستهٔ گفتار انگلیسی را از تنظیمات زبان ویندوز نصب کنید.");
+            using var engine = new SpeechRecognitionEngine(info);
+            engine.LoadGrammar(new Grammar(new GrammarBuilder(new Choices(commands.Select(c => c.Phrase).ToArray())) { Culture = info.Culture }));
+            using var input = new MemoryStream(pcm);
+            engine.SetInputToAudioStream(input, new SpeechAudioFormatInfo(16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
+            var heard = engine.Recognize();
+            return heard?.Confidence >= 0.65 ? heard.Text : "";
         }
-        return rec;
-    }
-
-    public async Task StartAsync(IReadOnlyList<string> phrases)
-    {
-        Dispose();
-        if (phrases.Count == 0) return;
-        var rec = await CreateAsync(phrases);
-        rec.ContinuousRecognitionSession.ResultGenerated += (_, args) =>
-        {
-            var r = args.Result;
-            if (r.Status == WinSpeech.SpeechRecognitionResultStatus.Success && !string.IsNullOrEmpty(r.Text))
-                Heard?.Invoke(new VoiceHeard(r.Text, r.RawConfidence));
-        };
-        await rec.ContinuousRecognitionSession.StartAsync();
-        _recognizer = rec;
-    }
-
-    public async Task<VoiceHeard?> ListenOnceAsync(IReadOnlyList<string> phrases, TimeSpan timeout)
-    {
-        if (phrases.Count == 0) return null;
-        using var rec = await CreateAsync(phrases);
-        rec.Timeouts.InitialSilenceTimeout = timeout;
-        rec.Timeouts.BabbleTimeout = timeout;
-        var r = await rec.RecognizeAsync();
-        return r.Status == WinSpeech.SpeechRecognitionResultStatus.Success && !string.IsNullOrEmpty(r.Text)
-            ? new VoiceHeard(r.Text, r.RawConfidence) : null;
-    }
-
-    public void Dispose()
-    {
-        var rec = _recognizer;
-        _recognizer = null;
-        if (rec == null) return;
-        try { _ = rec.ContinuousRecognitionSession.CancelAsync(); } catch { }
-        try { rec.Dispose(); } catch { }
     }
 }

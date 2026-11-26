@@ -633,7 +633,8 @@
                                 </WrapPanel>
                                 <TextBlock Text="انتخاب تم" FontWeight="SemiBold" Margin="0,0,0,5"/>
                                 <ComboBox x:Name="ThemePicker" SelectionChanged="ThemePicker_Changed" MinWidth="250" HorizontalAlignment="Left" Margin="0,0,0,10">
-                                    <ComboBoxItem Content="فیروزه شب · ایرانی" Tag="PersianTurquoise"/>
+                                    <ComboBoxItem Content="روشن · کاغذ و فیروزه" Tag="Ivory"/>
+                                    <ComboBoxItem Content="تیره · فیروزه شب · ایرانی" Tag="PersianTurquoise"/>
                                     <ComboBoxItem Content="لاجورد شیشه‌ای · آبی" Tag="LapisGlass"/>
                                     <ComboBoxItem Content="زمرد · سبز" Tag="EmeraldGlass"/>
                                     <ComboBoxItem Content="آمتیست · بنفش" Tag="AmethystGlass"/>

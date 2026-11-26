@@ -67,16 +67,17 @@ public sealed class MainHubWindow : Window
         new("home", "خانه"),
         new("files", "فایل‌ها"),
         new("capture", "ضبط و تصویر"),
-        new("folders", "پوشه‌ها"),
+        
         new("desktop", "دسکتاپ"),
-        new("personalize", "شخصی‌سازی ویندوز"),
+        
         new("settings", "تنظیمات و به‌روزرسانی"),
-        new("help", "راهنما"),
+        
     };
 
     private readonly HubActions _actions;
     private readonly List<HubPage> _pages = new();
     private readonly Dictionary<string, FrameworkElement> _cache = new();
+    private readonly Dictionary<string, Expander> _sections = new();
     private readonly Dictionary<string, TextBlock> _groupHeaders = new();
 
     private ToolsDashboardWindow? _dashboard;
@@ -112,7 +113,7 @@ public sealed class MainHubWindow : Window
         Width = Math.Max(MinWidth, Math.Min(1320, work.Width - 40));
         Height = Math.Max(MinHeight, Math.Min(840, work.Height - 40));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        FlowDirection = FlowDirection.RightToLeft;
+        FlowDirection = FlowDirection.LeftToRight;
         SetResourceReference(BackgroundProperty, "BgBrush");
         SetResourceReference(ForegroundProperty, "TextBrush");
         SetResourceReference(FontFamilyProperty, "UiFont");
@@ -124,7 +125,7 @@ public sealed class MainHubWindow : Window
 
         RegisterPages();
 
-        var root = new Grid();
+        var root = new Grid { FlowDirection = FlowDirection.RightToLeft };
         root.ColumnDefinitions.Add(_sideColumn);
         root.ColumnDefinitions.Add(new ColumnDefinition());
         root.Children.Add(BuildSidebar());
@@ -208,7 +209,7 @@ public sealed class MainHubWindow : Window
         });
         Add(new HubPage
         {
-            Id = "folders.studio", Group = "folders", Glyph = "", Title = "استودیو پوشه",
+            Id = "folders.studio", Group = "files", Glyph = "", Title = "استودیو پوشه",
             Subtitle = "آیکون دلخواه برای پوشه‌ها و قفل پوشه‌های خصوصی با رمزنگاری AES-256.",
             Keywords = "folder icon lock password encrypt aes پوشه آیکون قفل رمز",
             Factory = BuildFolderStudioPage
@@ -223,7 +224,7 @@ public sealed class MainHubWindow : Window
             });
         Add(new HubPage
         {
-            Id = "personalize", Group = "personalize", Glyph = "", Title = "شخصی‌سازی ویندوز",
+            Id = "personalize", Group = "desktop", Glyph = "", Title = "شخصی‌سازی ویندوز",
             Keywords = "personalize windows icons this pc recycle bin wallpaper cursor شخصی‌سازی آیکون این رایانه سطل بازیافت تصویر زمینه نشانگر",
             DesktopPage = "personalize", Factory = () => DesktopView()
         });
@@ -240,7 +241,7 @@ public sealed class MainHubWindow : Window
         });
         Add(new HubPage
         {
-            Id = "help", Group = "help", Glyph = "", Title = "راهنما و درباره",
+            Id = "help", Group = "settings", Glyph = "", Title = "راهنما و درباره",
             Subtitle = "راهنمای کامل فارسی، میانبرها و اطلاعات نسخه.",
             Keywords = "help guide about version shortcuts راهنما درباره نسخه میانبر", Factory = BuildHelpPage, Scroll = true
         });
@@ -277,6 +278,7 @@ public sealed class MainHubWindow : Window
         id = NormalizePageId(id);
         var page = Find(id) ?? Find("home")!;
         _currentId = page.Id;
+        if (_sections.TryGetValue(page.Group, out var section)) section.IsExpanded = true;
 
         FrameworkElement view;
         if (page.DesktopPage != null)
@@ -367,6 +369,10 @@ public sealed class MainHubWindow : Window
         collapse.Click += (_, _) => SetCollapsed(!_collapsed);
         DockPanel.SetDock(collapse, WDock.Left);
         // In RTL the "Left" dock edge is the far (inner) side of the sidebar.
+        var exit = IconButton("", "خروج کامل از نگارخانه");
+        exit.Click += (_, _) => _actions.ExitApp?.Invoke();
+        DockPanel.SetDock(exit, WDock.Left);
+        brand.Children.Add(exit);
         brand.Children.Add(collapse);
         var logo = new Image { Width = 36, Height = 36, VerticalAlignment = VerticalAlignment.Center };
         RenderOptions.SetBitmapScalingMode(logo, BitmapScalingMode.HighQuality);
@@ -437,12 +443,19 @@ public sealed class MainHubWindow : Window
             var header = new TextBlock { Text = g.Title, FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(10, _navPanel.Children.Count == 0 ? 2 : 14, 10, 4) };
             header.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
             _groupHeaders[g.Id] = header;
-            _navPanel.Children.Add(header);
+            var links = new StackPanel();
+            if (members.Count > 1)
+            {
+                var section = new Expander { Header = header, Content = links, IsExpanded = false };
+                _sections[g.Id] = section;
+                _navPanel.Children.Add(section);
+            }
+            else _navPanel.Children.Add(links);
             foreach (var p in members)
             {
                 var nav = NavButton(p);
                 p.Nav = nav;
-                _navPanel.Children.Add(nav);
+                links.Children.Add(nav);
             }
         }
         var navScroll = new ScrollViewer { Content = _navPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
@@ -479,7 +492,7 @@ public sealed class MainHubWindow : Window
         _brandText.Visibility = vis;
         _searchRow.Visibility = vis;
         _restoreLabel.Visibility = vis;
-        foreach (var h in _groupHeaders.Values) h.Visibility = vis;
+        foreach (var section in _sections.Values) section.IsExpanded = collapsed || section == _sections.GetValueOrDefault(Find(_currentId)?.Group ?? "");
         foreach (var p in _pages)
             if (p.Nav?.Content is Grid g)
             {
@@ -515,7 +528,7 @@ public sealed class MainHubWindow : Window
         if (q.Length == 0)
         {
             foreach (var p in _pages) if (p.Nav != null) p.Nav.Visibility = Visibility.Visible;
-            foreach (var h in _groupHeaders.Values) h.Visibility = _collapsed ? Visibility.Collapsed : Visibility.Visible;
+            foreach (var section in _sections.Values) section.Visibility = Visibility.Visible;
             if (_host.Content is FrameworkElement { Tag: "search" }) Navigate(_beforeSearch);
             return;
         }
@@ -523,7 +536,7 @@ public sealed class MainHubWindow : Window
 
         var hits = Matches(q).ToList();
         foreach (var p in _pages) if (p.Nav != null) p.Nav.Visibility = hits.Contains(p) ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var (gid, h) in _groupHeaders) h.Visibility = hits.Any(p => p.Group == gid) ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var (gid, group) in _sections) { group.Visibility = hits.Any(p => p.Group == gid) ? Visibility.Visible : Visibility.Collapsed; group.IsExpanded = true; }
 
         var list = new StackPanel();
         if (hits.Count == 0)
@@ -715,7 +728,7 @@ public sealed class MainHubWindow : Window
         // quick actions
         var quick = new WrapPanel { Margin = new Thickness(0, 0, 0, 14) };
         quick.Children.Add(ActionButton("اسکرین‌شات", "", () => RecorderFeature.TakeScreenshot(), "GoldButton"));
-        quick.Children.Add(ActionButton("قفسه موقت", "", _actions.OpenShelf));
+        quick.Children.Add(ActionButton("شروع سریع دسکتاپ", "", () => Navigate("desktop.home")));
         quick.Children.Add(ActionButton("جستجوی سریع", "", DesktopFeature.ShowLauncher));
         quick.Children.Add(ActionButton("مرتب‌سازی Downloads الان", "", _actions.OrganizeDownloadsNow));
         root.Children.Add(quick);
@@ -899,7 +912,7 @@ public sealed class MainHubWindow : Window
         try
         {
             var hwnd = new WindowInteropHelper(this).Handle;
-            int on = 1;
+            int on = SettingsService.Current.ThemeId == "Ivory" ? 0 : 1;
             if (DwmSetWindowAttribute(hwnd, 20, ref on, sizeof(int)) != 0) DwmSetWindowAttribute(hwnd, 19, ref on, sizeof(int));
             int round = 2; // DWMWCP_ROUND (Windows 11; ignored elsewhere)
             DwmSetWindowAttribute(hwnd, 33, ref round, sizeof(int));

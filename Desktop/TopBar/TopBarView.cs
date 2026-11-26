@@ -381,7 +381,7 @@ internal sealed class TopBarView : Border
             StaysOpen = false,
             PopupAnimation = PopupAnimation.Fade,
             VerticalOffset = top ? 6 : -6,
-            Child = new PersianCalendarCard(_s, DateTime.Today)
+            Child = new PersianCalendarCard(_s, Widgets.CityClock.Now(_s.Widgets).Date)
         };
         _calendarPopup.IsOpen = true;
     }

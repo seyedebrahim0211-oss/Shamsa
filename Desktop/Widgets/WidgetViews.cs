@@ -16,6 +16,7 @@ public static class WidgetViews
         ("prayer", "اوقات شرعی", ""),
         ("weather", "آب‌وهوا", ""),
         ("note", "یادداشت", ""),
+        ("world", "ساعت جهانی", ""),
         ("clock", "ساعت", ""),
     };
 
@@ -47,6 +48,9 @@ public static class WidgetViews
             "IQ" => "Arabic Standard Time",
             "AF" => "Afghanistan Standard Time",
             "TJ" => "West Asia Standard Time",
+            "PS" => "Asia/Gaza",
+            "LB" => "Asia/Beirut",
+            "YE" => "Asia/Aden",
             _ => lat is >= 25 and <= 40 && lng is >= 44 and <= 63.5 ? "Iran Standard Time" : null,
         };
         if (id == null) return null;
@@ -71,7 +75,8 @@ public static class WidgetViews
         "prayer" => new PrayerWidget(s),
         "weather" => new WeatherWidget(s),
         "note" => new NoteWidget(p.Text ?? "", noteChanged),
-        "clock" => new ClockWidget(),
+        "clock" => new ClockWidget(s.Widgets),
+        "world" => new WorldClock(s.Widgets),
         _ => Text("ویجت ناشناخته"),
     };
 
@@ -88,7 +93,7 @@ public static class WidgetViews
         public CalendarWidget(DesktopSettings s)
         {
             _s = s;
-            var (y, m, _) = PersianDate.Parts(DateTime.Today);
+            var (y, m, _) = PersianDate.Parts(CityClock.Now(_s.Widgets).Date);
             _year = y; _month = m;
 
             var header = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
@@ -99,7 +104,7 @@ public static class WidgetViews
             header.Children.Add(prev);
             header.Children.Add(next);
             _title.TextAlignment = TextAlignment.Center;
-            _title.MouseLeftButtonUp += (_, _) => { var (yy, mm, _) = PersianDate.Parts(DateTime.Today); _year = yy; _month = mm; Render(); };
+            _title.MouseLeftButtonUp += (_, _) => { var (yy, mm, _) = PersianDate.Parts(CityClock.Now(_s.Widgets).Date); _year = yy; _month = mm; Render(); };
             _title.ToolTip = "برگشت به امروز";
             header.Children.Add(_title);
             DockPanel.SetDock(header, System.Windows.Controls.Dock.Top);
@@ -159,7 +164,7 @@ public static class WidgetViews
                 var date = first.AddDays(d - 1);
                 var occ = PersianHolidays.For(date);
                 bool holiday = date.DayOfWeek == DayOfWeek.Friday || occ.Any(o => o.IsHoliday);
-                bool today = date == DateTime.Today;
+                bool today = date == CityClock.Now(_s.Widgets).Date;
                 var t = Text(D(d.ToString()), 12.5, today ? FontWeights.Bold : FontWeights.Normal, today ? Brushes.White : holiday ? HolidayBrush : DesktopTheme.TextBrush);
                 t.TextAlignment = TextAlignment.Center;
                 t.VerticalAlignment = VerticalAlignment.Center;
@@ -202,24 +207,25 @@ public static class WidgetViews
         {
             Children.Clear();
             var w = _s.Widgets;
+            var location = CityClock.Resolve(w);
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
             head.Children.Add(Glyph("", 15, DesktopTheme.AccentBrush(_s)));
-            head.Children.Add(new TextBlock { Text = "  اوقات شرعی " + WidgetCityData.ShortName(w.City), FontSize = 14.5, FontWeight = FontWeights.Bold, Foreground = DesktopTheme.TextBrush });
+            head.Children.Add(new TextBlock { Text = "  اوقات شرعی " + WidgetCityData.ShortName(location.City), FontSize = 14.5, FontWeight = FontWeights.Bold, Foreground = DesktopTheme.TextBrush });
             Children.Add(head);
-            Children.Add(Text(PersianDate.Long(DateTime.Today, true), 11.5, brush: DesktopTheme.MutedBrush));
+            Children.Add(Text(PersianDate.Long(CityClock.Now(_s.Widgets).Date, true), 11.5, brush: DesktopTheme.MutedBrush));
 
             // Prayer times belong to the city, not to the PC's clock: a laptop set to another zone must
             // still show Tehran's Fajr in Tehran time.
-            var cityZone = CityTimeZone(w.City, w.Latitude, w.Longitude);
-            var now = cityZone != null ? TimeZoneInfo.ConvertTime(DateTime.Now, cityZone) : DateTime.Now;
-            double? offset = cityZone?.GetUtcOffset(now).TotalHours;
+            var cityZone = location.Zone;
+            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, cityZone);
+            double? offset = cityZone.GetUtcOffset(DateTime.UtcNow).TotalHours;
             PrayerTimes.Times times;
-            try { times = PrayerTimes.Compute(now.Date, w.Latitude, w.Longitude, w.PrayerMethod, offset); }
+            try { times = PrayerTimes.Compute(now.Date, location.Latitude, location.Longitude, w.PrayerMethod, offset); }
             catch { Children.Add(Text("محاسبه ممکن نشد.")); return; }
             var nextName = times.All.Where(x => x.At > now && x.Name != "طلوع آفتاب" && x.Name != "غروب آفتاب")
                 .Select(x => x.Name).FirstOrDefault();
             if (cityZone != null && Math.Abs((cityZone.GetUtcOffset(now) - TimeZoneInfo.Local.GetUtcOffset(DateTime.Now)).TotalMinutes) > 1)
-                Children.Add(Text("ساعت‌ها به وقت " + w.City + " است", 10.5, brush: DesktopTheme.MutedBrush));
+                Children.Add(Text("ساعت‌ها به وقت " + location.City + " است", 10.5, brush: DesktopTheme.MutedBrush));
             var rows = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
             foreach (var (name, at) in times.All)
             {
@@ -239,6 +245,13 @@ public static class WidgetViews
                 rows.Children.Add(row);
             }
             Children.Add(rows);
+            var eyvan = EyvanBridge.Read(w.EyvanFile);
+            if (location.FromEyvan && eyvan != null && eyvan.NextAt > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() && eyvan.At >= DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeMilliseconds())
+            {
+                var at = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeMilliseconds(eyvan.NextAt), cityZone!).ToString("HH:mm");
+                Children.Add(Text(D($"ایوان · {eyvan.City} · {eyvan.NextName}  {at}"), 12, brush: DesktopTheme.AccentBrush(_s)));
+                return;
+            }
             var nextAt = times.All.FirstOrDefault(x => x.Name == nextName).At;
             if (nextName != null && nextAt > now)
             {
@@ -253,13 +266,16 @@ public static class WidgetViews
     private sealed class WeatherWidget : StackPanel
     {
         private readonly DesktopSettings _s;
-        private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(30) };
+        private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(30) };
+        private bool _loading;
+        private (double, double)? _shownCoordinates;
+        private DateTime _lastRefresh = DateTime.MinValue;
 
         public WeatherWidget(DesktopSettings s)
         {
             _s = s;
             _timer.Tick += (_, _) => _ = LoadAsync();
-            Loaded += (_, _) => { if (_s.Widgets.WeatherOnline) _timer.Start(); };
+            Loaded += (_, _) => { if (_s.Widgets.WeatherOnline) { _timer.Start(); _ = LoadAsync(); } };
             Unloaded += (_, _) => _timer.Stop();
             if (!s.Widgets.WeatherOnline)
             {
@@ -269,13 +285,22 @@ public static class WidgetViews
                 return;
             }
             Children.Add(Text("در حال دریافت هوای " + s.Widgets.City + "…", 12.5, brush: DesktopTheme.MutedBrush));
-            _ = LoadAsync();
         }
 
         private async Task LoadAsync()
         {
             var w = _s.Widgets;
-            var r = await WeatherService.GetAsync(w.Latitude, w.Longitude);
+            var location = CityClock.Resolve(w);
+            var coordinates = (location.Latitude, location.Longitude);
+            if (_loading || (_shownCoordinates == coordinates && DateTime.UtcNow - _lastRefresh < TimeSpan.FromMinutes(25))) return;
+            _loading = true;
+            WeatherService.Report? r;
+            try { r = await WeatherService.GetAsync(location.Latitude, location.Longitude); }
+            finally { _loading = false; }
+            var current = CityClock.Resolve(w);
+            if (!IsLoaded || !_s.Widgets.WeatherOnline || current.Latitude != location.Latitude || current.Longitude != location.Longitude) return;
+            _shownCoordinates = coordinates;
+            _lastRefresh = r == null ? DateTime.UtcNow.AddMinutes(-24) : DateTime.UtcNow;
             await Dispatcher.InvokeAsync(() =>
             {
                 Children.Clear();
@@ -289,7 +314,7 @@ public static class WidgetViews
                 top.Children.Add(Glyph(glyph, 38, DesktopTheme.AccentBrush(_s)));
                 var mid = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
                 mid.Children.Add(Text(D($"{Math.Round(r.Temperature)}°"), 30, FontWeights.Bold));
-                mid.Children.Add(Text($"{name} · {WidgetCityData.ShortName(w.City)}", 12.5, brush: DesktopTheme.MutedBrush));
+                mid.Children.Add(Text($"{name} · {WidgetCityData.ShortName(location.City)}", 12.5, brush: DesktopTheme.MutedBrush));
                 top.Children.Add(mid);
                 Children.Add(top);
                 Children.Add(Text(D($"باد {Math.Round(r.Wind)} کیلومتر بر ساعت"), 11.5, brush: DesktopTheme.MutedBrush));
@@ -354,8 +379,10 @@ public static class WidgetViews
         private readonly TextBlock _date = Text("", 13.5, brush: DesktopTheme.MutedBrush);
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
-        public ClockWidget()
+        private readonly WidgetsSettings _settings;
+        public ClockWidget(WidgetsSettings settings)
         {
+            _settings = settings;
             VerticalAlignment = VerticalAlignment.Center;
             var row = new StackPanel { Orientation = Orientation.Horizontal, FlowDirection = FlowDirection.LeftToRight, HorizontalAlignment = HorizontalAlignment.Center };
             row.Children.Add(_time);
@@ -373,10 +400,29 @@ public static class WidgetViews
 
         private void Tick()
         {
-            var now = DateTime.Now;
+            var now = CityClock.Now(_settings);
             _time.Text = D(now.ToString("HH:mm"));
             _sec.Text = D(now.ToString("ss"));
             _date.Text = PersianDate.Long(now, true) + " · \u202A" + now.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture) + "\u202C";
+        }
+    }
+
+    private sealed class WorldClock : ScrollViewer
+    {
+        public WorldClock(WidgetsSettings settings)
+        {
+            var list = new StackPanel();
+            Content = list; VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            void Tick()
+            {
+                var instant = DateTimeOffset.UtcNow;
+                list.Children.Clear();
+                foreach (var (id, label) in settings.WorldZones)
+                    if (CityClock.Zone(id) is { } z)
+                        list.Children.Add(Text(label + "   " + D(TimeZoneInfo.ConvertTime(instant, z).ToString("HH:mm")), 15));
+            }
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+            timer.Tick += (_, _) => Tick(); Loaded += (_, _) => { Tick(); timer.Start(); }; Unloaded += (_, _) => timer.Stop();
         }
     }
 

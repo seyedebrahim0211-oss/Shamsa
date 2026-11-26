@@ -1,193 +1,108 @@
 using System.Windows;
-using System.Windows.Threading;
+using System.Windows.Controls;
+using System.Windows.Input;
+using NAudio.Wave;
 using Shamsa.Desktop.Launcher;
-using Shamsa.Services;
 
 namespace Shamsa.Desktop.Voice;
 
-/// <summary>
-/// «فرمان صوتی فارسی»: always-listening command grammar ("نگار باز کن کروم", "نگار چیدمان ستونی" …).
-/// Off by default; the microphone is opened only while the module runs and released in <see cref="Stop"/>.
-/// </summary>
+/// <summary>Microphone lifetime is scoped to one physical press. Recognition reads only the captured buffer.</summary>
 public sealed class VoiceModule : IDesktopModule
 {
-    private const double MinConfidence = 0.6;
-    private IVoiceEngine? _engine;
-    private List<VoiceCommand> _commands = new();
-    private DesktopSettings? _settings;
-    private LauncherIndex? _ownIndex;
-    private DispatcherTimer? _rebuildTimer;
-    private string _signature = "";
-    private DateTime _lastCommandUtc = DateTime.MinValue;
-    private int _generation;
-
-    /// <summary>Human-readable description of the engine in use (or why there is none).</summary>
-    public static string ActiveEngineDescription { get; private set; } = "خاموش";
-
-    /// <summary>Phrases of the running grammar (for the studio cheat-sheet).</summary>
-    public static IReadOnlyList<VoiceCommand> ActiveCommands { get; private set; } = Array.Empty<VoiceCommand>();
-
-    public static event Action? StatusChanged;
-
     public string Id => "voice";
     public string DisplayName => "فرمان صوتی فارسی";
-    public bool IsRunning => _engine != null;
-
-    public void Apply(DesktopSettings settings)
-    {
-        if (!settings.Enabled || !settings.Voice.Enabled) { Stop(); return; }
-        _settings = settings;
-        string sig = $"{settings.Voice.WakeWord}|{settings.Voice.PreferPersian}|{string.Join(",", settings.Layouts.Select(l => l.Name))}";
-        if (_engine != null && sig == _signature) return;
-        _signature = sig;
-        _ = StartAsync();
-    }
-
-    private LauncherIndex Index()
-    {
-        var shared = LauncherModule.SharedIndex;
-        if (shared != null) return shared;
-        if (_ownIndex == null)
-        {
-            _ownIndex = new LauncherIndex();
-            _ownIndex.Warm(false);
-            _ownIndex.Updated += ScheduleRebuild;
-        }
-        return _ownIndex;
-    }
-
-    private void ScheduleRebuild()
-    {
-        Application.Current?.Dispatcher.BeginInvoke(() =>
-        {
-            _rebuildTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-            _rebuildTimer.Tick -= OnRebuild;
-            _rebuildTimer.Tick += OnRebuild;
-            _rebuildTimer.Stop();
-            _rebuildTimer.Start();
-        });
-    }
-
-    private void OnRebuild(object? sender, EventArgs e)
-    {
-        _rebuildTimer?.Stop();
-        if (_settings != null) _ = StartAsync();
-    }
-
-    private async Task StartAsync()
-    {
-        int gen = ++_generation;
-        var s = _settings;
-        if (s == null) return;
-        DisposeEngine();
-        try
-        {
-            var engine = VoiceEngineFactory.Create(s.Voice.PreferPersian);
-            if (engine == null)
-            {
-                SetStatus("هیچ موتور تشخیص گفتار روی ویندوز نصب نیست (تنظیمات › زمان و زبان › گفتار)");
-                return;
-            }
-            var index = Index();
-            var commands = VoiceCommands.Build(engine.Language, s.Voice.WakeWord, index.Apps, s.Layouts.Select(l => l.Name));
-            engine.Heard += h => Application.Current?.Dispatcher.BeginInvoke(() => OnHeard(h));
-            await engine.StartAsync(commands.Select(c => c.Phrase).ToList());
-            if (gen != _generation || _settings == null) { engine.Dispose(); return; }
-            _engine = engine;
-            _commands = commands;
-            ActiveCommands = commands;
-            SetStatus(engine.Description);
-            AppLog.Info($"Desktop voice started: {engine.Language}, {commands.Count} phrases");
-            // The app index may still be filling: rebuild once it settles.
-            if (!index.IsReady && index == _ownIndex) ScheduleRebuild();
-            else if (!index.IsReady) { index.Updated -= ScheduleRebuild; index.Updated += ScheduleRebuild; }
-        }
-        catch (Exception ex)
-        {
-            AppLog.Error("Desktop voice failed to start", ex);
-            SetStatus("میکروفون یا دسترسی گفتار در دسترس نیست: " + ex.Message);
-            DisposeEngine();
-        }
-    }
-
-    private void OnHeard(VoiceHeard heard)
-    {
-        if (_settings == null) return;
-        if (heard.Confidence < MinConfidence)
-        {
-            if (_settings.Voice.Feedback && heard.Confidence > 0.35) VoiceToast.Show("متوجه نشدم: " + heard.Text, understood: false);
-            return;
-        }
-        if (DateTime.UtcNow - _lastCommandUtc < TimeSpan.FromSeconds(1.2)) return; // echo / double fire
-        string text = VoiceCommands.Clean(heard.Text, _engine?.Language ?? VoiceLanguage.Finglish);
-        var cmd = _commands.FirstOrDefault(c => c.Phrase == text);
-        if (cmd == null) return;
-        _lastCommandUtc = DateTime.UtcNow;
-        if (_settings.Voice.Feedback) VoiceToast.Show($"«{heard.Text}» — {cmd.Description}", understood: true);
-        try { cmd.Run(); }
-        catch (Exception ex) { AppLog.Warn("Voice command failed: " + ex.Message); }
-    }
-
-    private static void SetStatus(string text)
-    {
-        ActiveEngineDescription = text;
-        StatusChanged?.Invoke();
-    }
-
-    private void DisposeEngine()
-    {
-        var e = _engine;
-        _engine = null;
-        try { e?.Dispose(); } catch { }
-    }
-
-    public void Stop()
-    {
-        _generation++;
-        _rebuildTimer?.Stop();
-        DisposeEngine();
-        if (_ownIndex != null) { _ownIndex.Updated -= ScheduleRebuild; _ownIndex.Dispose(); _ownIndex = null; }
-        var shared = LauncherModule.SharedIndex;
-        if (shared != null) shared.Updated -= ScheduleRebuild;
-        _settings = null;
-        _signature = "";
-        _commands = new();
-        ActiveCommands = Array.Empty<VoiceCommand>();
-        VoiceToast.Close();
-        SetStatus("خاموش");
-    }
-
+    public bool IsRunning => _microphone != null;
+    private static WaveInEvent? _microphone;
+    private static int _generation;
+    public void Apply(DesktopSettings settings) { }
+    public void Stop() => Cancel();
     public Window? CreatePreviewWindow(DesktopSettings settings) => null;
 
-    /// <summary>
-    /// Studio "test" button: listens once for up to <paramref name="seconds"/> with the same engine
-    /// choice and grammar and returns what was heard (never runs the command).
-    /// </summary>
-    public static async Task<string> TestListenAsync(DesktopSettings s, int seconds = 5)
+    private static void Cancel()
     {
-        IVoiceEngine? engine = null;
-        LauncherIndex? temp = null;
-        try
+        _generation++;
+        var device = _microphone;
+        _microphone = null;
+        try { device?.StopRecording(); } catch { }
+        finally { try { device?.Dispose(); } catch { } }
+    }
+
+    public static Button HoldButton(Func<DesktopSettings> settings, Action<string> status)
+    {
+        var button = new Button { Content = "🎙 نگه دارید و فرمان بگویید", Padding = new Thickness(12, 7, 12, 7),
+            ToolTip = "ماوس یا کلید فاصله را نگه دارید؛ با رها کردن، میکروفون بسته می‌شود." };
+        MemoryStream? samples = null;
+        int session = -1;
+        bool down = false;
+        var limit = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        VoiceLanguage language = VoiceLanguage.Persian;
+
+        void Begin()
         {
-            engine = VoiceEngineFactory.Create(s.Voice.PreferPersian);
-            if (engine == null) return "هیچ موتور تشخیص گفتار نصب نیست.";
-            var index = LauncherModule.SharedIndex;
-            if (index == null) { temp = new LauncherIndex(); temp.Warm(false); await Task.WhenAny(temp.WhenIndexedAsync(), Task.Delay(4000)); index = temp; }
-            var phrases = VoiceCommands.Build(engine.Language, s.Voice.WakeWord, index.Apps, s.Layouts.Select(l => l.Name)).Select(c => c.Phrase).ToList();
-            var heard = await engine.ListenOnceAsync(phrases, TimeSpan.FromSeconds(seconds));
-            if (heard == null) return "چیزی شناخته نشد. نزدیک‌تر به میکروفون و با «" + (engine.Language == VoiceLanguage.Persian ? "نگار" : "negar") + "» شروع کن.";
-            return $"شنیده شد: «{heard.Text}» — اطمینان {DesktopTheme.Digits(((int)(heard.Confidence * 100)).ToString(), true)}٪"
-                   + (heard.Confidence < MinConfidence ? " (کمتر از حد اجرا)" : "");
+            if (down) return;
+            Cancel();
+            session = _generation;
+            language = settings().Voice.PreferPersian ? VoiceLanguage.Persian : VoiceLanguage.Finglish;
+            if (language == VoiceLanguage.Persian && !VoiceEngine.Installed)
+            { status("ابتدا بستهٔ آفلاین فارسی را از صفحهٔ فرمان صوتی نصب کنید."); return; }
+            try
+            {
+                var buffer = new MemoryStream();
+                samples = buffer;
+                _microphone = new WaveInEvent { WaveFormat = new WaveFormat(16000, 16, 1), BufferMilliseconds = 40 };
+                _microphone.DataAvailable += (_, e) =>
+                {
+                    lock (buffer)
+                        if (buffer.Length + e.BytesRecorded <= 16000 * 2 * 30) buffer.Write(e.Buffer, 0, e.BytesRecorded);
+                };
+                _microphone.StartRecording();
+                down = true;
+                limit.Start();
+                button.Content = "در حال شنیدن… رها کنید";
+                status("میکروفون روشن است");
+            }
+            catch { Cancel(); status("دسترسی میکروفون را در تنظیمات حریم خصوصی ویندوز بررسی کنید."); }
         }
-        catch (Exception ex)
+
+        async void End(bool recognize)
         {
-            AppLog.Warn("Voice test failed: " + ex.Message);
-            return "آزمایش ناموفق بود: میکروفون یا دسترسی گفتار ویندوز را بررسی کن.";
+            limit.Stop();
+            if (!down) { if (!recognize && session == _generation) Cancel(); return; }
+            down = false;
+            button.Content = "🎙 نگه دارید و فرمان بگویید";
+            if (session != _generation) return;
+            Cancel();
+            int token = session = _generation;
+            byte[] audio;
+            lock (samples!) audio = samples.ToArray();
+            samples = null;
+            status("میکروفون بسته شد");
+            if (!recognize || audio.Length < 1600) return;
+            try
+            {
+                var s = settings();
+                var commands = VoiceCommands.Build(language, s.Voice.WakeWord,
+                    LauncherModule.SharedIndex?.Apps ?? Array.Empty<LauncherResult>(), s.Layouts.Select(x => x.Name));
+                string phrase = await Task.Run(() => VoiceEngine.Decode(audio, language, commands));
+                if (token != _generation || !button.IsLoaded) return;
+                var match = commands.FirstOrDefault(c => c.Phrase == VoiceCommands.Clean(phrase, language));
+                status(match == null ? "فرمان شناخته نشد. " + phrase : match.Description);
+                match?.Run();
+            }
+            catch (Exception ex) { if (token == _generation) status("تشخیص گفتار در دسترس نیست. " + ex.Message); }
         }
-        finally
-        {
-            engine?.Dispose();
-            temp?.Dispose();
-        }
+
+        limit.Tick += (_, _) => End(false);
+        button.PreviewMouseLeftButtonDown += (_, e) => { button.Focus(); if (button.CaptureMouse()) Begin(); e.Handled = true; };
+        button.PreviewMouseLeftButtonUp += (_, e) => { End(true); button.ReleaseMouseCapture(); e.Handled = true; };
+        button.LostMouseCapture += (_, _) => { if (down) End(false); };
+        button.PreviewKeyDown += (_, e) => { if (e.Key == Key.Space) { if (!e.IsRepeat) Begin(); e.Handled = true; } };
+        button.PreviewKeyUp += (_, e) => { if (e.Key == Key.Space) { End(true); e.Handled = true; } };
+        button.LostKeyboardFocus += (_, _) => End(false);
+        Window? owner = null;
+        void Deactivated(object? sender, EventArgs e) => End(false);
+        button.Loaded += (_, _) => { owner = Window.GetWindow(button); if (owner != null) owner.Deactivated += Deactivated; };
+        button.Unloaded += (_, _) => { End(false); if (owner != null) owner.Deactivated -= Deactivated; };
+        return button;
     }
 }

@@ -12,38 +12,26 @@ public static class VoiceStudioPage
         var v = s.Voice;
         var root = new StackPanel { FlowDirection = FlowDirection.RightToLeft };
         root.Children.Add(StudioUi.Title("فرمان صوتی فارسی"));
-        root.Children.Add(StudioUi.Muted("با گفتن «نگار» و یک فرمان، برنامه باز کن، چیدمان پنجره‌ها را عوض کن یا اسکرین‌شات بگیر. میکروفون فقط وقتی این گزینه روشن است استفاده می‌شود و صدا جایی ارسال نمی‌شود."));
-
-        var card = StudioUi.Card(root, "رفتار");
-        card.Children.Add(StudioUi.Toggle("فعال", "به محیط دسکتاپ نگارخانه و یک میکروفون نیاز دارد", v.Enabled, x => { v.Enabled = x; changed(); }));
+        root.Children.Add(StudioUi.Muted("دکمه را نگه دارید، فرمان را بگویید و رها کنید. تشخیص روی همین رایانه انجام می‌شود."));
+        var card = StudioUi.Card(root, "فرمان صوتی");
         var wake = new TextBox { Text = v.WakeWord, Width = 180, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(6, 4, 6, 4) };
         wake.TextChanged += (_, _) => { v.WakeWord = wake.Text.Trim(); changed(); };
         card.Children.Add(StudioUi.Labeled("کلمه بیدارباش", wake));
-        card.Children.Add(StudioUi.Toggle("ترجیح تشخیص فارسی", "اگر بسته گفتار فارسی نصب باشد؛ وگرنه عبارت‌های فینگلیش با تشخیص انگلیسی", v.PreferPersian, x => { v.PreferPersian = x; changed(); }));
-        card.Children.Add(StudioUi.Toggle("نمایش آنچه شنیده شد", "پیام کوچک بالای صفحه", v.Feedback, x => { v.Feedback = x; changed(); }));
-
-        var engine = StudioUi.Card(root, "موتور تشخیص");
-        var status = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = DesktopTheme.TextBrush };
-        void UpdateStatus() => status.Text = "وضعیت: " + VoiceModule.ActiveEngineDescription;
-        UpdateStatus();
-        Action onStatus = () => status.Dispatcher.BeginInvoke(UpdateStatus);
-        VoiceModule.StatusChanged += onStatus;
-        status.Unloaded += (_, _) => VoiceModule.StatusChanged -= onStatus;
-        engine.Children.Add(status);
-        engine.Children.Add(StudioUi.Muted("برای تشخیص فارسی واقعی، اگر ویندوز بسته گفتار فارسی را پشتیبانی کند آن را از «تنظیمات › زمان و زبان › گفتار» نصب کن. بدون آن، فرمان‌ها را به فینگلیش بگو (مثلاً negar baz kon chrome)."));
-        var result = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
-        result.SetResourceReference(TextBlock.ForegroundProperty, "GoldBrush");
-        Button? test = null;
-        test = StudioUi.Button("🎙 آزمایش (۵ ثانیه گوش می‌دهد)", async () =>
+        card.Children.Add(StudioUi.Toggle("گفتار فارسی آفلاین", "در حالت خاموش، موتور انگلیسی ویندوز عبارت‌های فینگلیش را تشخیص می‌دهد.", v.PreferPersian, x => { v.PreferPersian = x; changed(); }));
+        var status = StudioUi.Muted("");
+        var install = new Button { Content = "نصب بستهٔ فارسی (۵۱ مگابایت)", Visibility = VoiceEngine.Installed ? Visibility.Collapsed : Visibility.Visible };
+        install.Click += async (_, _) =>
         {
-            test!.IsEnabled = false;
-            result.Text = "در حال گوش دادن… یک فرمان بگو";
-            try { result.Text = await VoiceModule.TestListenAsync(s, 5); }
-            finally { test.IsEnabled = true; }
-        }, "AccentButton");
-        engine.Children.Add(test);
-        engine.Children.Add(result);
-
+            install.IsEnabled = false; status.Text = "در حال دریافت بستهٔ فارسی…";
+            try { await VoiceEngine.InstallAsync(); install.Visibility = Visibility.Collapsed; status.Text = "بستهٔ فارسی آماده است."; }
+            catch (Exception ex) { status.Text = ex.Message; }
+            finally { install.IsEnabled = true; }
+        };
+        card.Children.Add(install);
+        card.Children.Add(VoiceModule.HoldButton(() => s, text => status.Text = text));
+        card.Children.Add(status);
+        card.Children.Add(StudioUi.Button("تنظیمات دسترسی میکروفون ویندوز", () =>
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:privacy-microphone") { UseShellExecute = true })));
         var help = StudioUi.Card(root, "فرمان‌ها");
         foreach (var (fa, fin, desc) in new[]
         {

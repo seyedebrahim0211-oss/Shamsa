@@ -285,11 +285,18 @@ public static class ShellInterop
     /// </summary>
     public static void SetWindowsTaskbarHidden(bool hide)
     {
-        foreach (var hwnd in TaskbarWindows()) ShowWindow(hwnd, hide ? SW_HIDE : SW_SHOWNA);
+        // The replacement dock belongs to the primary display. Older crash markers covered all taskbars.
+        var main = FindWindow("Shell_TrayWnd", null);
+        if (!hide && File.Exists(MarkerFile) && !File.ReadAllText(MarkerFile).StartsWith("primary:", StringComparison.Ordinal))
+        {
+            foreach (var hwnd in TaskbarWindows()) ShowWindow(hwnd, SW_SHOWNA);
+        }
+        else if (main != IntPtr.Zero && (hide || _taskbarHidden || File.Exists(MarkerFile)))
+            ShowWindow(main, hide ? SW_HIDE : SW_SHOWNA);
         _taskbarHidden = hide;
         try
         {
-            if (hide) { Directory.CreateDirectory(AppPaths.DataDir); File.WriteAllText(MarkerFile, DateTime.UtcNow.ToString("O")); }
+            if (hide) { Directory.CreateDirectory(AppPaths.DataDir); File.WriteAllText(MarkerFile, "primary:" + DateTime.UtcNow.ToString("O")); }
             else if (File.Exists(MarkerFile)) File.Delete(MarkerFile);
         }
         catch { }

@@ -60,7 +60,7 @@ internal sealed class PersianCalendarCard : Border
         _footer.Margin = new Thickness(0, 10, 0, 0);
         _footer.HorizontalAlignment = HorizontalAlignment.Center;
         _footer.Cursor = Cursors.Hand;
-        _footer.MouseLeftButtonUp += (_, _) => { _month = DateTime.Today; Render(); };
+        _footer.MouseLeftButtonUp += (_, _) => { _month = Widgets.CityClock.Now(_s.Widgets).Date; Render(); };
         root.Children.Add(_footer);
 
         Child = root;
@@ -94,7 +94,7 @@ internal sealed class PersianCalendarCard : Border
         var first = cal.ToDateTime(y, m, 1, 0, 0, 0, 0);
         int days = cal.GetDaysInMonth(y, m);
         _header.Text = DesktopTheme.Digits($"{PersianDate.Months[m - 1]} {y}", fa);
-        _footer.Text = "امروز: " + PersianDate.Long(DateTime.Today, fa);
+        _footer.Text = "امروز: " + PersianDate.Long(Widgets.CityClock.Now(_s.Widgets).Date, fa);
 
         _grid.Children.Clear();
         _grid.RowDefinitions.Clear();
@@ -111,7 +111,7 @@ internal sealed class PersianCalendarCard : Border
             var date = first.AddDays(d - 1);
             int idx = startCol + d - 1;
             int row = 1 + idx / 7, col = idx % 7;
-            bool today = date.Date == DateTime.Today;
+            bool today = date.Date == Widgets.CityClock.Now(_s.Widgets).Date;
             var text = new TextBlock
             {
                 Text = DesktopTheme.Digits(d.ToString(), fa),
