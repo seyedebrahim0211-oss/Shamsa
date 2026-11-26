@@ -56,6 +56,7 @@ public static class DesktopFeature
         yield return () => new ControlCenter.ControlCenterModule();
         yield return () => new AutoTheme.AutoThemeModule();
         yield return () => new Voice.VoiceModule();
+        yield return () => new Personalize.PersonalizeModule();
     }
 
     public static bool IsActive => DesktopSettingsStore.Current.Enabled && Modules.Any(m => m.IsRunning);
