@@ -24,6 +24,7 @@ public static class DesktopThemePresets
 
     public static readonly IReadOnlyList<Preset> All = new[]
     {
+        new Preset("boshrouyeh", "بشرویه", "بافت تاریخی · بادگیر، خشت و گنبد فیروزه‌ای", "#60D3CB", "#342B28", 14, 85, 48, "turquoise", "girih", "PersianTurquoise", "boshrouyeh.jpg"),
         new Preset("heritage", "کاشی معرق", "فرهنگی · فیروزه، لاجورد و برنج", "#51D5BF", "#102C37", 14, 84, 48, "turquoise", "girih", "PersianTurquoise", "heritage.jpg"),
         new Preset("field", "خط تراز", "نظامی · نقش برجستهٔ زمین به رنگ زیتونی", "#C3CF91", "#252C1D", 8, 88, 44, "field", "outline", "EmeraldGlass", "field.jpg"),
         new Preset("atelier", "کارگاه رنگ", "هنری · رنگ‌دانه‌های سفالی و زعفرانی", "#F5A76E", "#342032", 18, 84, 48, "sunset", "crystal", "AmethystGlass", "atelier.jpg"),

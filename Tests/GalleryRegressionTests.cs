@@ -84,7 +84,7 @@ public class GalleryRegressionTests
         DesktopThemeAndClockTests.RunSta(() =>
         {
             var wallpapers = DesktopThemePresets.All.Where(p => p.Wallpaper != null).ToList();
-            Assert.Equal(7, wallpapers.Count);
+            Assert.Equal(8, wallpapers.Count);
             foreach (var preset in wallpapers)
             {
                 Assert.Contains(FenceIconArt.Styles, s => s.Id == preset.FenceIconStyle);
