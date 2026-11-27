@@ -4,6 +4,16 @@ namespace Shamsa.Desktop;
 
 internal static class DesktopBarLayout
 {
+    // Geometry and visuals only. Saving a note must not rebuild the bar under the user's pointer.
+    internal static string DockAppearanceKey(DesktopSettings s) => System.Text.Json.JsonSerializer.Serialize(new
+    {
+        s.Dock, s.Theme, s.AppIcons, s.ThemePresetId, s.DockLivePreviews, s.DisplayDevice, s.UiFontFamily,
+        BarEnabled = s.TopBar.Enabled, s.TopBar.Position, s.TopBar.Height, s.TopBar.ReserveSpace
+    });
+
+    internal static string TopBarAppearanceKey(DesktopSettings s) => System.Text.Json.JsonSerializer.Serialize(new
+    { s.TopBar, s.Theme, s.UiFontFamily, s.Plugins, ControlCenter = s.ControlCenter.Enabled });
+
     internal static string DockEdge(DesktopSettings s)
     {
         var edge = s.Dock.Position is "Left" or "Right" or "Top" ? s.Dock.Position : "Bottom";

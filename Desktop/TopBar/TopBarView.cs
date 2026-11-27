@@ -17,12 +17,14 @@ internal sealed class TopBarView : Border
 
     private readonly TopBarState _state;
     private DesktopSettings _s;
+    private string _appearance;
     private readonly List<Action> _updaters = new();
     private Popup? _calendarPopup;
 
     public TopBarView(DesktopSettings settings, TopBarState state)
     {
         _s = settings;
+        _appearance = DesktopBarLayout.TopBarAppearanceKey(settings);
         _state = state;
         SnapsToDevicePixels = true;
         UseLayoutRounding = true;
@@ -52,7 +54,8 @@ internal sealed class TopBarView : Border
     public void ApplySettings(DesktopSettings settings)
     {
         _s = settings;
-        Build();
+        var key = DesktopBarLayout.TopBarAppearanceKey(settings);
+        if (key != _appearance) { _appearance = key; Build(); }
         Refresh();
     }
 

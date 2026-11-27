@@ -115,6 +115,17 @@ public class PersonalDesktopTests
     }
 
     [Fact]
+    public void TypingANoteKeepsBothBarsStableButChangingTheLookInvalidatesThem()
+    {
+        var s = new DesktopSettings(); s.Widgets.Items.Add(new() { Kind = "note", Text = "صبح" });
+        string bar = DesktopBarLayout.TopBarAppearanceKey(s), dock = DesktopBarLayout.DockAppearanceKey(s);
+        s.Widgets.Items[0].Text = "ظهر";
+        Assert.Equal(dock, DesktopBarLayout.DockAppearanceKey(s)); Assert.Equal(bar, DesktopBarLayout.TopBarAppearanceKey(s));
+        s.Theme.AccentHex = "#E3AB80";
+        Assert.NotEqual(dock, DesktopBarLayout.DockAppearanceKey(s)); Assert.NotEqual(bar, DesktopBarLayout.TopBarAppearanceKey(s));
+    }
+
+    [Fact]
     public void IconModelsRenderDifferentlyAndExplicitOverridesSurviveThemeChanges()
     {
         DesktopThemeAndClockTests.RunSta(() =>

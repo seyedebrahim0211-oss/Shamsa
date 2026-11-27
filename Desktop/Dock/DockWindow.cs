@@ -63,6 +63,7 @@ internal sealed class DockWindow : Window
     private readonly DispatcherTimer _edgeTimer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private List<DockItem> _items = new();
     private string _signature = "";
+    private string? _appearance;
     private double? _mouseAxis;
     private bool _rendering, _menuOpen, _hidden, _appBar, _fullscreenHidden;
     private DateTime _lastNear = DateTime.UtcNow;
@@ -154,6 +155,9 @@ internal sealed class DockWindow : Window
     {
         bool resetSlide = Edge != DesktopBarLayout.DockEdge(s) || s.Dock.AutoHide != _s.Dock.AutoHide;
         _s = s;
+        var appearance = DesktopBarLayout.DockAppearanceKey(s);
+        if (_appearance == appearance) return;
+        _appearance = appearance;
         _plate.Background = DesktopTheme.GlassBrush(s);
         _plate.BorderBrush = DesktopTheme.BorderBrush(s);
         _plate.BorderThickness = new Thickness(1);

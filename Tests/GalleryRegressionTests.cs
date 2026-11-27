@@ -111,7 +111,8 @@ public class GalleryRegressionTests
     [Fact]
     public void OfficialInstallerAndChecksumAreRecognisedByAnOlderInstallation()
     {
-        string tag = "v3.6.0", setup = $"Shamsa-Setup-{tag}-win-x64.exe";
+        var current = UpdateService.CurrentVersion;
+        string tag = "v" + current.ToString(3), setup = $"Shamsa-Setup-{tag}-win-x64.exe";
         var release = JsonSerializer.SerializeToElement(new {
             tag_name = tag, draft = false, prerelease = false,
             assets = new[] { setup, "SHA256SUMS.txt" }.Select(name => new {
@@ -119,7 +120,8 @@ public class GalleryRegressionTests
             })
         });
         Assert.Equal(setup, UpdateService.ReadRelease(release, new Version(3, 4, 0, 0))!.FileName);
-        Assert.Null(UpdateService.ReadRelease(release, new Version(3, 5, 0, 0)));
+        Assert.Equal(setup, UpdateService.ReadRelease(release, new Version(3, 5, 0, 0))!.FileName);
+        Assert.Null(UpdateService.ReadRelease(release, current));
     }
 
     [Fact]
