@@ -24,6 +24,7 @@ public class HubNavigationTests
             AppPaths.DataDir = temp;
             PersonalizeStudioPage.SafePreviewMode = true;
             var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(application.Dispatcher));
             try
             {
                 application.Resources.MergedDictionaries.Add(new ResourceDictionary {
