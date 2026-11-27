@@ -124,7 +124,7 @@ public sealed class MainHubWindow : Window
         FontSize = 13.5;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
         UseLayoutRounding = true;
-        try { Icon = new BitmapImage(new Uri("pack://application:,,,/Assets/Shamsa.ico")); } catch { }
+        try { Icon = new BitmapImage(new Uri("pack://application:,,,/Shamsa;component/Assets/Shamsa.ico")); } catch { }
         SourceInitialized += (_, _) => ApplyDarkTitleBar();
 
         RegisterPages();
@@ -397,7 +397,7 @@ public sealed class MainHubWindow : Window
         brand.Children.Add(_exitButton);
         var logo = new Image { Width = 36, Height = 36, VerticalAlignment = VerticalAlignment.Center };
         RenderOptions.SetBitmapScalingMode(logo, BitmapScalingMode.HighQuality);
-        try { logo.Source = new BitmapImage(new Uri("pack://application:,,,/Assets/Shamsa-logo.png")); } catch { }
+        try { logo.Source = new BitmapImage(new Uri("pack://application:,,,/Shamsa;component/Assets/Shamsa-logo.png")); } catch { }
         var brandRow = _brandRow;
         brandRow.Orientation = Orientation.Horizontal;
         brandRow.Children.Add(logo);

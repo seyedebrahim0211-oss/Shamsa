@@ -489,7 +489,7 @@ public partial class App : Application
     {
         try
         {
-            var res = GetResourceStream(new Uri("pack://application:,,,/Assets/Shamsa.ico"));
+            var res = GetResourceStream(new Uri("pack://application:,,,/Shamsa;component/Assets/Shamsa.ico"));
             if (res != null)
             {
                 using var stream = res.Stream;

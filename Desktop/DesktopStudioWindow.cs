@@ -29,7 +29,7 @@ public sealed class DesktopStudioWindow : Window
         SetResourceReference(FontFamilyProperty, "UiFont");
         FontSize = 13;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
-        try { Icon = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/Shamsa.ico")); } catch { }
+        try { Icon = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Shamsa;component/Assets/Shamsa.ico")); } catch { }
         Content = _view;
         Closed += (_, _) => _view.Release();
     }

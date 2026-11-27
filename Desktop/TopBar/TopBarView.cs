@@ -242,7 +242,7 @@ internal sealed class TopBarView : Border
         {
             var img = new Image
             {
-                Source = new BitmapImage(new Uri("pack://application:,,,/Assets/Shamsa-logo.png")),
+                Source = new BitmapImage(new Uri("pack://application:,,,/Shamsa;component/Assets/Shamsa-logo.png")),
                 Width = IconSz + 4, Height = IconSz + 4
             };
             RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
