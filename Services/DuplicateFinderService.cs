@@ -73,12 +73,12 @@ public class DuplicateFinderService
                     l.Add(p);
                 }
 
-                foreach (var partialGroup in byPartial.Values.Where(l => l.Count > 1))
+                foreach (var (hash, partialGroup) in byPartial.Where(kv => kv.Value.Count > 1))
                 {
                     if (size <= PartialBlock * 2)
                     {
                         // partial hash already covered the entire file
-                        groups.Add(new DuplicateGroup(TryHash(partialGroup[0], partial: false) ?? string.Empty, size, partialGroup));
+                        groups.Add(new DuplicateGroup(hash, size, partialGroup));
                         continue;
                     }
 

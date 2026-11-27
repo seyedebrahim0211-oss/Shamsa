@@ -114,11 +114,9 @@ internal sealed class WidgetWindow : DesktopLevelWindow
     {
         _p = p; _s = s; _preview = preview;
         Title = "Shamsa widget " + p.Kind;
-        var (dw, dh) = WidgetViews.DefaultSize(p.Kind);
-        Width = p.Width > 60 ? p.Width : dw;
-        Height = p.Height > 60 ? p.Height : dh;
-        if (preview) { Left = p.X; Top = p.Y; }
-        else PlaceRelative(p.X, p.Y); // on the monitor chosen for the desktop environment
+        var bounds = DesktopPlacement.Bounds(p);
+        if (preview) { Left = p.X; Top = p.Y; Width = bounds.Width; Height = bounds.Height; }
+        else ApplyBounds(bounds);
         Locked = s.Widgets.LockPositions;
         Render();
         ContextMenu = BuildMenu();
@@ -139,17 +137,22 @@ internal sealed class WidgetWindow : DesktopLevelWindow
 
     public void UpdateFrom(WidgetPlacement p, DesktopSettings s)
     {
-        bool rebuild = p.Kind != "note" || p.ColorHex != _p.ColorHex || s.Theme.GlassOpacity != _s.Theme.GlassOpacity || s.Theme.CornerRadius != _s.Theme.CornerRadius;
-        bool dataChanged = s.Widgets.City != _s.Widgets.City || s.Widgets.Latitude != _s.Widgets.Latitude || s.Widgets.Longitude != _s.Widgets.Longitude
-                           || s.Widgets.PrayerMethod != _s.Widgets.PrayerMethod || s.Widgets.WeatherOnline != _s.Widgets.WeatherOnline
-                           || s.Theme.AccentHex != _s.Theme.AccentHex || s.Theme.GlassTintHex != _s.Theme.GlassTintHex
-                           || s.Widgets.PrayerWeatherZoneId != _s.Widgets.PrayerWeatherZoneId;
+        bool appearance = p.Kind != _p.Kind || p.ColorHex != _p.ColorHex ||
+            s.Theme.GlassOpacity != _s.Theme.GlassOpacity || s.Theme.CornerRadius != _s.Theme.CornerRadius ||
+            s.Theme.ShowBorders != _s.Theme.ShowBorders || s.Theme.AccentHex != _s.Theme.AccentHex ||
+            s.Theme.GlassTintHex != _s.Theme.GlassTintHex;
+        var w = s.Widgets;
+        var old = _s.Widgets;
+        bool dataChanged = w.City != old.City || w.Latitude != old.Latitude || w.Longitude != old.Longitude ||
+            w.PrayerMethod != old.PrayerMethod || w.WeatherOnline != old.WeatherOnline ||
+            w.PrayerWeatherZoneId != old.PrayerWeatherZoneId || w.EyvanFile != old.EyvanFile ||
+            w.ZoneId != old.ZoneId || w.SyncSystemTimeZoneWithIp != old.SyncSystemTimeZoneWithIp ||
+            !w.WorldZones.SequenceEqual(old.WorldZones);
+        if (w.LockPositions != old.LockPositions) { Locked = w.LockPositions; }
         _p = p; _s = s;
-        Locked = s.Widgets.LockPositions;
-        if (!_preview) FollowArea(p.X, p.Y);
-        ContextMenu = BuildMenu();
-        // Notes keep their editor (and caret) unless the look changed.
-        if ((p.Kind == "note" && rebuild) || (p.Kind != "note" && (dataChanged || rebuild))) Render();
+        if (!_preview) ApplyBounds(DesktopPlacement.Bounds(p));
+        if (w.LockPositions != old.LockPositions) ContextMenu = BuildMenu();
+        if (appearance || (p.Kind != "note" && dataChanged)) Render();
     }
 
     private void Render() => Content = Frame(WidgetViews.Build(_p, _s, text => NoteChanged?.Invoke(text)), _p, _s);

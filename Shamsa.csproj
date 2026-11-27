@@ -11,7 +11,7 @@
     <AssemblyName>Shamsa</AssemblyName>
     <RootNamespace>Shamsa</RootNamespace>
     <ApplicationIcon>Assets\Shamsa.ico</ApplicationIcon>
-    <Version>3.4.0</Version>
+    <Version>3.5.0</Version>
     <Authors>Negarkhaneh Contributors</Authors>
     <Product>نگارخانه (Negarkhaneh)</Product>
     <Description>نگارخانه (Negarkhaneh) — شخصی‌سازی کامل ویندوز، محیط دسکتاپ، ضبط صفحه، استودیوی پوشه و پیش‌نمایش هوشمند فایل‌ها</Description>
@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Assets\Wallpapers\*.jpg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Resource Include="Assets\Shamsa.ico" />
     <Resource Include="Assets\Shamsa-logo.png" />
     <!-- Vazirmatn (SIL OFL 1.1) embedded so the Persian UI renders identically everywhere. -->

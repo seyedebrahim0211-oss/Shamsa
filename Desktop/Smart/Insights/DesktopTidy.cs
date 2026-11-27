@@ -66,6 +66,9 @@ public static class DesktopTidy
             foreach (var def in BuildFences(workArea))
             {
                 if (s.Fences.Fences.Any(f => f.Id == def.Id)) continue;
+                var slot = DesktopPlacement.ForNew(s, workArea, new Size(def.Width, def.Height));
+                def.X = slot.X; def.Y = slot.Y;
+                s.Fences.Enabled = true;
                 s.Fences.Fences.Add(def);
                 changed = true;
             }
@@ -88,9 +91,9 @@ public static class DesktopTidy
     {
         InsightsStore.Update(st => st.Settings.TidyEnabled = on);
         // Fence coordinates are relative to the chosen monitor's work area.
-        if (working != null) return ApplyTo(working, on, DesktopDisplay.RelativeWorkArea(working));
+        if (working != null) return ApplyTo(working, on, DesktopDisplay.PlacementArea(working));
         var s = DesktopSettingsStore.Current.Clone();
-        if (!ApplyTo(s, on, DesktopDisplay.RelativeWorkArea(s))) return false;
+        if (!ApplyTo(s, on, DesktopDisplay.PlacementArea(s))) return false;
         DesktopSettingsStore.Save(s);
         return true;
     }

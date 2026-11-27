@@ -4,6 +4,7 @@ public enum OrganizeMode { ByType, ByDate, ByTypeThenDate }
 
 public record OrganizeMove(string From, string To, string Category)
 {
+    public IReadOnlyList<string> CreatedDirectories { get; init; } = Array.Empty<string>();
     public string FileName => Path.GetFileName(From);
 }
 
@@ -92,16 +93,24 @@ public class SmartOrganizerService
     {
         var done = new List<OrganizeMove>();
         int failed = 0;
+        var created = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(string.IsNullOrWhiteSpace(plan.Folder) ? "." : plan.Folder));
 
         foreach (var move in plan.Moves)
         {
             try
             {
                 if (!File.Exists(move.From)) { failed++; continue; }
-                Directory.CreateDirectory(Path.GetDirectoryName(move.To)!);
-                string dest = File.Exists(move.To) ? UniquePath(move.To, null) : move.To;
+                var target = new DirectoryInfo(Path.GetDirectoryName(move.To)!);
+                var parents = new List<string>();
+                for (var dir = target; dir != null && !dir.FullName.Equals(root, StringComparison.OrdinalIgnoreCase); dir = dir.Parent)
+                    parents.Add(dir.FullName);
+                var missing = parents.Where(d => !Directory.Exists(d)).ToList();
+                target.Create();
+                created.UnionWith(missing);
+                string dest = UniquePath(move.To, null);
                 File.Move(move.From, dest);
-                done.Add(move with { To = dest });
+                done.Add(move with { To = dest, CreatedDirectories = parents.Where(created.Contains).ToArray() });
             }
             catch (Exception ex)
             {
@@ -129,43 +138,35 @@ public class SmartOrganizerService
     }
 
     /// <summary>Moves files back to where they were and removes category folders left empty.</summary>
-    public int Undo(IEnumerable<OrganizeMove> moves)
+    public int Undo(IEnumerable<OrganizeMove> moves) => Undo(moves, new List<OrganizeMove>());
+
+    internal int Undo(IEnumerable<OrganizeMove> moves, List<OrganizeMove> remaining)
     {
         int restored = 0;
-        var touchedDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var created = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var move in moves.Reverse())
         {
             try
             {
-                if (!File.Exists(move.To) || File.Exists(move.From)) continue;
+                if (!File.Exists(move.To)) continue;
+                if (File.Exists(move.From) || Directory.Exists(move.From)) { remaining.Add(move); continue; }
                 File.Move(move.To, move.From);
-                touchedDirs.Add(Path.GetDirectoryName(move.To)!);
+                created.UnionWith(move.CreatedDirectories);
                 restored++;
             }
             catch (Exception ex)
             {
+                remaining.Add(move);
                 AppLog.Warn($"Undo failed for {move.To}: {ex.Message}");
             }
         }
-
-        foreach (var dir in touchedDirs.OrderByDescending(d => d.Length))
+        remaining.Reverse();
+        foreach (var dir in created.OrderByDescending(d => d.Length))
         {
-            try
-            {
-                var current = new DirectoryInfo(dir);
-                // remove the empty folder and empty parents created by date-mode (Images\2026-11)
-                while (current != null && current.Exists && !current.EnumerateFileSystemInfos().Any())
-                {
-                    var parent = current.Parent;
-                    current.Delete();
-                    current = parent;
-                    if (current != null && moves.Any(m => string.Equals(Path.GetDirectoryName(m.From), current.FullName, StringComparison.OrdinalIgnoreCase)))
-                        break; // never delete the organized root itself
-                }
-            }
-            catch { }
+            try { Directory.Delete(dir, recursive: false); }
+            catch (IOException) { } // In use or still contains another file.
+            catch (UnauthorizedAccessException) { }
         }
-
         return restored;
     }
 

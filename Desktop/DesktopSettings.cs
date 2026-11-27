@@ -214,6 +214,7 @@ public sealed class FenceDefinition
 
 public sealed class FencesSettings
 {
+    public bool AvoidOverlap { get; set; } = true;
     public bool Enabled { get; set; } = false;
     public List<FenceDefinition> Fences { get; set; } = new();
     public bool RollUpOnTitleClick { get; set; } = true;
@@ -259,6 +260,7 @@ public sealed class DesktopSettings
     public string DisplayDevice { get; set; } = "";
     /// <summary>Id of the last whole-desktop theme applied from «حالت‌های آماده» (for the ✓ mark).</summary>
     public string? ThemePresetId { get; set; }
+    public bool UsePresetWallpaper { get; set; } = true;
     /// <summary>Empty = embedded Vazirmatn.</summary>
     public string UiFontFamily { get; set; } = "";
     public DesktopThemeSettings Theme { get; set; } = new();
@@ -289,8 +291,19 @@ public sealed class DesktopSettings
         Widgets.WorldZones ??= new(Shamsa.Desktop.Widgets.CityClock.Defaults);
         DisplayDevice ??= "";
         if (string.IsNullOrWhiteSpace(Widgets.PrayerWeatherZoneId)) Widgets.PrayerWeatherZoneId = "Iran Standard Time";
-        if (Fences.IconStyle is not ("plate" or "glyph" or "plain")) Fences.IconStyle = "plate";
-        foreach (var fence in Fences.Fences) { fence.Extensions ??= new(); fence.Members ??= new(); }
+        if (!Shamsa.Desktop.Fences.FenceIconArt.Styles.Any(x => x.Id == Fences.IconStyle)) Fences.IconStyle = "plate";
+        // Imported settings may contain missing or repeated IDs. Keep every group and its members.
+        Widgets.Items.RemoveAll(w => w == null);
+        Fences.Fences.RemoveAll(f => f == null);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var w in Widgets.Items)
+            if (string.IsNullOrWhiteSpace(w.Id) || !ids.Add(w.Id)) { w.Id = Guid.NewGuid().ToString("N"); ids.Add(w.Id); }
+        ids.Clear();
+        foreach (var f in Fences.Fences)
+        {
+            if (string.IsNullOrWhiteSpace(f.Id) || !ids.Add(f.Id)) { f.Id = Guid.NewGuid().ToString("N"); ids.Add(f.Id); }
+            f.Extensions ??= new(); f.Extensions.RemoveAll(string.IsNullOrWhiteSpace); f.Members ??= new();
+        }
         foreach (var l in Layouts) l.Windows ??= new();
         Clipboard.MaxItems = Math.Clamp(Clipboard.MaxItems, 10, 200);
         Theme.GlassOpacity = Math.Clamp(Theme.GlassOpacity, 20, 100);

@@ -201,7 +201,7 @@ public partial class App : Application
     {
         var s = SettingsService.Current;
         var release = UpdateService.Latest;
-        if (_installingUpdate || !s.AutoInstallWhenIdle || release == null || !UpdateService.HasVerifiedDownload(release)) return;
+        if (_installingUpdate || !s.AutoInstallWhenIdle || release == null || !UpdateService.HasStagedDownload(release)) return;
         if (release.Version.ToString(3) == s.SkippedUpdateVersion) return;
         if (UpdateService.GetUserIdleTime() < TimeSpan.FromMinutes(10) || IsAppBusy()) return;
         _installingUpdate = true;

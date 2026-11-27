@@ -130,7 +130,15 @@ public static class FolderPresets
 
     private static List<IconDesign> Build()
     {
-        var list = new List<IconDesign>();
+        var list = new List<IconDesign>
+        {
+            new() { Name = "بلور فیروزه", Finish = FolderFinish.Crystal, BaseHex = "#126879", GradientHex = "#61E5DD", Keywords = "glass crystal 3d شیشه سه‌بعدی" },
+            new() { Name = "بلور یاسی", Finish = FolderFinish.Crystal, BaseHex = "#513477", GradientHex = "#D6ACFA", Keywords = "gaming crystal بازی بلور" },
+            new() { Name = "کاشی لاجورد", Finish = FolderFinish.Girih, BaseHex = "#173968", GradientHex = "#427D8F", Keywords = "traditional girih سنتی فرهنگی معماری ایرانی" },
+            new() { Name = "جلد یشمی", Finish = FolderFinish.Girih, BaseHex = "#155248", GradientHex = "#338979", Keywords = "traditional art هنر گره سنتی" },
+            new() { Name = "زیتونی مات", Finish = FolderFinish.Minimal, BaseHex = "#475336", GradientHex = "#BBBF96", Keywords = "minimal field مینیمال نظامی" },
+            new() { Name = "گرافیت مات", Finish = FolderFinish.Minimal, BaseHex = "#384452", GradientHex = "#A6BBC5", Keywords = "minimal graphite ساده مینیمال" }
+        };
         foreach (var (name, hex) in Palette)
             list.Add(new IconDesign { Name = $"رنگ {name}", BaseHex = hex, Keywords = "color plain رنگ ساده " + name });
         string[] themeColors = { "#F4B740", "#3B82F6", "#22C55E", "#EF4444", "#A855F7", "#14B8A6", "#F97316", "#334155", "#EC4899" };

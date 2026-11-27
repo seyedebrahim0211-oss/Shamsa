@@ -39,7 +39,7 @@ public static class UpdateService
     private static HttpClient CreateClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(12) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Shamsa-Windows-Updater/3.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd($"Shamsa-Windows-Updater/{CurrentVersion.ToString(3)}");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }
@@ -56,48 +56,7 @@ public static class UpdateService
             response.EnsureSuccessStatusCode();
             await using var stream = await response.Content.ReadAsStreamAsync(token);
             using var json = await JsonDocument.ParseAsync(stream, cancellationToken: token);
-            var root = json.RootElement;
-            if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
-                throw new InvalidDataException("نسخه آزمایشی قابل نصب خودکار نیست.");
-            string tag = root.GetProperty("tag_name").GetString() ?? "";
-            if (!Regex.IsMatch(tag, @"^v[0-9]+\.[0-9]+\.[0-9]+$", RegexOptions.CultureInvariant)
-                || !Version.TryParse(tag[1..], out var version))
-                throw new InvalidDataException("نسخه انتشار نامعتبر است.");
-
-            UpdateInfo? found = null;
-            if (version > CurrentVersion)
-            {
-                string fileName = $"Shamsa-Setup-{tag}-win-x64.exe";
-                Uri? installer = null, checksums = null;
-                long size = 0;
-                foreach (var asset in root.GetProperty("assets").EnumerateArray())
-                {
-                    string name = asset.GetProperty("name").GetString() ?? "";
-                    string? url = asset.GetProperty("browser_download_url").GetString();
-                    if (url == null || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
-                        || uri.Scheme != Uri.UriSchemeHttps
-                        || !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
-                        || uri.AbsolutePath != $"/{Repo}/releases/download/{tag}/{name}") continue;
-                    if (name == fileName)
-                    {
-                        installer = uri;
-                        size = asset.GetProperty("size").GetInt64();
-                    }
-                    else if (name == "SHA256SUMS.txt") checksums = uri;
-                }
-
-                string notes = root.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String
-                    ? body.GetString() ?? string.Empty : string.Empty;
-                if (notes.Length > 6000) notes = notes[..6000] + "…";
-                DateTime published = root.TryGetProperty("published_at", out var p) && p.ValueKind == JsonValueKind.String
-                    && DateTime.TryParse(p.GetString(), null, System.Globalization.DateTimeStyles.AdjustToUniversal, out var d) ? d : DateTime.UtcNow;
-
-                if (installer != null && checksums != null && size is > 0 and < 350_000_000)
-                    found = new UpdateInfo(version, tag, fileName, installer, checksums,
-                        $"https://github.com/{Repo}/releases/tag/{tag}", size, notes.Trim(), published);
-                else
-                    throw new InvalidDataException("نصب‌کننده رسمی و فایل SHA-256 در این انتشار موجود نیست.");
-            }
+            var found = ReadRelease(json.RootElement, CurrentVersion);
             Latest = found;
             LastError = null;
             _lastCheckedUtc = DateTime.UtcNow;
@@ -111,6 +70,52 @@ public static class UpdateService
             throw;
         }
         finally { CheckGate.Release(); }
+    }
+
+    internal static UpdateInfo? ReadRelease(JsonElement root, Version installed)
+    {
+        if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
+            throw new InvalidDataException("نسخه آزمایشی قابل نصب خودکار نیست.");
+        string tag = root.GetProperty("tag_name").GetString() ?? "";
+        if (!Regex.IsMatch(tag, @"^v[0-9]+\.[0-9]+\.[0-9]+$", RegexOptions.CultureInvariant)
+            || !Version.TryParse(tag[1..], out var version))
+            throw new InvalidDataException("نسخه انتشار نامعتبر است.");
+
+        UpdateInfo? found = null;
+        if (version > installed)
+        {
+            string fileName = $"Shamsa-Setup-{tag}-win-x64.exe";
+            Uri? installer = null, checksums = null;
+            long size = 0;
+            foreach (var asset in root.GetProperty("assets").EnumerateArray())
+            {
+                string name = asset.GetProperty("name").GetString() ?? "";
+                string? url = asset.GetProperty("browser_download_url").GetString();
+                if (url == null || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                    || uri.Scheme != Uri.UriSchemeHttps
+                    || !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+                    || uri.AbsolutePath != $"/{Repo}/releases/download/{tag}/{name}") continue;
+                if (name == fileName)
+                {
+                    installer = uri;
+                    size = asset.GetProperty("size").GetInt64();
+                }
+                else if (name == "SHA256SUMS.txt") checksums = uri;
+            }
+
+            string notes = root.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String
+                ? body.GetString() ?? string.Empty : string.Empty;
+            if (notes.Length > 6000) notes = notes[..6000] + "…";
+            DateTime published = root.TryGetProperty("published_at", out var p) && p.ValueKind == JsonValueKind.String
+                && DateTime.TryParse(p.GetString(), null, System.Globalization.DateTimeStyles.AdjustToUniversal, out var d) ? d : DateTime.UtcNow;
+
+            if (installer != null && checksums != null && size is > 0 and < 350_000_000)
+                found = new UpdateInfo(version, tag, fileName, installer, checksums,
+                    $"https://github.com/{Repo}/releases/tag/{tag}", size, notes.Trim(), published);
+            else
+                throw new InvalidDataException("نصب‌کننده رسمی و فایل SHA-256 در این انتشار موجود نیست.");
+        }
+        return found;
     }
 
     private static async Task<string> ExpectedSha256Async(UpdateInfo release, CancellationToken token)
@@ -196,7 +201,10 @@ public static class UpdateService
         }
     }
 
-    public static bool HasVerifiedDownload(UpdateInfo release)
+    [Obsolete("Use HasStagedDownload. The checksum is verified before launching the installer.")]
+    public static bool HasVerifiedDownload(UpdateInfo release) => HasStagedDownload(release);
+
+    public static bool HasStagedDownload(UpdateInfo release)
     {
         try
         {

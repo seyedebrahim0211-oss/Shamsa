@@ -42,8 +42,13 @@ public static class DesktopFeature
         }
         DesktopEvents.StudioRequested += page => ShowStudio(page);
         DesktopSettingsStore.Changed += s => Application.Current?.Dispatcher.BeginInvoke(() => Apply(s));
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += DisplayChanged;
         Apply(DesktopSettingsStore.Current);
     }
+
+    private static void DisplayChanged(object? sender, EventArgs e) =>
+        Application.Current?.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle,
+            new Action(() => Apply(DesktopSettingsStore.Current)));
 
     private static IEnumerable<Func<IDesktopModule>> ModuleFactories()
     {
@@ -66,9 +71,22 @@ public static class DesktopFeature
     {
         try { Widgets.IpTimeZoneSync.Apply(s); }
         catch (Exception ex) { AppLog.Warn("IP time zone sync: " + ex.Message); }
+        DesktopSettings? placed = null;
         foreach (var m in Modules)
         {
-            try { m.Apply(s); }
+            try
+            {
+                if (s.Enabled && s.Fences.AvoidOverlap && m.Id is ("widgets" or "fences"))
+                {
+                    if (placed == null)
+                    {
+                        placed = s.Clone();
+                        DesktopPlacement.Arrange(placed, DesktopDisplay.PlacementArea(s));
+                    }
+                    m.Apply(placed);
+                }
+                else m.Apply(s);
+            }
             catch (Exception ex) { AppLog.Error($"Desktop module {m.Id} failed to apply", ex); }
         }
         // Only hide the Windows taskbar when one of our replacements is actually on screen.
@@ -97,6 +115,7 @@ public static class DesktopFeature
 
     public static void Shutdown()
     {
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplayChanged;
         foreach (var m in Modules)
         {
             try { m.Stop(); } catch { }

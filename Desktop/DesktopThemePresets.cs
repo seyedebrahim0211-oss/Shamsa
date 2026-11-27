@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Shamsa.Services;
 
 namespace Shamsa.Desktop;
@@ -16,10 +17,20 @@ public static class DesktopThemePresets
     public sealed record Preset(
         string Id, string Name, string Description,
         string Accent, string Tint, int Radius, int Opacity, int DockIcon,
-        string IconThemeId, string FenceIconStyle, string AppThemeId);
+        string IconThemeId, string FenceIconStyle, string AppThemeId, string? Wallpaper = null)
+    {
+        public string? WallpaperPath => Wallpaper == null ? null : Path.Combine(AppContext.BaseDirectory, "Assets", "Wallpapers", Wallpaper);
+    }
 
     public static readonly IReadOnlyList<Preset> All = new[]
     {
+        new Preset("heritage", "کاشی معرق", "فرهنگی · فیروزه، لاجورد و برنج", "#51D5BF", "#102C37", 14, 84, 48, "turquoise", "girih", "PersianTurquoise", "heritage.jpg"),
+        new Preset("field", "خط تراز", "نظامی · نقش برجستهٔ زمین به رنگ زیتونی", "#C3CF91", "#252C1D", 8, 88, 44, "field", "outline", "EmeraldGlass", "field.jpg"),
+        new Preset("atelier", "کارگاه رنگ", "هنری · رنگ‌دانه‌های سفالی و زعفرانی", "#F5A76E", "#342032", 18, 84, 48, "sunset", "crystal", "AmethystGlass", "atelier.jpg"),
+        new Preset("arcade", "ایوان", "معماری · طاق آجری و سایه‌روشن حیاط", "#E6BD85", "#342921", 12, 86, 46, "gold", "girih", "PersianTurquoise", "arcade.jpg"),
+        new Preset("city", "تهران در شب", "شهر · برج و پنجره‌های روشن", "#92B9FF", "#12243B", 12, 86, 46, "lapis", "crystal", "LapisGlass", "city.jpg"),
+        new Preset("iran", "ایران؛ دماوند", "کشور · کوه و دامنه‌های یشمی در سپیده‌دم", "#8BDBC9", "#173735", 14, 84, 46, "emerald", "outline", "EmeraldGlass", "iran.jpg"),
+        new Preset("prism", "منشور", "گیمینگ · بلور بنفش با لبه‌های نئونی", "#D29BFF", "#21152F", 10, 88, 44, "amethyst", "crystal", "AmethystGlass", "prism.jpg"),
         new Preset("shamse",   "شمسه",          "فیروزه و لاجورد · کاشی ایرانی",          "#28D5BD", "#10244C", 16, 72, 48, "turquoise", "plate", "PersianTurquoise"),
         new Preset("tazhib",   "تذهیب",          "طلایی و سبز یشمی",                       "#EBC26D", "#13392F", 12, 74, 46, "gold",      "plate", "EmeraldGlass"),
         new Preset("lajvard",  "لاجورد شب",      "آبی لاجوردی با حاشیهٔ طلایی",            "#60A5FA", "#0B1B3F", 14, 74, 48, "lapis",     "plate", "LapisGlass"),
@@ -58,8 +69,8 @@ public static class DesktopThemePresets
             foreach (var sug in Fences.FencesModule.SuggestedFences())
                 if (!s.Fences.Fences.Any(f => f.Title == sug.Title || (f.Mode == "filter" && f.Extensions.Contains(Fences.FencesModule.AnyExtension) && sug.Extensions.Contains(Fences.FencesModule.AnyExtension))))
                 { s.Fences.Fences.Add(sug); created = true; }
-            if (created) Fences.FencesModule.Arrange(s.Fences.Fences, DesktopDisplay.RelativeWorkArea(s));
             s.Fences.Enabled = true;
+            if (created) DesktopPlacement.Arrange(s, DesktopDisplay.PlacementArea(s), arrangeGroups: true);
             s.Fences.HideDesktopIcons = true;
         }
         // Widgets use the glass brush, so they follow automatically; reset widget colours that would clash.
@@ -94,6 +105,24 @@ public static class DesktopThemePresets
             BorderBrush = new SolidColorBrush(current ? accent : Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF)),
             BorderThickness = new Thickness(current ? 2 : 1)
         };
+        if (p.WallpaperPath is { } path && File.Exists(path))
+        {
+            try
+            {
+                var image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.DecodePixelWidth = 384;
+                image.UriSource = new Uri(path);
+                image.EndInit();
+                image.Freeze();
+                canvas.Height = 94;
+                canvas.Background = new ImageBrush(image) { Stretch = Stretch.UniformToFill };
+                canvas.FlowDirection = FlowDirection.LeftToRight;
+                return canvas;
+            }
+            catch (Exception ex) { AppLog.Warn("Wallpaper preview: " + ex.Message); }
+        }
         var grid = new Grid();
         // top bar
         grid.Children.Add(new Border { Height = 8, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(6, 6, 6, 0), CornerRadius = new CornerRadius(4),

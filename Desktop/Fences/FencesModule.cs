@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -43,26 +44,15 @@ public sealed class FencesModule : IDesktopModule
     /// </summary>
     public static void Arrange(IList<FenceDefinition> fences, Rect relativeArea)
     {
-        const double Gap = 16;
-        double x = relativeArea.Right - Gap, y = relativeArea.Top + Gap, colWidth = 0;
-        foreach (var f in fences)
-        {
-            double h = Math.Min(f.Height, relativeArea.Height - 2 * Gap);
-            if (y + h > relativeArea.Bottom - Gap && y > relativeArea.Top + Gap)
-            {
-                x -= colWidth + Gap; y = relativeArea.Top + Gap; colWidth = 0;
-            }
-            f.X = Math.Round(Math.Max(relativeArea.Left + Gap, x - f.Width));
-            f.Y = Math.Round(y);
-            y += h + Gap;
-            colWidth = Math.Max(colWidth, f.Width);
-        }
+        var s = new DesktopSettings();
+        s.Fences.Enabled = true;
+        s.Fences.Fences = fences.ToList();
+        DesktopPlacement.Arrange(s, relativeArea, arrangeGroups: true);
     }
 
     public void Apply(DesktopSettings settings)
     {
         if (!settings.Enabled || !settings.Fences.Enabled) { Stop(); return; }
-        DesktopIconsNative.SetHidden(settings.Fences.HideDesktopIcons && settings.Fences.Fences.Count > 0);
         var wanted = settings.Fences.Fences.ToDictionary(f => f.Id);
         foreach (var id in _windows.Keys.Where(k => !wanted.ContainsKey(k)).ToList())
         {
@@ -89,11 +79,12 @@ public sealed class FencesModule : IDesktopModule
                     if (f != null) f.Collapsed = collapsed;
                 });
                 w.RemoveRequested += () => WidgetsModule.Mutate(s => s.Fences.Fences.RemoveAll(x => x.Id == id));
-                _windows[def.Id] = w;
                 w.Show();
+                _windows[def.Id] = w;
             }
             catch (Exception ex) { AppLog.Error($"Fence {def.Title} failed", ex); }
         }
+        DesktopIconsNative.SetHidden(settings.Fences.HideDesktopIcons && _windows.Count > 0 && _windows.Count == wanted.Count);
     }
 
     public void Stop()
@@ -144,6 +135,13 @@ internal sealed class FenceWindow : DesktopLevelWindow
     private readonly List<FileSystemWatcher> _watchers = new();
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromMilliseconds(700) };
     private const double HeaderHeight = 34;
+    internal StaWorker Worker { get; } = new("Negarkhaneh.Fence");
+    internal string Query { get; set; } = "";
+    internal bool SearchOpen { get; set; }
+    internal int VisibleLimit { get; set; } = 48;
+    internal double ScrollOffset { get; set; }
+    private int _request;
+    private bool _closed;
 
     public event Action<bool>? CollapseToggled;
     public event Action? RemoveRequested;
@@ -152,15 +150,13 @@ internal sealed class FenceWindow : DesktopLevelWindow
     {
         _def = def; _s = s;
         Title = "Shamsa fence " + def.Title;
-        Width = Math.Max(200, def.Width);
-        Height = def.Collapsed ? HeaderHeight + 6 : Math.Max(120, def.Height);
-        MinHeight = HeaderHeight + 6;
-        PlaceRelative(def.X, def.Y); // on the monitor chosen for the desktop environment
+        MinHeight = DesktopPlacement.CollapsedHeight;
+        ApplyBounds(DesktopPlacement.Bounds(def));
         Locked = s.Fences.LockPositions;
         AllowDrop = true;
         Drop += OnDrop;
         _refresh.Tick += (_, _) => { _refresh.Stop(); Render(); };
-        Closed += (_, _) => DisposeWatchers();
+        Closed += (_, _) => { _closed = true; _request++; _refresh.Stop(); DisposeWatchers(); Worker.Dispose(); };
         Watch();
         Render();
     }
@@ -168,20 +164,27 @@ internal sealed class FenceWindow : DesktopLevelWindow
     public void UpdateFrom(FenceDefinition def, DesktopSettings s)
     {
         bool sourceChanged = def.Mode != _def.Mode || def.FolderPath != _def.FolderPath || !def.Extensions.SequenceEqual(_def.Extensions);
+        bool reload = sourceChanged || def.Collapsed != _def.Collapsed || def.Title != _def.Title || def.TintHex != _def.TintHex ||
+            !def.Members.SequenceEqual(_def.Members) || s.Fences.IconStyle != _s.Fences.IconStyle ||
+            s.Fences.FollowTheme != _s.Fences.FollowTheme || s.Fences.ShowSystemIcons != _s.Fences.ShowSystemIcons ||
+            s.Fences.RollUpOnTitleClick != _s.Fences.RollUpOnTitleClick || s.ThemePresetId != _s.ThemePresetId ||
+            s.Theme.AccentHex != _s.Theme.AccentHex || s.Theme.GlassTintHex != _s.Theme.GlassTintHex ||
+            s.Theme.CornerRadius != _s.Theme.CornerRadius || s.Theme.GlassOpacity != _s.Theme.GlassOpacity ||
+            s.Theme.ShowBorders != _s.Theme.ShowBorders ||
+            (def.Extensions.Contains(FencesModule.AnyExtension) && !ClaimedItems(s, def.Id).SetEquals(ClaimedItems(_s, def.Id)));
         _def = def; _s = s;
         Locked = s.Fences.LockPositions;
         if (sourceChanged) { DisposeWatchers(); Watch(); }
-        Height = def.Collapsed ? HeaderHeight + 6 : Math.Max(120, def.Height);
-        FollowArea(def.X, def.Y);
-        Render();
+        ApplyBounds(DesktopPlacement.Bounds(def));
+        if (reload) Render();
     }
 
-    private IEnumerable<string> SourceFolders()
+    private static IEnumerable<string> SourceFolders(FenceDefinition def)
     {
-        if (_def.Mode == "manual") yield break;
-        if (_def.Mode == "folder")
+        if (def.Mode == "manual") yield break;
+        if (def.Mode == "folder")
         {
-            if (!string.IsNullOrEmpty(_def.FolderPath) && Directory.Exists(_def.FolderPath)) yield return _def.FolderPath;
+            if (!string.IsNullOrWhiteSpace(def.FolderPath)) yield return def.FolderPath;
             yield break;
         }
         yield return Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
@@ -191,15 +194,18 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     private void Watch()
     {
-        foreach (var folder in SourceFolders().Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var folder in SourceFolders(_def).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             try
             {
-                var w = new FileSystemWatcher(folder) { IncludeSubdirectories = false, EnableRaisingEvents = true };
-                FileSystemEventHandler h = (_, _) => Dispatcher.BeginInvoke(() => { _refresh.Stop(); _refresh.Start(); });
+                var w = new FileSystemWatcher(folder) { IncludeSubdirectories = false };
+                void Schedule() => Dispatcher.BeginInvoke(() => { if (!_closed) { _refresh.Stop(); _refresh.Start(); } });
+                FileSystemEventHandler h = (_, _) => Schedule();
                 w.Created += h; w.Deleted += h; w.Changed += h;
-                w.Renamed += (_, _) => Dispatcher.BeginInvoke(() => { _refresh.Stop(); _refresh.Start(); });
+                w.Renamed += (_, _) => Schedule();
+                w.Error += (_, _) => Schedule();
                 _watchers.Add(w);
+                w.EnableRaisingEvents = true;
             }
             catch (Exception ex) { AppLog.Warn("Fence watcher: " + ex.Message); }
         }
@@ -211,25 +217,29 @@ internal sealed class FenceWindow : DesktopLevelWindow
         _watchers.Clear();
     }
 
-    private List<FenceItem> LoadItems()
+    private static string Norm(string ext) => ext == FencesModule.AnyExtension || ext.StartsWith('.') ? ext : "." + ext;
+
+    private static HashSet<string> ClaimedItems(DesktopSettings settings, string except)
     {
-        if (_def.Mode == "manual")
-            return _def.Members.OrderBy(x => x.Value).Select(x => new FenceItem(x.Key, x.Value, Directory.Exists(x.Key))).ToList();
-        var list = new List<FenceItem>();
-        static string Norm(string e) => e == FencesModule.AnyExtension ? e : e.StartsWith('.') ? e : "." + e;
-        var exts = new HashSet<string>(_def.Extensions.Select(Norm), StringComparer.OrdinalIgnoreCase);
-        bool catchAll = _def.Mode == "filter" && exts.Contains(FencesModule.AnyExtension);
-        HashSet<string>? taken = null; // extensions shown by the other filter groups
-        if (catchAll)
+        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in settings.Fences.Fences.Where(f => f.Id != except))
         {
-            taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var other in _s.Fences.Fences.Where(f => f.Id != _def.Id && f.Mode == "filter"))
-                foreach (var e in other.Extensions.Select(Norm)) if (e != FencesModule.AnyExtension) taken.Add(e);
-            foreach (var other in _s.Fences.Fences.Where(f => f.Id != _def.Id && f.Mode == "manual"))
-                foreach (var m in other.Members.Keys) taken.Add("path:" + m);
-            if (_s.Fences.ShowSystemIcons) list.AddRange(SystemItems());
+            if (f.Mode == "filter") taken.UnionWith(f.Extensions.Where(e => e != FencesModule.AnyExtension).Select(Norm));
+            if (f.Mode == "manual") taken.UnionWith(f.Members.Keys.Select(m => "path:" + m));
         }
-        foreach (var folder in SourceFolders().Distinct(StringComparer.OrdinalIgnoreCase))
+        return taken;
+    }
+
+    internal static List<FenceItem> LoadItems(FenceDefinition def, DesktopSettings s)
+    {
+        if (def.Mode == "manual")
+            return def.Members.OrderBy(x => x.Value).Select(x => new FenceItem(x.Key, x.Value, Directory.Exists(x.Key))).ToList();
+        var list = new List<FenceItem>();
+        var exts = new HashSet<string>(def.Extensions.Select(Norm), StringComparer.OrdinalIgnoreCase);
+        bool catchAll = def.Mode == "filter" && exts.Contains(FencesModule.AnyExtension);
+        var taken = catchAll ? ClaimedItems(s, def.Id) : null;
+        if (catchAll && s.Fences.ShowSystemIcons) list.AddRange(SystemItems());
+        foreach (var folder in SourceFolders(def).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             try
             {
@@ -246,7 +256,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
                             if (dir ? taken.Contains(".folder") : taken.Contains(Path.GetExtension(path))) continue;
                             if (Path.GetFileName(path).Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
                         }
-                        else if (_def.Mode != "folder")
+                        else if (def.Mode != "folder")
                         {
                             if (dir) { if (!exts.Contains(".folder")) continue; }
                             else if (!exts.Contains(Path.GetExtension(path))) continue;
@@ -255,7 +265,6 @@ internal sealed class FenceWindow : DesktopLevelWindow
                         if (!dir && !Path.GetExtension(path).Equals(".lnk", StringComparison.OrdinalIgnoreCase) && !Path.GetExtension(path).Equals(".url", StringComparison.OrdinalIgnoreCase))
                             name = Path.GetFileName(path);
                         list.Add(new FenceItem(path, name, dir));
-                        if (list.Count >= 300) return list;
                     }
                     catch { }
                 }
@@ -278,18 +287,25 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     internal const string SystemPrefix = "shamsa-system:";
 
-    private void Render()
+    private async void Render()
     {
-        var items = _def.Collapsed ? new List<FenceItem>() : LoadItems();
-        Content = BuildBody(_def, _s, items, this, collapsed => ToggleCollapse(collapsed), preview: false);
+        if (_closed) return;
+        int request = ++_request;
+        var def = _def;
+        var s = _s;
+        try
+        {
+            var items = def.Collapsed ? new List<FenceItem>() : await Worker.RunAsync(() => LoadItems(def, s));
+            if (request != _request || _closed || items == null) return;
+            Content = BuildBody(def, s, items, this, ToggleCollapse, preview: false);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { AppLog.Error("Rendering desktop group", ex); }
     }
 
     private void ToggleCollapse(bool collapsed)
     {
-        _def.Collapsed = collapsed;
-        Height = collapsed ? HeaderHeight + 6 : Math.Max(120, _def.Height);
         CollapseToggled?.Invoke(collapsed);
-        Render();
     }
 
     /// <summary>Builds the glass fence (header + icon grid). <paramref name="host"/> is null for previews.</summary>
@@ -359,22 +375,32 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
         if (!def.Collapsed || preview)
         {
-            var grid = new WrapPanel { Margin = new Thickness(6) };
-            foreach (var item in items) grid.Children.Add(ItemTile(item, s, preview));
-            if (items.Count == 0)
+            var browser = new FenceBrowser(def, s, items, host, count);
+            if (host != null)
             {
-                grid.Children.Add(new TextBlock
+                var search = new Button
                 {
-                    Text = def.Mode == "folder" ? "پوشه خالی است یا پیدا نشد." : "موردی با این پسوندها روی دسکتاپ نیست.",
-                    Foreground = DesktopTheme.MutedBrush, Margin = new Thickness(8), TextWrapping = TextWrapping.Wrap
-                });
+                    Content = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14,
+                    Width = 28, Height = 25, Padding = new Thickness(0), Margin = new Thickness(4, 0, 4, 0),
+                    Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                    Foreground = DesktopTheme.TextBrush, ToolTip = "جست‌وجو در گروه (Ctrl+F)"
+                };
+                AutomationProperties.SetName(search, "جست‌وجو در " + def.Title);
+                DockPanel.SetDock(search, System.Windows.Controls.Dock.Right);
+                hp.Children.Insert(0, search);
+                search.Click += (_, _) => browser.Search(!host.SearchOpen);
+                root.PreviewKeyDown += (_, e) =>
+                {
+                    if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { browser.Search(true); e.Handled = true; }
+                    else if (e.Key == Key.Escape && host.SearchOpen) { browser.Search(false); search.Focus(); e.Handled = true; }
+                };
             }
-            root.Children.Add(new ScrollViewer { Content = grid, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+            root.Children.Add(browser);
         }
 
         return new Border
         {
-            Background = new SolidColorBrush(tint), CornerRadius = new CornerRadius(Math.Max(6, s.Theme.CornerRadius)),
+            Background = new LinearGradientBrush(Color.FromArgb(tint.A, (byte)Math.Min(255, tint.R + 13), (byte)Math.Min(255, tint.G + 13), (byte)Math.Min(255, tint.B + 13)), tint, 58), CornerRadius = new CornerRadius(Math.Max(6, s.Theme.CornerRadius)),
             BorderBrush = DesktopTheme.BorderBrush(s), BorderThickness = new Thickness(s.Theme.ShowBorders ? 1 : 0),
             Child = root, Margin = new Thickness(2)
         };
@@ -387,12 +413,12 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     private static Color Darken(Color c, double f) => Color.FromRgb((byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f));
 
-    private static FrameworkElement ItemTile(FenceItem item, DesktopSettings s, bool preview)
+    internal static FrameworkElement ItemTile(FenceItem item, DesktopSettings s, bool preview, DrawingImage? plate, out Image image, out TextBlock fallback)
     {
         string style = s.Fences.IconStyle;
         var accent = DesktopTheme.Accent(s);
-        var stack = new StackPanel { Width = 80, Margin = new Thickness(2) };
-        var img = new Image { Width = style == "plate" ? 34 : 40, Height = style == "plate" ? 34 : 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var stack = new StackPanel { Width = 88, Margin = new Thickness(2) };
+        var img = new Image { Width = style == "plate" || plate != null ? 32 : 40, Height = style == "plate" || plate != null ? 32 : 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
         var glyph = new TextBlock
         {
@@ -401,6 +427,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
         };
         var iconHost = new Grid { Width = 52, Height = 52, Margin = new Thickness(0, 6, 0, 2), HorizontalAlignment = HorizontalAlignment.Center };
+        if (plate != null) iconHost.Children.Add(new Image { Source = plate, FlowDirection = FlowDirection.LeftToRight, IsHitTestVisible = false });
         if (style is "plate" or "glyph")
         {
             // A themed tile behind every icon: apps, files and folders all share the theme's shape and colour.
@@ -422,35 +449,28 @@ internal sealed class FenceWindow : DesktopLevelWindow
                     IsHitTestVisible = false
                 });
         }
+        image = img; fallback = glyph;
         iconHost.Children.Add(glyph);
         if (style != "glyph") iconHost.Children.Add(img);
         stack.Children.Add(iconHost);
         var name = new TextBlock
         {
-            Text = item.Name, Foreground = DesktopTheme.TextBrush, FontSize = 11.5, TextAlignment = TextAlignment.Center,
-            TextWrapping = TextWrapping.Wrap, MaxHeight = 32, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2, 0, 2, 6)
+            Text = item.Name, Foreground = DesktopTheme.TextBrush, FontSize = 12, TextAlignment = TextAlignment.Center,
+            LineHeight = 17, LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
+            FlowDirection = item.Name.FirstOrDefault(char.IsLetter) is >= '\u0590' and <= '\u08ff' ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
+            TextWrapping = TextWrapping.Wrap, Height = 34, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2, 0, 2, 6)
         };
         stack.Children.Add(name);
         var tile = new Border { Child = stack, CornerRadius = new CornerRadius(8), Background = Brushes.Transparent, ToolTip = preview ? null : item.IsSystem ? item.Name : item.Path };
         tile.MouseEnter += (_, _) => tile.Background = TileHover;
-        tile.MouseLeave += (_, _) => tile.Background = Brushes.Transparent;
+        tile.MouseLeave += (_, _) => tile.Background = tile.IsKeyboardFocused ? TileHover : Brushes.Transparent;
         if (!preview)
         {
-            if (style != "glyph")
-                tile.Loaded += (_, _) => tile.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
-                {
-                    try
-                    {
-                        BitmapSource? bmp;
-                        if (item.SystemDef is { } sys)
-                            // Shows the Personalize icon theme (if one is applied) — same look as the real desktop.
-                            bmp = Personalize.SystemIcons.LoadIcon(Personalize.SystemIcons.CurrentIconLocation(sys), 64);
-                        else
-                            bmp = ShellThumbnailService.TryGetShellImage(item.Path, 64); // 64 px: sharp at 125–150 % scaling
-                        if (bmp != null) { img.Source = bmp; glyph.Visibility = Visibility.Collapsed; }
-                    }
-                    catch { }
-                });
+            tile.Focusable = true;
+            AutomationProperties.SetName(tile, item.Name);
+            tile.GotKeyboardFocus += (_, _) => tile.Background = TileHover;
+            tile.LostKeyboardFocus += (_, _) => tile.Background = tile.IsMouseOver ? TileHover : Brushes.Transparent;
+            tile.KeyDown += (_, e) => { if (e.Key == Key.Enter) { Open(item.Path); e.Handled = true; } };
             tile.MouseLeftButtonDown += (_, e) => { if (e.ClickCount == 2) { Open(item.Path); e.Handled = true; } };
             var menu = new ContextMenu { FlowDirection = FlowDirection.RightToLeft, FontFamily = DesktopTheme.Font };
             var open = new MenuItem { Header = "باز کردن" };

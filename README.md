@@ -12,11 +12,19 @@
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-14B8A6?style=flat-square" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0B1324?style=flat-square" alt="Windows"/>
-  <img src="https://img.shields.io/badge/Version-3.2.0-F6D379?style=flat-square" alt="Version 3.2.0"/>
+  <img src="https://img.shields.io/badge/Version-3.5.0-F6D379?style=flat-square" alt="Version 3.5.0"/>
   <img src="https://img.shields.io/badge/License-MIT-E5B85B?style=flat-square" alt="MIT License"/>
 </p>
 
 ---
+
+## نگارخانه ۳٫۵
+
+در **شروع سریع دسکتاپ ← تم‌های کامل دسکتاپ** می‌توانید یکی از هفت تم تصویری را اعمال کنید. برای تغییر فقط پس‌زمینه، از **شخصی‌سازی ویندوز ← تصویر زمینه** استفاده کنید. تصاویر همراه نصب‌کننده و نسخهٔ پرتابل هستند.
+
+از **گروه‌بندی دسکتاپ** سبک آیکون و چیدمان را انتخاب کنید. ذره‌بین هر گروه نام فایل‌ها را در همان گروه جست‌وجو می‌کند. در **استودیو پوشه ← مدل پوشه** می‌توانید آیکون واقعی پوشه را در Explorer تغییر دهید.
+
+برای دریافت نسخهٔ جدید از داخل برنامه به **تنظیمات و به‌روزرسانی ← بررسی نسخه جدید ← نصب و اجرای مجدد** بروید.
 
 ## 🆕 تازه‌های نسخه ۳
 
@@ -92,7 +100,7 @@
 
 **[دریافت آخرین نسخه در GitHub Releases](https://github.com/seyedebrahim0211-oss/Shamsa/releases/latest)**
 
-فایل `Shamsa-Setup-v2.9.2-win-x64.exe` را اجرا کنید. نسخه نصبی
+فایل `Shamsa-Setup-v3.5.0-win-x64.exe` را اجرا کنید. نسخه نصبی
 خودکفا (self-contained) است و نیاز به نصب جداگانه .NET ندارد.
 FFmpeg برای قابلیت تبدیل درصورت نیاز با دکمه داخل اپ دانلود و نصب می‌شود.
 فایل‌ها در مسیر پروفایل کاربر نصب می‌شوند و حذف نصب از Settings ویندوز امکان‌پذیر است.

@@ -700,6 +700,7 @@
                                     <Button x:Name="InstallUpdateBtn" Content="⚡ نصب و اجرای مجدد (یک کلیک)" Click="InstallUpdate_Click" Style="{StaticResource AccentButton}" Margin="0,0,8,5" IsEnabled="False"
                                             ToolTip="دانلود، تأیید SHA-256، نصب بی‌صدا و اجرای دوباره خودکار نگارخانه"/>
                                     <Button x:Name="InstallUpdateWizardBtn" Content="نصب با پنجره نصب‌کننده" Click="InstallUpdateWizard_Click" Margin="0,0,8,5" IsEnabled="False"/>
+                                    <Button x:Name="CancelUpdateBtn" Content="لغو دریافت" Click="CancelUpdate_Click" Visibility="Collapsed" Margin="0,0,8,5"/>
                                     <Button x:Name="SkipUpdateBtn" Content="فعلاً این نسخه را رد کن" Click="SkipUpdate_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,5" Visibility="Collapsed"/>
                                     <Button x:Name="ReleasePageBtn" Content="صفحه انتشار" Click="ReleasePage_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,5" Visibility="Collapsed"/>
                                 </WrapPanel>

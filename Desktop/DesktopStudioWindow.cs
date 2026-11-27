@@ -53,11 +53,12 @@ public sealed class DesktopStudioView : UserControl
     private string _currentPage = "home";
     private bool _building;
     private bool _released;
+    private bool _gatherIcons = true, _systemIcons = true, _appPalette = true;
 
     /// <summary>Page ids, Segoe Fluent glyphs and titles (the hub builds its «دسکتاپ» group from this list).</summary>
     public static readonly (string Id, string Glyph, string Title, string Keywords)[] Pages =
     {
-        ("home", "", "شروع سریع دسکتاپ", "desktop seelen preset حالت آماده محیط دسکتاپ تسک‌بار taskbar"),
+        ("home", "", "شروع سریع دسکتاپ", "desktop seelen preset wallpaper تم‌های کامل پس‌زمینه نظامی فرهنگی هنری معماری شهر کشور گیمینگ حالت آماده محیط دسکتاپ تسک‌بار taskbar"),
         ("theme", "", "ظاهر و فونت", "theme font color accent glass رنگ فونت شیشه"),
         ("topbar", "", "نوار بالا", "topbar bar clock date ساعت تاریخ شمسی نوار"),
         ("dock", "", "داک", "dock pin magnify پین داک بزرگ‌نمایی"),
@@ -164,7 +165,7 @@ public sealed class DesktopStudioView : UserControl
                     () => Rules.RulesStudioPage.Build(_s, Changed)); break;
                 case "widgets": External("ویجت‌ها", "تقویم شمسی با تعطیلات، اوقات شرعی، آب‌وهوا، یادداشت و ساعت روی دسکتاپ.",
                     () => Widgets.WidgetsStudioPage.Build(_s, Changed)); break;
-                case "fences": External("گروه‌بندی دسکتاپ", "جعبه‌های شیشه‌ای برای مرتب دیدن آیکون‌ها؛ آیکون‌های واقعی دسکتاپ حذف یا پنهان نمی‌شوند.",
+                case "fences": External("گروه‌بندی دسکتاپ", "گروه‌های شیشه‌ای برای دسترسی به فایل‌ها، پوشه‌ها و برنامه‌های دسکتاپ.",
                     () => Fences.FencesStudioPage.Build(_s, Changed)); break;
                 case "controlcenter": External("مرکز کنترل", "وای‌فای، بلوتوث، روشنایی، صدا، رسانه، نور شب و مزاحم نشوید — از دکمه کنار ساعت نوار بالا یا منوی سینی.",
                     () => ControlCenter.ControlCenterStudioPage.Build(_s, Changed)); break;
@@ -226,7 +227,6 @@ public sealed class DesktopStudioView : UserControl
 
         // ---- whole-desktop themes
         var themes = Card("تم‌های کامل دسکتاپ", "نوار بالا، داک، جستجو، ویجت‌ها، گروه‌های آیکون، آیکون‌های سیستمی ویندوز و ظاهر خود نگارخانه با یک کلیک هم‌رنگ می‌شوند.");
-        bool gather = true, sysIcons = true, palette = true;
         var opts = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
         CheckBox Opt(string text, bool value, Action<bool> set)
         {
@@ -235,9 +235,10 @@ public sealed class DesktopStudioView : UserControl
             cb.Unchecked += (_, _) => set(false);
             return cb;
         }
-        opts.Children.Add(Opt("همه آیکون‌ها، برنامه‌ها و فایل‌های دسکتاپ داخل گروه‌های هم‌رنگ تم", gather, v => gather = v));
-        opts.Children.Add(Opt("آیکون‌های سیستمی ویندوز (این رایانه، سطل بازیافت…)", sysIcons, v => sysIcons = v));
-        opts.Children.Add(Opt("ظاهر پنجرهٔ نگارخانه", palette, v => palette = v));
+        opts.Children.Add(Opt("همه آیکون‌ها، برنامه‌ها و فایل‌های دسکتاپ داخل گروه‌های هم‌رنگ تم", _gatherIcons, v => _gatherIcons = v));
+        opts.Children.Add(Opt("آیکون‌های سیستمی ویندوز (این رایانه، سطل بازیافت…)", _systemIcons, v => _systemIcons = v));
+        opts.Children.Add(Opt("ظاهر پنجرهٔ نگارخانه", _appPalette, v => _appPalette = v));
+        opts.Children.Add(Opt("اعمال پس‌زمینهٔ ثابت تم روی ویندوز", _s.UsePresetWallpaper, v => { _s.UsePresetWallpaper = v; Changed(); }));
         themes.Children.Add(opts);
         var gallery = new UniformGrid { Columns = 4 };
         gallery.SizeChanged += (_, e) => gallery.Columns = e.NewSize.Width < 560 ? 2 : e.NewSize.Width < 820 ? 3 : 4;
@@ -257,7 +258,16 @@ public sealed class DesktopStudioView : UserControl
                 try
                 {
                     _s.Enabled = true;
-                    DesktopThemePresets.Apply(_s, p, gather, sysIcons, palette);
+                    DesktopThemePresets.Apply(_s, p, _gatherIcons, _systemIcons, _appPalette);
+                    if (_s.UsePresetWallpaper && p.WallpaperPath is { } path)
+                    {
+                        try { Personalize.WallpaperService.SetStaticWallpaper(path, Personalize.WallpaperFit.Fill); }
+                        catch (Exception ex)
+                        {
+                            AppLog.Warn("Theme wallpaper: " + ex.Message);
+                            MessageBox.Show("تصویر زمینه اعمال نشد. " + ex.Message, "نگارخانه", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+                    }
                 }
                 finally { Mouse.OverrideCursor = null; }
                 Changed();

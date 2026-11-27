@@ -366,7 +366,7 @@ public static class PersonalizeStudioPage
                 var dlg = new OpenFileDialog { Title = "تصویر زمینه", Filter = "تصاویر|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.jfif;*.webp" };
                 if (dlg.ShowDialog(Window.GetWindow(_host)) != true) return;
                 var f = (WallpaperFit)((ComboBoxItem)fit.SelectedItem).Tag;
-                Do("تغییر تصویر زمینه", () => WallpaperService.SetWallpaper(dlg.FileName, f));
+                Do("تغییر تصویر زمینه", () => WallpaperService.SetStaticWallpaper(dlg.FileName, f));
             }, "AccentButton"));
             row.Children.Add(Btn("اعمال نحوه نمایش", () =>
             {
@@ -393,6 +393,21 @@ public static class PersonalizeStudioPage
             Grid.SetColumn(right, 1);
             grid.Children.Add(right);
             card.Children.Add(grid);
+            var gallery = new WrapPanel();
+            foreach (var p in DesktopThemePresets.All.Where(p => p.Wallpaper != null))
+            {
+                var preview = new StackPanel();
+                preview.Children.Add(DesktopThemePresets.Swatch(p, false));
+                preview.Children.Add(new TextBlock { Text = p.Name, Margin = new Thickness(2, 4, 2, 0) });
+                var b = Btn(p.Name, () => Do("تغییر تصویر زمینه", () =>
+                    WallpaperService.SetStaticWallpaper(p.WallpaperPath!, (WallpaperFit)((ComboBoxItem)fit.SelectedItem).Tag)));
+                b.Content = preview; b.Width = 150; b.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+                b.ToolTip = p.Description;
+                System.Windows.Automation.AutomationProperties.SetName(b, "انتخاب تصویر زمینهٔ " + p.Name);
+                gallery.Children.Add(b);
+            }
+            card.Children.Add(new TextBlock { Text = "پس‌زمینه‌های سه‌بعدی نگارخانه", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 14, 0, 4) });
+            card.Children.Add(gallery);
             return Wrap(card);
         }
 

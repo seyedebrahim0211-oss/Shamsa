@@ -49,7 +49,7 @@ public static class FencesStudioPage
 
         var general = new StackPanel();
         general.Children.Add(StudioUi.Title("گروه‌بندی آیکون‌های دسکتاپ"));
-        general.Children.Add(StudioUi.Muted("کادرهای شیشه‌ای روی دسکتاپ که فایل‌ها را بر اساس نوع یا محتوای یک پوشه نشان می‌دهند. آیکون‌ها و فایل‌های واقعی دسکتاپ هرگز پنهان، جابه‌جا یا حذف نمی‌شوند."));
+        general.Children.Add(StudioUi.Muted("کادرهای شیشه‌ای روی دسکتاپ که فایل‌ها را بر اساس نوع یا محتوای یک پوشه نشان می‌دهند. گروه‌ها نمایی از فایل‌ها هستند و ساختن گروه، محل فایل‌ها را تغییر نمی‌دهد."));
         general.Children.Add(StudioUi.Toggle("نمایش گروه‌ها", f.Enabled, v => f.Enabled = v, changed));
         general.Children.Add(StudioUi.Toggle("جمع/باز شدن با یک کلیک روی عنوان (وگرنه دوبار کلیک)", f.RollUpOnTitleClick, v => f.RollUpOnTitleClick = v, changed));
         general.Children.Add(StudioUi.Toggle("قفل موقعیت و اندازه", f.LockPositions, v => f.LockPositions = v, changed));
@@ -62,7 +62,7 @@ public static class FencesStudioPage
         look.Children.Add(StudioUi.Labeled("نمایشگر دسکتاپ", DesktopDisplay.Picker(s.DisplayDevice, v => { s.DisplayDevice = v; changed(); })));
         look.Children.Add(StudioUi.Toggle("رنگ گروه‌ها هماهنگ با تم دسکتاپ (شیشه و رنگ تأکیدی)", f.FollowTheme, v => f.FollowTheme = v, changed));
         var style = new ComboBox { MinWidth = 260, HorizontalAlignment = HorizontalAlignment.Left };
-        foreach (var (id, label) in new[] { ("plate", "کاشی هم‌رنگ تم زیر آیکون واقعی (پیشنهادی)"), ("glyph", "آیکون تک‌رنگ هم‌رنگ تم"), ("plain", "آیکون‌های اصلی ویندوز") })
+        foreach (var (id, label) in FenceIconArt.Styles)
             style.Items.Add(new ComboBoxItem { Content = label, Tag = id });
         style.SelectedItem = style.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == f.IconStyle) ?? style.Items[0];
         style.SelectionChanged += (_, _) => { if (style.SelectedItem is ComboBoxItem { Tag: string id }) { f.IconStyle = id; changed(); } };
@@ -70,11 +70,15 @@ public static class FencesStudioPage
         look.Children.Add(StudioUi.Toggle("فقط گروه‌ها نمایش داده شوند (آیکون‌های ویندوز پشت گروه‌ها پنهان شوند)", f.HideDesktopIcons, v => f.HideDesktopIcons = v, changed));
         look.Children.Add(StudioUi.Muted("فایل‌ها جابه‌جا یا حذف نمی‌شوند؛ فقط نمای آیکون‌های ویندوز پنهان می‌شود و با خاموش کردن گروه‌ها، خروج یا «بازگردانی دسکتاپ» فوراً برمی‌گردد. گروه «پوشه‌ها و سایر» هر چیزی را که در گروه دیگری نیست نشان می‌دهد."));
         look.Children.Add(StudioUi.Toggle("نمایش «این رایانه»، «سطل بازیافت» و… در گروه «سایر»", f.ShowSystemIcons, v => f.ShowSystemIcons = v, changed));
-        look.Children.Add(StudioUi.Button("چیدمان خودکار گروه‌ها روی نمایشگر انتخابی", () =>
+        look.Children.Add(StudioUi.Toggle("جلوگیری خودکار از هم‌پوشانی گروه‌ها و ویجت‌ها", f.AvoidOverlap, v => f.AvoidOverlap = v, changed));
+        var layoutStatus = StudioUi.Muted("");
+        look.Children.Add(StudioUi.Button("چیدمان هوشمند با حفظ جای ویجت‌ها", () =>
         {
-            FencesModule.Arrange(f.Fences, DesktopDisplay.RelativeWorkArea(s));
+            bool fits = DesktopPlacement.Arrange(s, DesktopDisplay.PlacementArea(s), arrangeGroups: true);
+            layoutStatus.Text = fits ? "چیدمان اعمال شد." : "برای نمایش همهٔ موارد، یک گروه را جمع کنید یا تعداد ویجت‌ها را کم کنید.";
             changed();
         }));
+        look.Children.Add(layoutStatus);
         root.Children.Add(StudioUi.Card(look));
 
         var groups = new StackPanel();
@@ -83,8 +87,8 @@ public static class FencesStudioPage
         {
             foreach (var sug in FencesModule.SuggestedFences())
                 if (!f.Fences.Any(x => x.Title == sug.Title)) f.Fences.Add(sug);
-            FencesModule.Arrange(f.Fences, DesktopDisplay.RelativeWorkArea(s));
             f.Enabled = true;
+            DesktopPlacement.Arrange(s, DesktopDisplay.PlacementArea(s), arrangeGroups: true);
             Refill();
             changed();
         }, "AccentButton").Also(b => b.HorizontalAlignment = HorizontalAlignment.Left));
@@ -137,14 +141,12 @@ public static class FencesStudioPage
             else if (m == "filter")
             {
                 def.Extensions = exts.Text.Split(new[] { ' ', ',', '،', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Select(e => e.Equals("folder", StringComparison.OrdinalIgnoreCase) ? "folder" : e.StartsWith('.') ? e.ToLowerInvariant() : "." + e.ToLowerInvariant())
+                    .Select(e => e == FencesModule.AnyExtension ? e : e.Equals("folder", StringComparison.OrdinalIgnoreCase) ? ".folder" : e.StartsWith('.') ? e.ToLowerInvariant() : "." + e.ToLowerInvariant())
                     .Distinct().ToList();
                 if (def.Extensions.Count == 0) { status.Text = "حداقل یک پسوند بنویس."; return; }
             }
-            var wa = DesktopDisplay.RelativeWorkArea(s);
-            int n = f.Fences.Count;
-            def.X = Math.Round(wa.Left + 60 + (n % 3) * 380);
-            def.Y = Math.Round(wa.Top + 60 + (n / 3 % 3) * 270);
+            var slot = DesktopPlacement.ForNew(s, DesktopDisplay.PlacementArea(s), new Size(def.Width, def.Height));
+            def.X = slot.X; def.Y = slot.Y; def.Width = slot.Width; def.Height = slot.Height;
             f.Fences.Add(def);
             f.Enabled = true;
             if (m == "manual") EditMembers(def, () => { Refill(); changed(); });

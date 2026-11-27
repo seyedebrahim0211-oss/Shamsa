@@ -97,6 +97,29 @@ public static class DesktopDisplay
         return new Rect(0, 0, a.Width, a.Height);
     }
 
+    /// <summary>Placement space for groups and widgets, leaving visible overlay bars accessible.</summary>
+    internal static Rect PlacementArea(DesktopSettings s)
+    {
+        var area = RelativeWorkArea(s);
+        double left = 0, right = 0, top = 0, bottom = 0;
+        if (s.TopBar.Enabled && !s.TopBar.ReserveSpace)
+        {
+            if (s.TopBar.Position == "Bottom") bottom = s.TopBar.Height; else top = s.TopBar.Height;
+        }
+        if (s.Dock.Enabled && !s.Dock.ReserveSpace && !s.Dock.AutoHide)
+        {
+            double thickness = s.Dock.IconSize + 20;
+            switch (s.Dock.Position)
+            {
+                case "Left": left = thickness; break;
+                case "Right": right = thickness; break;
+                case "Top": top = Math.Max(top, thickness); break;
+                default: bottom = Math.Max(bottom, thickness); break;
+            }
+        }
+        return new Rect(left, top, Math.Max(1, area.Width - left - right), Math.Max(1, area.Height - top - bottom));
+    }
+
     public static string Label(Forms.Screen sc)
     {
         int? n = Number(sc);

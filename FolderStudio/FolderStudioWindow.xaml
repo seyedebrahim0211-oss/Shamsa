@@ -135,6 +135,13 @@
                             <StackPanel>
                                 <TextBlock Text="۲. طراحی آیکون" Style="{StaticResource SectionTitle}"/>
 
+                                <TextBlock Text="مدل پوشه" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox x:Name="FinishPicker" SelectionChanged="Design_Changed" Margin="0,0,0,8">
+                                    <ComboBoxItem Content="کلاسیک"/>
+                                    <ComboBoxItem Content="شیشهٔ تراش‌خورده"/>
+                                    <ComboBoxItem Content="گره‌چینی ایرانی"/>
+                                    <ComboBoxItem Content="مینیمال مات"/>
+                                </ComboBox>
                                 <TextBlock Text="رنگ پایه پوشه" Style="{StaticResource FieldLabel}" Margin="0,0,0,6"/>
                                 <WrapPanel x:Name="BaseSwatches"/>
                                 <WrapPanel Margin="0,2,0,0">

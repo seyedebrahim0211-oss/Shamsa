@@ -97,12 +97,10 @@ public static class WidgetsStudioPage
             buttons.Children.Add(StudioUi.Button("＋ " + title, () =>
             {
                 var (dw, dh) = WidgetViews.DefaultSize(k);
-                var wa = DesktopDisplay.RelativeWorkArea(s); // positions are relative to the chosen monitor
-                int n = w.Items.Count;
+                var bounds = DesktopPlacement.ForNew(s, DesktopDisplay.PlacementArea(s), new Size(dw, dh));
                 w.Items.Add(new WidgetPlacement
                 {
-                    Kind = k, Width = dw, Height = dh,
-                    X = Math.Round(wa.Right - dw - 40 - (n % 3) * 30), Y = Math.Round(wa.Top + 40 + (n % 6) * 40),
+                    Kind = k, Width = bounds.Width, Height = bounds.Height, X = bounds.X, Y = bounds.Y,
                     ColorHex = k == "note" ? WidgetsModule.NoteColors[0] : null
                 });
                 w.Enabled = true;

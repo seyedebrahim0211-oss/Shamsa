@@ -405,10 +405,12 @@ public partial class ToolsDashboardWindow : Window
         if (_organizerUndo == null) return;
         var moves = _organizerUndo;
         UndoOrganizerBtn.IsEnabled = false;
-        int restored = await Task.Run(() => _organizer.Undo(moves));
-        _organizerUndo = null;
+        var remaining = new List<OrganizeMove>();
+        int restored = await Task.Run(() => _organizer.Undo(moves, remaining));
+        _organizerUndo = remaining;
+        UndoOrganizerBtn.IsEnabled = remaining.Count > 0;
         RefreshOrganizerPreview();
-        OrganizerStatus.Text = $"{restored} فایل به جای قبلی برگشت.";
+        OrganizerStatus.Text = $"{restored} فایل به جای قبلی برگشت." + (remaining.Count > 0 ? $" {remaining.Count} مورد برای تلاش دوباره باقی ماند." : "");
     }
 
     // =====================================================================
@@ -1347,6 +1349,8 @@ public partial class ToolsDashboardWindow : Window
     // =====================================================================
 
     private bool _updateBusy;
+    private CancellationTokenSource? _updateDownload;
+    private void CancelUpdate_Click(object sender, RoutedEventArgs e) => _updateDownload?.Cancel();
 
     private void OnUpdateStateChanged() => Dispatcher.BeginInvoke(() => { if (!_updateBusy) RefreshUpdateStatus(); });
 
@@ -1368,9 +1372,9 @@ public partial class ToolsDashboardWindow : Window
         }
 
         bool skipped = release.Version.ToString(3) == SettingsService.Current.SkippedUpdateVersion;
-        bool staged = UpdateService.HasVerifiedDownload(release);
+        bool staged = UpdateService.HasStagedDownload(release);
         UpdateStatusText.Text = $"🎉 نسخه جدید {release.Version} منتشر شده است · " +
-            (staged ? "فایل نصب دریافت و تأیید شده؛ آماده نصب با یک کلیک."
+            (staged ? "فایل نصب دریافت شده و پیش از اجرا دوباره بررسی می‌شود."
                     : $"حجم دانلود: {FileKinds.FormatSize(release.SizeBytes)}") +
             (skipped ? " (این نسخه را رد کرده‌اید)" : string.Empty);
         InstallUpdateBtn.IsEnabled = InstallUpdateWizardBtn.IsEnabled = true;
@@ -1442,19 +1446,33 @@ public partial class ToolsDashboardWindow : Window
         InstallUpdateBtn.IsEnabled = InstallUpdateWizardBtn.IsEnabled = CheckUpdateBtn.IsEnabled = false;
         UpdateProgress.Visibility = Visibility.Visible;
         UpdateProgress.Value = 0;
+        using var download = new CancellationTokenSource();
+        _updateDownload = download;
+        CancelUpdateBtn.Visibility = Visibility.Visible;
         try
         {
             var progress = new Progress<string>(msg => UpdateStatusText.Text = msg);
             var percent = new Progress<double>(p => UpdateProgress.Value = p);
-            string installer = await UpdateService.DownloadVerifiedAsync(release, progress, default, percent);
+            string installer = await UpdateService.DownloadVerifiedAsync(release, progress, download.Token, percent);
+            download.Token.ThrowIfCancellationRequested();
+            CancelUpdateBtn.Visibility = Visibility.Collapsed;
             UpdateStatusText.Text = silent ? "فایل تأیید شد؛ در حال نصب و اجرای دوباره نگارخانه…" : "فایل تأیید شد؛ نصب‌کننده ویندوز در حال اجراست…";
             await UpdateService.LaunchInstallerAsync(installer, release, silent);
             Application.Current.Shutdown();
+        }
+        catch (OperationCanceledException) when (download.IsCancellationRequested)
+        {
+            UpdateStatusText.Text = "دریافت لغو شد. برای تلاش دوباره دکمهٔ نصب را بزنید.";
         }
         catch (Exception ex)
         {
             UpdateStatusText.Text = "خطای دریافت یا اجرای نسخه جدید: " + ex.Message;
             MessageBox.Show(Dlg, UpdateStatusText.Text, "نگارخانه", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _updateDownload = null;
+            CancelUpdateBtn.Visibility = Visibility.Collapsed;
             _updateBusy = false;
             UpdateProgress.Visibility = Visibility.Collapsed;
             InstallUpdateBtn.IsEnabled = InstallUpdateWizardBtn.IsEnabled = CheckUpdateBtn.IsEnabled = true;

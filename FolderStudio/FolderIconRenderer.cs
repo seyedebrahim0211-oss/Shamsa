@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 
 namespace Shamsa.FolderStudio;
 
+public enum FolderFinish { Classic, Crystal, Girih, Minimal }
 public enum IconOverlayKind { None, Emoji, Text, Image }
 /// <summary>Badge = small picture on the folder; Full = picture fills the icon (cropped);
 /// Fit = whole picture visible on a transparent square (best for logos and app icons).</summary>
@@ -17,6 +18,7 @@ public enum IconImageMode { Badge, Full, Fit }
 public sealed class IconDesign
 {
     public string Name { get; set; } = "پوشه سفارشی";
+    public FolderFinish Finish { get; set; } = FolderFinish.Classic;
     public string BaseHex { get; set; } = "#F4B740";
     /// <summary>Second gradient colour; empty = automatic soft gradient of <see cref="BaseHex"/>.</summary>
     public string GradientHex { get; set; } = string.Empty;
@@ -51,6 +53,7 @@ public sealed class IconDesign
             // v2: high-quality resampling + more icon frames — old (soft) .ico files are regenerated.
             string raw = string.Join("\u001F", "v2", BaseHex, GradientHex, Overlay, OverlayText, OverlayHex, OverlayBold,
                 imageStamp, ImageMode, RoundedImage);
+            if (Finish != FolderFinish.Classic) raw += "\u001F" + Finish;
             return Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
         }
     }
@@ -228,6 +231,8 @@ public static class FolderIconRenderer
             dc.DrawRoundedRectangle(null, new Pen(new SolidColorBrush(Color.FromArgb(110, 255, 255, 255)), 3),
                 new Rect(22, 93.5, 212, 133), 21, 21);
 
+        DrawFinish(dc, d.Finish, frontRect, topColor, bottomColor, small);
+
         var center = new Point(128, 162);
         switch (d.Overlay)
         {
@@ -248,6 +253,36 @@ public static class FolderIconRenderer
                     d.RoundedImage ? 22 : 0, d.RoundedImage ? 22 : 0);
                 break;
         }
+    }
+
+    private static void DrawFinish(DrawingContext dc, FolderFinish finish, Rect face, Color light, Color dark, bool small)
+    {
+        if (finish == FolderFinish.Classic) return;
+        var clip = new RectangleGeometry(face, 22, 22);
+        dc.PushClip(clip);
+        if (finish == FolderFinish.Crystal)
+        {
+            dc.DrawRectangle(new LinearGradientBrush(Shade(light, 1.5), Shade(dark, 0.62), 62), null, face);
+            dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(96, 255, 255, 255)), null,
+                Geometry.Parse("M20,92 L224,92 20,180 Z"));
+            dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(65, 255, 255, 255)), null,
+                Geometry.Parse("M150,228 L236,157 236,228 Z"));
+            dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(160, 240, 253, 255)), 3),
+                new Point(34, 98), new Point(213, 98));
+        }
+        else if (finish == FolderFinish.Girih)
+        {
+            var gold = new Pen(new SolidColorBrush(Color.FromRgb(242, 209, 140)), small ? 5 : 3);
+            dc.DrawRoundedRectangle(null, gold, new Rect(26, 98, 204, 124), 17, 17);
+            // Woven corner bands leave the centre clear for a badge, a photograph or Persian initials.
+            dc.DrawGeometry(null, gold, Geometry.Parse("M20,149 L77,92 M20,169 L97,92 M34,92 L34,122 64,122 64,92 M180,228 L236,172 M160,228 L236,152 M190,228 L190,198 220,198 220,228"));
+        }
+        else if (finish == FolderFinish.Minimal)
+        {
+            dc.DrawRectangle(new SolidColorBrush(dark), null, face);
+            dc.DrawRoundedRectangle(new SolidColorBrush(Shade(light, 1.55)), null, new Rect(45, 112, 56, 9), 4, 4);
+        }
+        dc.Pop();
     }
 
     private static Color OverlayInk(IconDesign d, Color panel)

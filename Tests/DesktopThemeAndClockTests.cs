@@ -113,7 +113,7 @@ public class DesktopThemeAndClockTests
         Assert.Contains(256, FolderIconRenderer.IcoSizes);
     }
 
-    private static void RunSta(Action action)
+    internal static void RunSta(Action action)
     {
         Exception? error = null;
         var t = new Thread(() => { try { action(); } catch (Exception ex) { error = ex; } });

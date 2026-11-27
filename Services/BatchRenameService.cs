@@ -177,7 +177,7 @@ public class BatchRenameService
         if (name.Length > 255) return "نام بیش از حد طولانی";
         string stem = Path.GetFileNameWithoutExtension(name);
         if (string.IsNullOrWhiteSpace(stem)) return "نام خالی";
-        if (ReservedNames.Contains(stem)) return "نام رزرو‌شده ویندوز";
+        if (ReservedNames.Contains(stem.Split('.')[0].TrimEnd())) return "نام رزرو‌شده ویندوز";
         return null;
     }
 

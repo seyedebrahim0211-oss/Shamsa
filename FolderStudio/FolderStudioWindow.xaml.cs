@@ -160,6 +160,7 @@ public partial class FolderStudioWindow : Window
             IconStatusText.Text = "ابتدا یک یا چند پوشه اضافه کنید.";
             return;
         }
+        ReadUiIntoDesign();
         if (_design.Overlay == IconOverlayKind.Image && FolderIconRenderer.LoadImage(_design.ImagePath) == null)
         {
             IconStatusText.Text = "تصویر انتخاب‌شده قابل خواندن نیست.";
@@ -240,6 +241,7 @@ public partial class FolderStudioWindow : Window
     {
         bool was = _loading;
         _loading = true;
+        FinishPicker.SelectedIndex = (int)d.Finish;
         BaseHexBox.Text = d.BaseHex;
         GradientCheck.IsChecked = FolderIconRenderer.IsValidHex(d.GradientHex);
         GradientPanel.IsEnabled = GradientCheck.IsChecked == true;
@@ -276,6 +278,7 @@ public partial class FolderStudioWindow : Window
 
     private void ReadUiIntoDesign()
     {
+        _design.Finish = (FolderFinish)Math.Clamp(FinishPicker.SelectedIndex, 0, 3);
         _design.GradientHex = GradientCheck.IsChecked == true && FolderIconRenderer.IsValidHex(GradientHexBox.Text) ? GradientHexBox.Text.Trim() : string.Empty;
         _design.Overlay = OverlayEmoji.IsChecked == true ? IconOverlayKind.Emoji
             : OverlayText.IsChecked == true ? IconOverlayKind.Text

@@ -46,20 +46,27 @@ public class DesktopLevelWindow : Window
     /// <summary>Work area (DIP) of the monitor chosen for the desktop environment.</summary>
     protected static Rect Area => DesktopDisplay.WorkAreaDip(DesktopSettingsStore.Current);
 
-    /// <summary>Places the window at (x, y) relative to the target monitor's work area.</summary>
-    internal void PlaceRelative(double x, double y)
+    private Rect _requested = Rect.Empty;
+    private Rect _applied = Rect.Empty;
+
+    internal void ApplyBounds(Rect bounds)
     {
-        var a = Area;
-        _placedArea = a;
-        Left = a.Left + x;
-        Top = a.Top + y;
+        var area = Area;
+        // An unrelated settings event must not interrupt a drag waiting for its debounce.
+        if (_requested == bounds && _placedArea == area) return;
+        _requested = bounds;
+        _placedArea = area;
+        _commitTimer.Stop();
+        Width = bounds.Width; Height = bounds.Height;
+        Left = area.Left + bounds.X; Top = area.Top + bounds.Y;
         FitPrimary();
+        _applied = CurrentBounds();
     }
 
-    /// <summary>Moves the window when the chosen monitor (or its work area) changed since it was placed.</summary>
-    internal void FollowArea(double x, double y)
+    private Rect CurrentBounds()
     {
-        if (Area != _placedArea) PlaceRelative(x, y);
+        var a = Area;
+        return new Rect(Math.Round(Left - a.Left), Math.Round(Top - a.Top), Math.Round(Width), Math.Round(Height));
     }
 
     public DesktopLevelWindow()
@@ -84,27 +91,23 @@ public class DesktopLevelWindow : Window
             if (_ready)
             {
                 FitPrimary();
-                var a = Area;
-                BoundsCommitted?.Invoke(new Rect(Left - a.Left, Top - a.Top, Width, Height));
+                var current = CurrentBounds();
+                if (current == _applied) return;
+                _applied = current;
+                _requested = current;
+                BoundsCommitted?.Invoke(current);
             }
         };
         LocationChanged += (_, _) => Touch();
         SizeChanged += (_, _) => Touch();
-        Loaded += (_, _) =>
-        {
-            FitPrimary();
-            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += DisplayChanged;
-        };
+        Loaded += (_, _) => FitPrimary();
         Closed += (_, _) =>
         {
             _ready = false;
             _commitTimer.Stop();
-            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplayChanged;
         };
         ContentRendered += (_, _) => _ready = true;
     }
-
-    private void DisplayChanged(object? sender, EventArgs args) => Dispatcher.BeginInvoke(() => { if (IsLoaded) FitPrimary(); });
 
     /// <summary>Keeps the window inside the chosen monitor's work area (name kept for existing callers).</summary>
     internal void FitPrimary()

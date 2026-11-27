@@ -76,6 +76,15 @@ public static class WallpaperService
         PersonalizeStore.Save();
     }
 
+    internal static void SetStaticWallpaper(string path, WallpaperFit fit)
+    {
+        SetWallpaper(path, fit);
+        StopSlideshow();
+        var slides = PersonalizeStore.Data.Slideshow;
+        slides.Enabled = false; slides.BingDaily = false;
+        PersonalizeStore.Save();
+    }
+
     /// <summary>Removes the image and shows a solid desktop color.</summary>
     public static void SetSolidColor(Color c)
     {
@@ -156,6 +165,7 @@ public static class WallpaperService
     private static async Task TickAsync(bool initial = false)
     {
         var ss = PersonalizeStore.Data.Slideshow;
+        var activeTimer = _timer;
         try
         {
             if (ss.BingDaily)
@@ -164,6 +174,7 @@ public static class WallpaperService
                 if (ss.LastBingDate != today)
                 {
                     string file = await DownloadBingAsync();
+                    if (activeTimer != _timer || !ss.BingDaily) return;
                     SetWallpaper(file, Enum.TryParse<WallpaperFit>(PersonalizeStore.Data.Applied.WallpaperStyle, out var f) ? f : WallpaperFit.Fill);
                     ss.LastBingDate = today;
                     PersonalizeStore.Save();
