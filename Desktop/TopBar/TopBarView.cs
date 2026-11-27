@@ -118,10 +118,9 @@ internal sealed class TopBarView : Border
         static string Norm(string id) => id.Trim().ToLowerInvariant();
     }
 
-    private StackPanel Group(IEnumerable<string> ids, HorizontalAlignment align, int column)
+    private FrameworkElement Group(IEnumerable<string> ids, HorizontalAlignment align, int column)
     {
         var panel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = align, VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(panel, column);
         string position = column switch { 0 => "left", 1 => "center", _ => "right" };
         foreach (var id in ids)
         {
@@ -130,7 +129,10 @@ internal sealed class TopBarView : Border
             catch (Exception ex) { AppLog.Warn($"TopBar item {id}: {ex.Message}"); }
             if (item != null) panel.Children.Add(item);
         }
-        return panel;
+        var fit = new Viewbox { Child = panel, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = align, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(fit, column);
+        return fit;
     }
 
     private FrameworkElement? CreateItem(string id) => id switch

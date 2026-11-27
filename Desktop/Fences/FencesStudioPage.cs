@@ -158,7 +158,7 @@ public static class FencesStudioPage
         root.Children.Add(StudioUi.Card(custom));
         return root;
     }
-    private static void EditMembers(FenceDefinition group, Action changed)
+    internal static void EditMembers(FenceDefinition group, Action changed)
     {
         var members = new Dictionary<string, string>(group.Members, StringComparer.OrdinalIgnoreCase);
         var available = new Dictionary<string, string>(members, StringComparer.OrdinalIgnoreCase);
@@ -169,7 +169,7 @@ public static class FencesStudioPage
             list.Items.Clear();
             foreach (var (path, name) in available.OrderBy(x => x.Value))
             {
-                if (!name.Contains(search.Text.Trim(), StringComparison.CurrentCultureIgnoreCase)) continue;
+                if (!Launcher.LauncherIndex.Normalize(name).Contains(Launcher.LauncherIndex.Normalize(search.Text.Trim()), StringComparison.Ordinal)) continue;
                 var box = new CheckBox { Content = name, ToolTip = path, IsChecked = members.ContainsKey(path) };
                 box.Checked += (_, _) => members[path] = name;
                 box.Unchecked += (_, _) => members.Remove(path);
@@ -189,7 +189,7 @@ public static class FencesStudioPage
             foreach (var path in pick.FileNames) available[path] = members[path] = Path.GetFileName(path);
             Refresh();
         }));
-        buttons.Children.Add(StudioUi.Button("ذخیره انتخاب", () => { group.Members = members; dialog.DialogResult = true; }));
+        buttons.Children.Add(StudioUi.Button("ذخیره انتخاب", () => { group.Members = members; group.Column?.Normalize(members); dialog.DialogResult = true; }));
         DockPanel.SetDock(buttons, System.Windows.Controls.Dock.Bottom);
         panel.Children.Add(buttons);
         DockPanel.SetDock(search, System.Windows.Controls.Dock.Top);

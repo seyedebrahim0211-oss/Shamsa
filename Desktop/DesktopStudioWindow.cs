@@ -45,6 +45,7 @@ public sealed class DesktopStudioWindow : Window
 public sealed class DesktopStudioView : UserControl
 {
     private DesktopSettings _s;
+    private DesktopSettings _baseline;
     private readonly StackPanel _page = new();
     private readonly ScrollViewer _scroll;
     private readonly DispatcherTimer _saveTimer;
@@ -67,6 +68,8 @@ public sealed class DesktopStudioView : UserControl
         ("rules", "", "قوانین و حالت‌های کاری", "rules layout profile قانون چیدمان حالت کاری"),
         ("widgets", "", "ویجت‌ها", "widgets calendar weather prayer تقویم اوقات شرعی آب‌وهوا ویجت"),
         ("fences", "", "گروه‌بندی دسکتاپ", "fences icons group آیکون گروه دسکتاپ"),
+        ("apps", "", "ستون و آیکون برنامه‌ها", "app apps icons glass launcher شیشه‌ای سه بعدی آیکون برنامه کاربردی ستون پوشه رنگ مینیمال سنتی"),
+        ("layouts", "", "چیدمان‌های شخصی", "layouts profiles monitor undo چیدمان ذخیره گروه ویجت نمایشگر طراحی کار روزانه بازگردانی"),
         ("controlcenter", "", "مرکز کنترل", "control center wifi bluetooth volume brightness وای‌فای صدا روشنایی"),
         ("autotheme", "", "تم خودکار روز و شب", "auto theme dark light sunset تیره روشن غروب"),
         ("clipboard", "", "تاریخچه کلیپ‌بورد", "clipboard history copy کپی کلیپ‌بورد"),
@@ -85,9 +88,10 @@ public sealed class DesktopStudioView : UserControl
 
     public DesktopStudioView()
     {
-        _s = DesktopSettingsStore.Current.Clone();
+        _baseline = DesktopSettingsStore.Current;
+        _s = _baseline.Clone();
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
-        _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); DesktopSettingsStore.Save(_s.Clone()); SetStatus("ذخیره و اعمال شد ✓"); };
+        _saveTimer.Tick += (_, _) => FlushPending();
 
         var root = new Grid();
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -112,6 +116,8 @@ public sealed class DesktopStudioView : UserControl
 
         Content = root;
         HotkeyRegistry.Changed += OnHotkeysChanged;
+        PersonalLayoutCommands.BeforeChange += FlushPending;
+        PersonalLayoutCommands.Committed += ReloadFromStore;
     }
 
     /// <summary>Flushes a pending save and detaches static event handlers (call when the host closes).</summary>
@@ -120,14 +126,26 @@ public sealed class DesktopStudioView : UserControl
         if (_released) return;
         _released = true;
         HotkeyRegistry.Changed -= OnHotkeysChanged;
-        if (_saveTimer.IsEnabled) { _saveTimer.Stop(); DesktopSettingsStore.Save(_s.Clone()); }
+        PersonalLayoutCommands.BeforeChange -= FlushPending;
+        PersonalLayoutCommands.Committed -= ReloadFromStore;
+        FlushPending();
+    }
+
+    private void FlushPending()
+    {
+        if (!_saveTimer.IsEnabled) return;
+        _saveTimer.Stop();
+        var live = DesktopSettingsStore.Current;
+        var updated = DesktopStudioEdits.Merge(_baseline, _s, live);
+        _baseline = ReferenceEquals(_baseline, live) ? updated : _s.Clone();
+        DesktopSettingsStore.Save(updated);
+        SetStatus("ذخیره و اعمال شد ✓");
     }
 
     /// <summary>Re-reads desktop.json (e.g. after «بازگردانی دسکتاپ ویندوز») and rebuilds the current page.</summary>
     public void ReloadFromStore(string? status = null)
     {
         _saveTimer.Stop();
-        _s = DesktopSettingsStore.Current.Clone();
         ShowPage(_currentPage);
         if (status != null) SetStatus(status);
     }
@@ -146,7 +164,8 @@ public sealed class DesktopStudioView : UserControl
         id ??= "home";
         if (!IsPage(id)) id = "home";
         // Pick up changes saved elsewhere (top-bar menus, auto theme, restore) unless an edit is pending.
-        if (!_saveTimer.IsEnabled) _s = DesktopSettingsStore.Current.Clone();
+        if (_currentPage != id) FlushPending();
+        if (!_saveTimer.IsEnabled) { _baseline = DesktopSettingsStore.Current; _s = _baseline.Clone(); }
         _currentPage = id;
         _building = true;
         try
@@ -167,6 +186,10 @@ public sealed class DesktopStudioView : UserControl
                     () => Widgets.WidgetsStudioPage.Build(_s, Changed)); break;
                 case "fences": External("گروه‌بندی دسکتاپ", "گروه‌های شیشه‌ای برای دسترسی به فایل‌ها، پوشه‌ها و برنامه‌های دسکتاپ.",
                     () => Fences.FencesStudioPage.Build(_s, Changed)); break;
+                case "layouts": External("چیدمان‌های شخصی", "جای گروه‌ها و ویجت‌ها را برای کارهای مختلف ذخیره کن.",
+                    () => PersonalLayoutsPage.Build(_s, SetStatus, Go)); break;
+                case "apps": External("ستون و آیکون برنامه‌ها", "برنامه‌های پرکاربرد را کنار هم بچین و برای آیکون‌های نگارخانه قاب و رنگ انتخاب کن.",
+                    () => Fences.AppColumnPage.Build(_s, Changed)); break;
                 case "controlcenter": External("مرکز کنترل", "وای‌فای، بلوتوث، روشنایی، صدا، رسانه، نور شب و مزاحم نشوید — از دکمه کنار ساعت نوار بالا یا منوی سینی.",
                     () => ControlCenter.ControlCenterStudioPage.Build(_s, Changed)); break;
                 case "autotheme": External("تم خودکار روز و شب", "تم روشن و تیره ویندوز و نگارخانه در ساعت دلخواه یا با طلوع و غروب خورشید شهر شما عوض می‌شود.",
@@ -223,6 +246,10 @@ public sealed class DesktopStudioView : UserControl
             _s.HideWindowsTaskbar, v => _s.HideWindowsTaskbar = v));
         master.Children.Add(Muted("نمایشگر محیط دسکتاپ — گروه‌های آیکون، ویجت‌ها، داک و نوار بالا روی این نمایشگر قرار می‌گیرند (همان‌جا که آیکون‌های دسکتاپت هستند):"));
         master.Children.Add(DesktopDisplay.Picker(_s.DisplayDevice, v => { _s.DisplayDevice = v; Changed(); }));
+        var shortcuts = new WrapPanel();
+        shortcuts.Children.Add(SmallButton("چیدمان‌های شخصی", () => Go("layouts")));
+        shortcuts.Children.Add(SmallButton("ستون و آیکون برنامه‌ها", () => Go("apps")));
+        master.Children.Add(shortcuts);
         _page.Children.Add(Wrap(master));
 
         // ---- whole-desktop themes
@@ -429,6 +456,7 @@ public sealed class DesktopStudioView : UserControl
         var c = Card("رفتار");
         c.Children.Add(Toggle("نمایش داک", null, d.Enabled, v => d.Enabled = v));
         c.Children.Add(Labeled("محل", Combo(new[] { ("Bottom", "پایین"), ("Left", "چپ"), ("Right", "راست"), ("Top", "بالا") }, d.Position, v => d.Position = v)));
+        c.Children.Add(Muted("اگر داک و نوار وضعیت روی یک لبه باشند، داک خودکار به لبهٔ مقابل می‌رود."));
         c.Children.Add(SliderRow("اندازه آیکون", 32, 80, d.IconSize, "{0}px", v => d.IconSize = v));
         c.Children.Add(SliderRow("بزرگ‌نمایی زیر موس", 100, 200, d.Magnification, "{0}٪", v => d.Magnification = v));
         c.Children.Add(Toggle("پنهان شدن خودکار", "با بردن موس به لبه صفحه ظاهر می‌شود", d.AutoHide, v => d.AutoHide = v));

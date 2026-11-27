@@ -109,7 +109,7 @@ public static class DesktopDisplay
         if (s.Dock.Enabled && !s.Dock.ReserveSpace && !s.Dock.AutoHide)
         {
             double thickness = s.Dock.IconSize + 20;
-            switch (s.Dock.Position)
+            switch (DesktopBarLayout.DockEdge(s))
             {
                 case "Left": left = thickness; break;
                 case "Right": right = thickness; break;

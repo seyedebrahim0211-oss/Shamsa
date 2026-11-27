@@ -69,12 +69,14 @@ internal sealed class DockWindow : Window
     private DockItem? _pressItem, _dragItem;
     private Point _pressPoint;
     private double _dpi = 1;
+    private IntPtr _monitor;
+    private readonly DispatcherTimer _placeTimer = new() { Interval = TimeSpan.FromMilliseconds(140) };
     private DockThumbnailPopup? _thumbs;
     private DockItem? _hoverCandidate;
     private readonly DispatcherTimer _hoverTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private readonly DispatcherTimer _thumbHideTimer = new() { Interval = TimeSpan.FromMilliseconds(160) };
 
-    private string Edge => _s.Dock.Position switch { "Left" => "Left", "Right" => "Right", "Top" => "Top", _ => "Bottom" };
+    private string Edge => DesktopBarLayout.DockEdge(_s);
     private bool Horizontal => Edge is "Bottom" or "Top";
     private double BaseSize => _s.Dock.IconSize;
     private double Mag => _s.Dock.Magnification / 100.0;
@@ -118,26 +120,30 @@ internal sealed class DockWindow : Window
         {
             var hwnd = new WindowInteropHelper(this).Handle;
             if (!_preview) NativeMethods.MakeToolWindowNoActivate(hwnd);
+            if (!_preview) HwndSource.FromHwnd(hwnd)?.AddHook(ShellMessage);
             _dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
             Place();
         };
-        DpiChanged += (_, e) => { _dpi = e.NewDpi.DpiScaleX; Place(); };
+        _placeTimer.Tick += (_, _) => { _placeTimer.Stop(); if (IsLoaded) Place(); };
+        DpiChanged += (_, e) => { _dpi = e.NewDpi.DpiScaleX; SchedulePlace(); };
         _refreshTimer.Tick += (_, _) => RefreshItems(false);
-        void DisplayChanged(object? sender, EventArgs args) => Dispatcher.BeginInvoke(() => { if (IsLoaded) Place(); });
+        void DisplayChanged(object? sender, EventArgs args) => Dispatcher.BeginInvoke(SchedulePlace);
         if (!preview) Microsoft.Win32.SystemEvents.DisplaySettingsChanged += DisplayChanged;
         _hoverTimer.Tick += (_, _) => { _hoverTimer.Stop(); ShowThumbnails(); };
         _thumbHideTimer.Tick += (_, _) => ThumbHideTick();
         _edgeTimer.Tick += (_, _) => EdgeTick();
+        Closing += (_, _) => { if (_appBar) { ShellInterop.UnregisterAppBar(this); _appBar = false; } };
         Closed += (_, _) =>
         {
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplayChanged;
             _refreshTimer.Stop(); _edgeTimer.Stop(); _hoverTimer.Stop(); _thumbHideTimer.Stop();
+            _placeTimer.Stop();
             try { _thumbs?.Close(); } catch { }
             _thumbs = null;
             if (_rendering) CompositionTarget.Rendering -= OnRendering;
             if (_appBar) { ShellInterop.UnregisterAppBar(this); _appBar = false; }
         };
-        Loaded += (_, _) => { if (!_preview) { _refreshTimer.Start(); _edgeTimer.Start(); } };
+        Loaded += (_, _) => { if (!_preview) { SchedulePlace(); _refreshTimer.Start(); _edgeTimer.Start(); } };
 
         ApplySettings(settings);
     }
@@ -146,6 +152,7 @@ internal sealed class DockWindow : Window
 
     public void ApplySettings(DesktopSettings s)
     {
+        bool resetSlide = Edge != DesktopBarLayout.DockEdge(s) || s.Dock.AutoHide != _s.Dock.AutoHide;
         _s = s;
         _plate.Background = DesktopTheme.GlassBrush(s);
         _plate.BorderBrush = DesktopTheme.BorderBrush(s);
@@ -186,8 +193,13 @@ internal sealed class DockWindow : Window
                 _stack.HorizontalAlignment = HorizontalAlignment.Right; _stack.VerticalAlignment = VerticalAlignment.Center;
                 _stack.Margin = new Thickness(0, 0, EdgeMargin + Pad, 0); break;
         }
-        _slide.X = _slide.Y = 0;
-        _hidden = false;
+        if (resetSlide)
+        {
+            _slide.BeginAnimation(TranslateTransform.XProperty, null);
+            _slide.BeginAnimation(TranslateTransform.YProperty, null);
+            _slide.X = _slide.Y = 0;
+            _hidden = false;
+        }
         RefreshItems(true);
         if (IsLoaded || new WindowInteropHelper(this).Handle != IntPtr.Zero) Place();
     }
@@ -198,7 +210,16 @@ internal sealed class DockWindow : Window
         else { _plate.Width = PlateThickness; _plate.Height = _stack.ActualHeight + Pad * 2; }
     }
 
-    /// <summary>Positions the strip window on the primary monitor's chosen edge (optionally as an AppBar).</summary>
+    private IntPtr ShellMessage(IntPtr hwnd, int msg, IntPtr w, IntPtr l, ref bool handled)
+    {
+        if ((msg == ShellInterop.AppBarCallback && w.ToInt64() == ShellInterop.AppBarPositionChanged) ||
+            (msg == TopBar.TopBarNative.WM_SETTINGCHANGE && w.ToInt64() == 0x2F)) SchedulePlace();
+        return IntPtr.Zero;
+    }
+
+    private void SchedulePlace() { _placeTimer.Stop(); _placeTimer.Start(); }
+
+    /// <summary>The shell negotiates in pixels, including the absolute origin of the chosen monitor.</summary>
     private void Place()
     {
         if (_preview)
@@ -213,38 +234,24 @@ internal sealed class DockWindow : Window
         var (monPx, workPx) = ShellInterop.GetMonitorRects(monitor);
         if (monPx.IsEmpty) { monPx = new Rect(0, 0, SystemParameters.PrimaryScreenWidth * _dpi, SystemParameters.PrimaryScreenHeight * _dpi); workPx = monPx; }
 
-        Rect area; // DIP
+        _monitor = monitor;
+        double scale = TopBar.TopBarNative.MonitorScale(monitor);
+        Rect anchor;
         if (_s.Dock.ReserveSpace)
         {
             uint abe = Edge switch { "Top" => ShellInterop.ABE_TOP, "Left" => ShellInterop.ABE_LEFT, "Right" => ShellInterop.ABE_RIGHT, _ => ShellInterop.ABE_BOTTOM };
-            int px = (int)Math.Ceiling((PlateThickness + EdgeMargin * 2) * _dpi);
-            var granted = ShellInterop.RegisterAppBar(this, abe, px, monitor);
+            int px = DesktopBarLayout.DockReservation(_s.Dock.AutoHide, PlateThickness + EdgeMargin * 2, scale);
+            anchor = ShellInterop.RegisterAppBar(this, abe, px, monitor);
             _appBar = true;
-            // the strip extends from the granted bar's outer edge inwards
-            area = new Rect(granted.Left / _dpi, granted.Top / _dpi, granted.Width / _dpi, granted.Height / _dpi);
-            area = Edge switch
-            {
-                "Bottom" => new Rect(monPx.Left / _dpi, area.Bottom - StripThickness, monPx.Width / _dpi, StripThickness),
-                "Top" => new Rect(monPx.Left / _dpi, area.Top, monPx.Width / _dpi, StripThickness),
-                "Left" => new Rect(area.Left, monPx.Top / _dpi, StripThickness, monPx.Height / _dpi),
-                _ => new Rect(area.Right - StripThickness, monPx.Top / _dpi, StripThickness, monPx.Height / _dpi)
-            };
         }
         else
         {
-            if (_appBar) { ShellInterop.UnregisterAppBar(this); _appBar = false; }
-            Rect basePx = ShellInterop.IsTaskbarHidden ? monPx : workPx;
-            var b = new Rect(basePx.Left / _dpi, basePx.Top / _dpi, basePx.Width / _dpi, basePx.Height / _dpi);
-            double t = StripThickness;
-            area = Edge switch
-            {
-                "Bottom" => new Rect(b.Left, b.Bottom - t, b.Width, t),
-                "Top" => new Rect(b.Left, b.Top, b.Width, t),
-                "Left" => new Rect(b.Left, b.Top, t, b.Height),
-                _ => new Rect(b.Right - t, b.Top, t, b.Height)
-            };
+            if (_appBar) { ShellInterop.UnregisterAppBar(this); _appBar = false; workPx = ShellInterop.GetMonitorRects(monitor).Work; }
+            anchor = workPx.IsEmpty ? monPx : workPx;
         }
-        Left = area.Left; Top = area.Top; Width = area.Width; Height = area.Height;
+        var rect = DesktopBarLayout.Strip(DesktopBarLayout.SideSpan(anchor, _s, scale), Edge, Math.Ceiling(StripThickness * scale));
+        TopBar.TopBarNative.SetWindowPos(new WindowInteropHelper(this).Handle, TopBar.TopBarNative.HWND_TOPMOST,
+            (int)rect.X, (int)rect.Y, (int)rect.Width, (int)rect.Height, TopBar.TopBarNative.SWP_NOACTIVATE | TopBar.TopBarNative.SWP_NOOWNERZORDER);
     }
 
     // ------------------------------------------------------------------ model
@@ -428,6 +435,19 @@ internal sealed class DockWindow : Window
                 }
             };
             item.IconElement = fallback;
+        }
+        if (item.Kind is DockItemKind.App or DockItemKind.Uri)
+        {
+            var look = Fences.AppIconArt.Resolve(_s, item.Exe ?? item.Pin ?? item.LaunchTarget);
+            if (Fences.FenceIconArt.Plate(look.Style, look.Color) is { } plate)
+            {
+                var layers = new Grid { RenderTransform = item.Hop };
+                layers.Children.Add(new Image { Source = plate, Stretch = Stretch.Uniform, IsHitTestVisible = false });
+                item.IconElement.RenderTransform = Transform.Identity;
+                item.IconElement.Margin = new Thickness(BaseSize * 0.20);
+                layers.Children.Add(item.IconElement);
+                item.IconElement = layers;
+            }
         }
         g.Children.Add(item.IconElement);
 
@@ -753,7 +773,7 @@ internal sealed class DockWindow : Window
             double c = Horizontal ? tl.X + p.View.ActualWidth / 2 : tl.Y + p.View.ActualHeight / 2;
             if (axis > c) newOrder++;
         }
-        var s = DesktopSettingsStore.Current;
+        var s = DesktopSettingsStore.Current.Clone();
         var pins = s.Dock.Pinned;
         int oldIndex = pins.FindIndex(x => string.Equals(x, drag.Pin, StringComparison.OrdinalIgnoreCase));
         if (oldIndex < 0) return;
@@ -771,7 +791,7 @@ internal sealed class DockWindow : Window
     private void OnDrop(object sender, DragEventArgs e)
     {
         if (_preview || e.Data.GetData(DataFormats.FileDrop) is not string[] paths) return;
-        var s = DesktopSettingsStore.Current;
+        var s = DesktopSettingsStore.Current.Clone();
         bool changed = false;
         foreach (var p in paths)
         {
@@ -846,7 +866,7 @@ internal sealed class DockWindow : Window
 
     private void PinItem(string path)
     {
-        var s = DesktopSettingsStore.Current;
+        var s = DesktopSettingsStore.Current.Clone();
         if (!s.Dock.Pinned.Any(x => string.Equals(x, path, StringComparison.OrdinalIgnoreCase)))
         {
             s.Dock.Pinned.Add(path);
@@ -856,7 +876,7 @@ internal sealed class DockWindow : Window
 
     private void Unpin(DockItem item)
     {
-        var s = DesktopSettingsStore.Current;
+        var s = DesktopSettingsStore.Current.Clone();
         if (s.Dock.Pinned.RemoveAll(x => string.Equals(x, item.Pin, StringComparison.OrdinalIgnoreCase)) > 0) SaveSettings(s);
     }
 
@@ -864,7 +884,7 @@ internal sealed class DockWindow : Window
 
     private void EdgeTick()
     {
-        bool fs = _s.Dock.HideOnFullscreen && ShellInterop.IsFullscreenAppActive();
+        bool fs = _s.Dock.HideOnFullscreen && ShellInterop.IsFullscreenAppActive(_monitor);
         if (fs != _fullscreenHidden)
         {
             _fullscreenHidden = fs;

@@ -13,7 +13,9 @@ namespace Shamsa.Desktop.Fences;
 internal sealed class FenceBrowser : DockPanel
 {
     private const int PageSize = 48;
-    private readonly WrapPanel _tiles = new() { Margin = new Thickness(4) };
+    private readonly Panel _tiles;
+    private readonly Button _back = new() { Margin = new Thickness(6, 2, 6, 2) };
+    private string _folder = "";
     private readonly ScrollViewer _scroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private readonly Button _more = new() { Content = "نمایش موارد بیشتر", Margin = new Thickness(6), HorizontalAlignment = HorizontalAlignment.Center };
     private readonly TextBox _search = new() { Margin = new Thickness(8, 4, 8, 2), Padding = new Thickness(6, 2, 6, 2), ToolTip = "جست‌وجوی نام در این گروه" };
@@ -29,14 +31,22 @@ internal sealed class FenceBrowser : DockPanel
     internal FenceBrowser(FenceDefinition group, DesktopSettings settings, List<FenceItem> items, FenceWindow? host, TextBlock count)
     {
         _group = group; _settings = settings; _host = host; _count = count;
+        _tiles = group.Column != null ? new StackPanel() : new WrapPanel();
+        _tiles.Margin = new Thickness(4);
+        if (group.Column?.Folders.Contains(host?.OpenAppFolder ?? "") == true) _folder = host!.OpenAppFolder;
+        else if (host != null) host.OpenAppFolder = "";
         _entries = items.Select(i => (i, LauncherIndex.Normalize(i.Name))).ToArray();
         _limit = host?.VisibleLimit ?? PageSize;
-        _plate = FenceIconArt.Plate(settings.Fences.IconStyle, DesktopTheme.Accent(settings));
+        _plate = FenceIconArt.Plate(settings.Fences.IconStyle, AppIconArt.DesktopAccent(settings));
         _search.Text = host?.Query ?? "";
         _search.Visibility = host?.SearchOpen == true ? Visibility.Visible : Visibility.Collapsed;
         AutomationProperties.SetName(_search, "جست‌وجو در " + group.Title);
         DockPanel.SetDock(_search, System.Windows.Controls.Dock.Top);
         Children.Add(_search);
+        DockPanel.SetDock(_back, System.Windows.Controls.Dock.Top);
+        _back.Visibility = Visibility.Collapsed;
+        Children.Add(_back);
+        _back.Click += (_, _) => Navigate("");
         var stack = new StackPanel();
         stack.Children.Add(_tiles); stack.Children.Add(_more);
         _scroll.Content = stack;
@@ -59,6 +69,13 @@ internal sealed class FenceBrowser : DockPanel
         _scroll.ScrollChanged += (_, _) => { if (_host != null && IsLoaded) _host.ScrollOffset = _scroll.VerticalOffset; };
     }
 
+    private void Navigate(string folder)
+    {
+        _folder = folder; _limit = PageSize;
+        if (_host != null) { _host.OpenAppFolder = folder; _host.VisibleLimit = _limit; }
+        _search.Clear(); _scroll.ScrollToTop(); Refill();
+    }
+
     internal void Search(bool show)
     {
         if (_host == null) return;
@@ -72,17 +89,30 @@ internal sealed class FenceBrowser : DockPanel
         int revision = ++_revision;
         _tiles.Children.Clear();
         var query = LauncherIndex.Normalize(_search.Text);
-        var hits = _entries.Where(e => e.Key.Contains(query, StringComparison.Ordinal)).ToArray();
-        _count.Text = DesktopTheme.Digits(query.Length == 0 ? _entries.Length.ToString() : $"{hits.Length} / {_entries.Length}", true);
+        var column = _group.Column;
+        _back.Visibility = _folder.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _back.Content = "بازگشت به ستون  ·  " + _folder;
+        int foldersShown = 0;
+        if (column != null && _folder.Length == 0)
+            foreach (var folder in column.Folders.Where(n => LauncherIndex.Normalize(n).Contains(query, StringComparison.Ordinal)))
+            {
+                int count = column.Locations.Values.Count(n => n == folder);
+                var button = Widgets.StudioUi.Button("📁  " + folder + "  ·  " + DesktopTheme.Digits(count.ToString(), true), () => Navigate(folder));
+                button.HorizontalContentAlignment = HorizontalAlignment.Left;
+                _tiles.Children.Add(button); foldersShown++;
+            }
+        var hits = _entries.Where(e => e.Key.Contains(query, StringComparison.Ordinal) &&
+            (column == null || (query.Length > 0 && _folder.Length == 0) || column.FolderOf(e.Item.Path) == _folder)).ToArray();
+        _count.Text = DesktopTheme.Digits(query.Length == 0 && _folder.Length == 0 ? _entries.Length.ToString() : $"{hits.Length} / {_entries.Length}", true);
         var icons = new List<(FenceItem Item, Image Image, TextBlock Fallback)>();
         foreach (var hit in hits.Take(_limit))
         {
-            var tile = FenceWindow.ItemTile(hit.Item, _settings, _host == null, _plate, out var image, out var fallback);
+            var tile = FenceWindow.ItemTile(hit.Item, _settings, _host == null, _plate, out var image, out var fallback, row: column != null);
             _tiles.Children.Add(tile);
-            if (_host != null && _settings.Fences.IconStyle != "glyph") icons.Add((hit.Item, image, fallback));
+            if (_host != null && (_settings.Fences.IconStyle != "glyph" || AppIconArt.IsApp(hit.Item.Path))) icons.Add((hit.Item, image, fallback));
         }
         _more.Visibility = hits.Length > _limit ? Visibility.Visible : Visibility.Collapsed;
-        if (hits.Length == 0)
+        if (hits.Length == 0 && foldersShown == 0)
         {
             string hint = query.Length > 0 ? "موردی با این نام پیدا نشد." : _group.Mode switch
             {

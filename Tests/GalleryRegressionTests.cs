@@ -84,7 +84,8 @@ public class GalleryRegressionTests
         DesktopThemeAndClockTests.RunSta(() =>
         {
             var wallpapers = DesktopThemePresets.All.Where(p => p.Wallpaper != null).ToList();
-            Assert.Equal(8, wallpapers.Count);
+            Assert.Equal(15, wallpapers.Count);
+            Assert.Equal(wallpapers.Count, wallpapers.Select(p => p.Wallpaper).Distinct().Count());
             foreach (var preset in wallpapers)
             {
                 Assert.Contains(FenceIconArt.Styles, s => s.Id == preset.FenceIconStyle);
@@ -110,7 +111,7 @@ public class GalleryRegressionTests
     [Fact]
     public void OfficialInstallerAndChecksumAreRecognisedByAnOlderInstallation()
     {
-        string tag = "v3.5.0", setup = $"Shamsa-Setup-{tag}-win-x64.exe";
+        string tag = "v3.6.0", setup = $"Shamsa-Setup-{tag}-win-x64.exe";
         var release = JsonSerializer.SerializeToElement(new {
             tag_name = tag, draft = false, prerelease = false,
             assets = new[] { setup, "SHA256SUMS.txt" }.Select(name => new {

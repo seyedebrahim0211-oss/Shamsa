@@ -140,6 +140,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
     internal bool SearchOpen { get; set; }
     internal int VisibleLimit { get; set; } = 48;
     internal double ScrollOffset { get; set; }
+    internal string OpenAppFolder { get; set; } = "";
     private int _request;
     private bool _closed;
 
@@ -165,7 +166,8 @@ internal sealed class FenceWindow : DesktopLevelWindow
     {
         bool sourceChanged = def.Mode != _def.Mode || def.FolderPath != _def.FolderPath || !def.Extensions.SequenceEqual(_def.Extensions);
         bool reload = sourceChanged || def.Collapsed != _def.Collapsed || def.Title != _def.Title || def.TintHex != _def.TintHex ||
-            !def.Members.SequenceEqual(_def.Members) || s.Fences.IconStyle != _s.Fences.IconStyle ||
+            !def.Members.SequenceEqual(_def.Members) || !(def.Column?.SameAs(_def.Column) ?? _def.Column == null) ||
+            !s.AppIcons.SameAs(_s.AppIcons) || s.Fences.IconStyle != _s.Fences.IconStyle ||
             s.Fences.FollowTheme != _s.Fences.FollowTheme || s.Fences.ShowSystemIcons != _s.Fences.ShowSystemIcons ||
             s.Fences.RollUpOnTitleClick != _s.Fences.RollUpOnTitleClick || s.ThemePresetId != _s.ThemePresetId ||
             s.Theme.AccentHex != _s.Theme.AccentHex || s.Theme.GlassTintHex != _s.Theme.GlassTintHex ||
@@ -233,7 +235,11 @@ internal sealed class FenceWindow : DesktopLevelWindow
     internal static List<FenceItem> LoadItems(FenceDefinition def, DesktopSettings s)
     {
         if (def.Mode == "manual")
+        {
+            if (def.Column is { } column)
+                return column.Order.Where(def.Members.ContainsKey).Select(p => new FenceItem(p, def.Members[p], Directory.Exists(p))).ToList();
             return def.Members.OrderBy(x => x.Value).Select(x => new FenceItem(x.Key, x.Value, Directory.Exists(x.Key))).ToList();
+        }
         var list = new List<FenceItem>();
         var exts = new HashSet<string>(def.Extensions.Select(Norm), StringComparer.OrdinalIgnoreCase);
         bool catchAll = def.Mode == "filter" && exts.Contains(FencesModule.AnyExtension);
@@ -413,10 +419,16 @@ internal sealed class FenceWindow : DesktopLevelWindow
 
     private static Color Darken(Color c, double f) => Color.FromRgb((byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f));
 
-    internal static FrameworkElement ItemTile(FenceItem item, DesktopSettings s, bool preview, DrawingImage? plate, out Image image, out TextBlock fallback)
+    internal static FrameworkElement ItemTile(FenceItem item, DesktopSettings s, bool preview, DrawingImage? plate,
+        out Image image, out TextBlock fallback, bool row = false)
     {
         string style = s.Fences.IconStyle;
-        var accent = DesktopTheme.Accent(s);
+        var accent = AppIconArt.DesktopAccent(s);
+        if (!item.IsDirectory && AppIconArt.IsApp(item.Path))
+        {
+            (style, accent) = AppIconArt.Resolve(s, item.Path);
+            plate = FenceIconArt.Plate(style, accent);
+        }
         var stack = new StackPanel { Width = 88, Margin = new Thickness(2) };
         var img = new Image { Width = style == "plate" || plate != null ? 32 : 40, Height = style == "plate" || plate != null ? 32 : 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
@@ -452,7 +464,6 @@ internal sealed class FenceWindow : DesktopLevelWindow
         image = img; fallback = glyph;
         iconHost.Children.Add(glyph);
         if (style != "glyph") iconHost.Children.Add(img);
-        stack.Children.Add(iconHost);
         var name = new TextBlock
         {
             Text = item.Name, Foreground = DesktopTheme.TextBrush, FontSize = 12, TextAlignment = TextAlignment.Center,
@@ -460,8 +471,21 @@ internal sealed class FenceWindow : DesktopLevelWindow
             FlowDirection = item.Name.FirstOrDefault(char.IsLetter) is >= '\u0590' and <= '\u08ff' ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
             TextWrapping = TextWrapping.Wrap, Height = 34, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2, 0, 2, 6)
         };
-        stack.Children.Add(name);
-        var tile = new Border { Child = stack, CornerRadius = new CornerRadius(8), Background = Brushes.Transparent, ToolTip = preview ? null : item.IsSystem ? item.Name : item.Path };
+        Panel content = stack;
+        if (row)
+        {
+            var line = new DockPanel { Margin = new Thickness(6, 1, 6, 1) };
+            iconHost.Width = iconHost.Height = 44;
+            iconHost.Margin = new Thickness(4, 1, 4, 1);
+            DockPanel.SetDock(iconHost, System.Windows.Controls.Dock.Left);
+            line.Children.Add(iconHost);
+            name.Height = double.NaN; name.TextWrapping = TextWrapping.NoWrap;
+            name.VerticalAlignment = VerticalAlignment.Center; name.Margin = new Thickness(6, 0, 6, 0);
+            name.TextAlignment = TextAlignment.Right;
+            line.Children.Add(name); content = line;
+        }
+        else { stack.Children.Add(iconHost); stack.Children.Add(name); }
+        var tile = new Border { Child = content, CornerRadius = new CornerRadius(8), Background = Brushes.Transparent, ToolTip = preview ? null : item.IsSystem ? item.Name : item.Path };
         tile.MouseEnter += (_, _) => tile.Background = TileHover;
         tile.MouseLeave += (_, _) => tile.Background = tile.IsKeyboardFocused ? TileHover : Brushes.Transparent;
         if (!preview)
@@ -471,7 +495,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
             tile.GotKeyboardFocus += (_, _) => tile.Background = TileHover;
             tile.LostKeyboardFocus += (_, _) => tile.Background = tile.IsMouseOver ? TileHover : Brushes.Transparent;
             tile.KeyDown += (_, e) => { if (e.Key == Key.Enter) { Open(item.Path); e.Handled = true; } };
-            tile.MouseLeftButtonDown += (_, e) => { if (e.ClickCount == 2) { Open(item.Path); e.Handled = true; } };
+            tile.MouseLeftButtonDown += (_, e) => { if (e.ClickCount == (row ? 1 : 2)) { Open(item.Path); e.Handled = true; } };
             var menu = new ContextMenu { FlowDirection = FlowDirection.RightToLeft, FontFamily = DesktopTheme.Font };
             var open = new MenuItem { Header = "باز کردن" };
             open.Click += (_, _) => Open(item.Path);
@@ -517,6 +541,8 @@ internal sealed class FenceWindow : DesktopLevelWindow
     private static void Reveal(string path)
     {
         if (path.StartsWith(SystemPrefix, StringComparison.Ordinal)) { Open(path); return; }
+        if (path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || path.StartsWith("ms-settings:", StringComparison.OrdinalIgnoreCase))
+        { Open(path); return; }
         try { Process.Start("explorer.exe", $"/select,\"{path}\""); }
         catch (Exception ex) { AppLog.Warn("Fence reveal: " + ex.Message); }
     }
@@ -554,7 +580,11 @@ internal sealed class FenceWindow : DesktopLevelWindow
             {
                 var group = s.Fences.Fences.FirstOrDefault(x => x.Id == _def.Id);
                 if (group == null) return;
-                foreach (var path in dropped) group.Members[path] = Path.GetFileName(path);
+                foreach (var path in dropped)
+                {
+                    group.Members[path] = AppIconArt.IsApp(path) ? Path.GetFileNameWithoutExtension(path) : Path.GetFileName(path);
+                    group.Column?.Move(path, OpenAppFolder);
+                }
             });
             e.Handled = true;
             return;

@@ -153,17 +153,18 @@ public static class ShellInterop
     }
 
     /// <summary>True while a full-screen app, game, presentation or video runs on the window's monitor.</summary>
-    public static bool IsFullscreenAppActive()
+    public static bool IsFullscreenAppActive(IntPtr targetMonitor = default)
     {
-        if (SHQueryUserNotificationState(out int state) == 0 && state is 2 /*BUSY*/ or 3 /*D3D full screen*/ or 4 /*presentation*/)
-            return true;
         IntPtr fg = NativeMethods.GetForegroundWindow();
         if (fg == IntPtr.Zero || NativeMethods.IsOwnProcessWindow(fg)) return false;
+        var current = MonitorFromWindow(fg, 2);
+        if (targetMonitor != IntPtr.Zero && current != targetMonitor) return false;
         string cls = NativeMethods.GetClassNameOf(fg);
-        if (cls is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;
+        if (cls is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return false;
+        if (SHQueryUserNotificationState(out int state) == 0 && state == 3) return true;
         if (!GetWindowRect(fg, out var r)) return false;
-        var (mon, _) = GetMonitorRects(MonitorFromWindow(fg, 2));
-        return r.Left <= mon.Left && r.Top <= mon.Top && r.Right >= mon.Right && r.Bottom >= mon.Bottom;
+        var (mon, _) = GetMonitorRects(current);
+        return !mon.IsEmpty && r.Left <= mon.Left && r.Top <= mon.Top && r.Right >= mon.Right && r.Bottom >= mon.Bottom;
     }
 
     // ------------------------------------------------------------------ icons
@@ -198,7 +199,9 @@ public static class ShellInterop
 
     private const uint ABM_NEW = 0, ABM_REMOVE = 1, ABM_QUERYPOS = 2, ABM_SETPOS = 3;
     public const uint ABE_LEFT = 0, ABE_TOP = 1, ABE_RIGHT = 2, ABE_BOTTOM = 3;
+    internal const int AppBarCallback = 0x8000 + 0x5A, AppBarPositionChanged = 1;
     private static readonly HashSet<IntPtr> RegisteredBars = new();
+    private static readonly Dictionary<IntPtr, (uint Edge, Rect Rect)> GrantedBars = new();
 
     /// <summary>
     /// Registers <paramref name="window"/> as an AppBar docked to <paramref name="edge"/> with the given
@@ -212,7 +215,7 @@ public static class ShellInterop
         {
             if (!RegisteredBars.Contains(hwnd))
             {
-                data.uCallbackMessage = 0x8000 + 0x5A; // WM_APP+n (notifications unused)
+                data.uCallbackMessage = AppBarCallback;
                 SHAppBarMessage(ABM_NEW, ref data);
                 RegisteredBars.Add(hwnd);
             }
@@ -234,15 +237,23 @@ public static class ShellInterop
             case ABE_LEFT: data.rc.Right = data.rc.Left + thicknessPx; break;
             case ABE_RIGHT: data.rc.Left = data.rc.Right - thicknessPx; break;
         }
-        SHAppBarMessage(ABM_SETPOS, ref data);
-        return new Rect(data.rc.Left, data.rc.Top, data.rc.Width, data.rc.Height);
+        var rect = new Rect(data.rc.Left, data.rc.Top, data.rc.Width, data.rc.Height);
+        // ABM_SETPOS notifies every other bar. A no-op renegotiation must not start a feedback loop.
+        lock (RegisteredBars)
+        {
+            if (GrantedBars.TryGetValue(hwnd, out var old) && old == (edge, rect)) return rect;
+            SHAppBarMessage(ABM_SETPOS, ref data);
+            rect = new Rect(data.rc.Left, data.rc.Top, data.rc.Width, data.rc.Height);
+            GrantedBars[hwnd] = (edge, rect);
+        }
+        return rect;
     }
 
     public static void UnregisterAppBar(Window window)
     {
         IntPtr hwnd = new WindowInteropHelper(window).Handle;
         if (hwnd == IntPtr.Zero) return;
-        lock (RegisteredBars) if (!RegisteredBars.Remove(hwnd)) return;
+        lock (RegisteredBars) { if (!RegisteredBars.Remove(hwnd)) return; GrantedBars.Remove(hwnd); }
         var data = new APPBARDATA { cbSize = Marshal.SizeOf<APPBARDATA>(), hWnd = hwnd };
         SHAppBarMessage(ABM_REMOVE, ref data);
     }
@@ -251,7 +262,7 @@ public static class ShellInterop
     public static void UnregisterAllAppBars()
     {
         List<IntPtr> bars;
-        lock (RegisteredBars) { bars = RegisteredBars.ToList(); RegisteredBars.Clear(); }
+        lock (RegisteredBars) { bars = RegisteredBars.ToList(); RegisteredBars.Clear(); GrantedBars.Clear(); }
         foreach (var hwnd in bars)
         {
             var data = new APPBARDATA { cbSize = Marshal.SizeOf<APPBARDATA>(), hWnd = hwnd };
@@ -261,10 +272,10 @@ public static class ShellInterop
 
     // ------------------------------------------------------------------ Windows taskbar (reversible)
 
-    private static bool _taskbarHidden;
+    private static IntPtr _hiddenTaskbar;
     private static string MarkerFile => Path.Combine(AppPaths.DataDir, "taskbar-hidden.flag");
 
-    public static bool IsTaskbarHidden => _taskbarHidden;
+    public static bool IsTaskbarHidden => _hiddenTaskbar != IntPtr.Zero;
 
     private static IEnumerable<IntPtr> TaskbarWindows()
     {
@@ -283,23 +294,42 @@ public static class ShellInterop
     /// Hides (or shows) the Windows taskbar windows. Nothing is written to the registry or Explorer
     /// settings; a marker file lets the next start (or Safe Mode) restore it after a crash.
     /// </summary>
-    public static void SetWindowsTaskbarHidden(bool hide)
+    public static void SetWindowsTaskbarHidden(bool hide, IntPtr monitor = default)
     {
-        // The replacement dock belongs to the primary display. Older crash markers covered all taskbars.
-        var main = FindWindow("Shell_TrayWnd", null);
-        if (!hide && File.Exists(MarkerFile) && !File.ReadAllText(MarkerFile).StartsWith("primary:", StringComparison.Ordinal))
+        if (hide)
         {
-            foreach (var hwnd in TaskbarWindows()) ShowWindow(hwnd, SW_SHOWNA);
+            var target = monitor == IntPtr.Zero ? FindWindow("Shell_TrayWnd", null) :
+                TaskbarWindows().FirstOrDefault(h => MonitorFromWindow(h, 2) == monitor);
+            if (target != IntPtr.Zero && target == _hiddenTaskbar && !IsWindowVisible(target)) return;
+            if (_hiddenTaskbar != IntPtr.Zero) SetWindowsTaskbarHidden(false);
+            if (target == IntPtr.Zero || !IsWindowVisible(target)) return;
+            try
+            {
+                var name = System.Windows.Forms.Screen.FromHandle(target).DeviceName;
+                Directory.CreateDirectory(AppPaths.DataDir);
+                File.WriteAllText(MarkerFile, "device:" + name);
+                _hiddenTaskbar = target;
+                ShowWindow(target, SW_HIDE);
+            }
+            catch (Exception ex) { AppLog.Warn("Taskbar hide: " + ex.Message); }
+            return;
         }
-        else if (main != IntPtr.Zero && (hide || _taskbarHidden || File.Exists(MarkerFile)))
-            ShowWindow(main, hide ? SW_HIDE : SW_SHOWNA);
-        _taskbarHidden = hide;
         try
         {
-            if (hide) { Directory.CreateDirectory(AppPaths.DataDir); File.WriteAllText(MarkerFile, "primary:" + DateTime.UtcNow.ToString("O")); }
-            else if (File.Exists(MarkerFile)) File.Delete(MarkerFile);
+            if (_hiddenTaskbar != IntPtr.Zero && IsWindow(_hiddenTaskbar)) ShowWindow(_hiddenTaskbar, SW_SHOWNA);
+            _hiddenTaskbar = IntPtr.Zero;
+            if (!File.Exists(MarkerFile)) return;
+            string marker = File.ReadAllText(MarkerFile);
+            foreach (var hwnd in TaskbarWindows())
+            {
+                if (marker.StartsWith("device:", StringComparison.Ordinal) &&
+                    !string.Equals(System.Windows.Forms.Screen.FromHandle(hwnd).DeviceName, marker[7..], StringComparison.OrdinalIgnoreCase)) continue;
+                if (marker.StartsWith("primary:", StringComparison.Ordinal) && hwnd != FindWindow("Shell_TrayWnd", null)) continue;
+                ShowWindow(hwnd, SW_SHOWNA);
+            }
+            File.Delete(MarkerFile);
         }
-        catch { }
+        catch (Exception ex) { AppLog.Warn("Taskbar restore: " + ex.Message); }
     }
 
     /// <summary>Call at startup and from crash handlers: brings back a taskbar left hidden by a previous run.</summary>

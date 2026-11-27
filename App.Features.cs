@@ -134,6 +134,20 @@ public partial class App
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
         menu.Items.Add("🖥 استودیو دسکتاپ (نوار بالا، داک، پنجره‌ها)", null, (_, _) => OpenHub("desktop.home"));
         menu.Items.Add("🧩 ویجت‌ها و اوقات شرعی", null, (_, _) => OpenHub("desktop.widgets"));
+        var layouts = new System.Windows.Forms.ToolStripMenuItem("چیدمان‌های شخصی");
+        layouts.DropDownItems.Add("مدیریت چیدمان‌ها");
+        layouts.DropDownOpening += (_, _) =>
+        {
+            while (layouts.DropDownItems.Count > 0) layouts.DropDownItems[0].Dispose();
+            var catalog = DesktopSettingsStore.Current.PersonalLayouts;
+            foreach (var p in catalog.Saved)
+                layouts.DropDownItems.Add(p.Name.Replace("&", "&&"), null, (_, _) => ShowNotification(PersonalLayoutCommands.Apply(p.Id)));
+            if (catalog.BeforeSwitch != null)
+                layouts.DropDownItems.Add("برگرداندن آخرین جابه‌جایی", null, (_, _) => ShowNotification(PersonalLayoutCommands.Undo()));
+            if (layouts.DropDownItems.Count > 0) layouts.DropDownItems.Add(new System.Windows.Forms.ToolStripSeparator());
+            layouts.DropDownItems.Add("مدیریت چیدمان‌ها…", null, (_, _) => OpenHub("desktop.layouts"));
+        };
+        menu.Items.Add(layouts);
         menu.Items.Add("🖌 شخصی‌سازی ویندوز", null, (_, _) => OpenHub("personalize"));
         var l = DesktopSettingsStore.Current.Launcher;
         menu.Items.Add($"🔍 جستجوی سریع ({GlobalHotkeyService.FormatShortcut(l.HotkeyModifiers, l.HotkeyKey)})", null, (_, _) => DesktopFeature.ShowLauncher());

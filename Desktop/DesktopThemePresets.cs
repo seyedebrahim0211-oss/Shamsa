@@ -25,6 +25,13 @@ public static class DesktopThemePresets
     public static readonly IReadOnlyList<Preset> All = new[]
     {
         new Preset("boshrouyeh", "بشرویه", "بافت تاریخی · بادگیر، خشت و گنبد فیروزه‌ای", "#60D3CB", "#342B28", 14, 85, 48, "turquoise", "girih", "PersianTurquoise", "boshrouyeh.jpg"),
+        new Preset("mostofi", "بشرویه · خانهٔ مستوفی", "سه بادگیر و حیاط خشتی در نور غروب", "#F2BA82", "#382B29", 14, 85, 48, "enamel3d", "enamel", "PersianTurquoise", "mostofi.jpg"),
+        new Preset("boshrouyeh-night", "بشرویه در شب", "دیوار شهربند و گنبدهای فیروزه‌ای در نور کهربایی", "#69D5D8", "#12283C", 13, 85, 48, "nocturne3d", "prismatic", "LapisGlass", "boshrouyeh-night.jpg"),
+        new Preset("boshrouyeh-fort", "بشرویه · قلعه‌دختر", "صخره و بقایای قلعه در سپیده‌دم", "#E3A184", "#302A39", 9, 86, 46, "amber3d", "crystal", "AmethystGlass", "boshrouyeh-fort.jpg"),
+        new Preset("mashhad", "مشهد · حرم امام رضا", "گنبد طلایی و صحن در ساعت آبی", "#F0C66C", "#202C44", 14, 86, 48, "gilded3d", "girih", "LapisGlass", "mashhad.jpg"),
+        new Preset("tehran-azadi", "تهران · برج آزادی", "قوس‌های مرمر و نور غروب", "#ACDDE9", "#27384C", 13, 85, 46, "pearl3d", "lens", "LapisGlass", "tehran-azadi.jpg"),
+        new Preset("isfahan", "اصفهان · پل خواجو", "طاق‌های روشن و انعکاس آجری روی زاینده‌رود", "#F0A46D", "#30273C", 14, 85, 48, "enamel3d", "enamel", "AmethystGlass", "isfahan.jpg"),
+        new Preset("shiraz", "شیراز · حافظیه", "گنبد مسی و سروهای باغ در ساعت آبی", "#96CDB6", "#1B342E", 17, 84, 48, "jade3d", "enamel", "EmeraldGlass", "shiraz.jpg"),
         new Preset("heritage", "کاشی معرق", "فرهنگی · فیروزه، لاجورد و برنج", "#51D5BF", "#102C37", 14, 84, 48, "turquoise", "girih", "PersianTurquoise", "heritage.jpg"),
         new Preset("field", "خط تراز", "نظامی · نقش برجستهٔ زمین به رنگ زیتونی", "#C3CF91", "#252C1D", 8, 88, 44, "field", "outline", "EmeraldGlass", "field.jpg"),
         new Preset("atelier", "کارگاه رنگ", "هنری · رنگ‌دانه‌های سفالی و زعفرانی", "#F5A76E", "#342032", 18, 84, 48, "sunset", "crystal", "AmethystGlass", "atelier.jpg"),
@@ -60,6 +67,8 @@ public static class DesktopThemePresets
         s.Launcher.Enabled = true;
         s.HideWindowsTaskbar = true;
         s.ThemePresetId = p.Id;
+        s.AppIcons.WallpaperPresetId = null;
+        s.AppIcons.WallpaperAccentHex = null;
 
         // Icon groups wear the theme too.
         s.Fences.FollowTheme = true;

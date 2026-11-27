@@ -41,7 +41,10 @@ public static class DesktopFeature
             catch (Exception ex) { AppLog.Error("Desktop module could not be created", ex); }
         }
         DesktopEvents.StudioRequested += page => ShowStudio(page);
-        DesktopSettingsStore.Changed += s => Application.Current?.Dispatcher.BeginInvoke(() => Apply(s));
+        DesktopSettingsStore.Changed += s => Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (ReferenceEquals(s, DesktopSettingsStore.Current)) Apply(s);
+        });
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += DisplayChanged;
         Apply(DesktopSettingsStore.Current);
     }
@@ -69,6 +72,15 @@ public static class DesktopFeature
 
     public static void Apply(DesktopSettings s)
     {
+        try
+        {
+            if (ReferenceEquals(s, DesktopSettingsStore.Current))
+            {
+                PersonalLayoutCommands.FollowDisplay(s);
+                s = DesktopSettingsStore.Current;
+            }
+        }
+        catch (Exception ex) { AppLog.Warn("Display layout: " + ex.Message); }
         try { Widgets.IpTimeZoneSync.Apply(s); }
         catch (Exception ex) { AppLog.Warn("IP time zone sync: " + ex.Message); }
         DesktopSettings? placed = null;
@@ -92,7 +104,7 @@ public static class DesktopFeature
         // Only hide the Windows taskbar when one of our replacements is actually on screen.
         bool replacementRunning = Find("dock")?.IsRunning == true;
         bool hide = s.Enabled && s.HideWindowsTaskbar && replacementRunning;
-        if (hide != ShellInterop.IsTaskbarHidden) ShellInterop.SetWindowsTaskbarHidden(hide);
+        if (hide || ShellInterop.IsTaskbarHidden) ShellInterop.SetWindowsTaskbarHidden(hide, hide ? DesktopDisplay.Monitor(s) : IntPtr.Zero);
     }
 
     /// <summary>Turns the whole desktop environment off and restores the stock Windows desktop.</summary>

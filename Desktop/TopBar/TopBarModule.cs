@@ -171,8 +171,7 @@ public sealed class TopBarModule : IDesktopModule
         {
             try
             {
-                bool full = ShellInterop.IsFullscreenAppActive();
-                foreach (var w in _windows) w.SetSuppressed(full);
+                foreach (var w in _windows) w.SetSuppressed(ShellInterop.IsFullscreenAppActive(w.Monitor));
             }
             catch (Exception ex) { AppLog.Warn("TopBar fullscreen check: " + ex.Message); }
         };

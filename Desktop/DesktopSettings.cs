@@ -197,6 +197,7 @@ public sealed class WidgetsSettings
 
 public sealed class FenceDefinition
 {
+    public Shamsa.Desktop.Fences.AppColumn? Column { get; set; }
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Title { get; set; } = "گروه";
     /// <summary>"folder" = shows a folder's content (portal); "filter" = desktop items matching Extensions.</summary>
@@ -271,6 +272,8 @@ public sealed class DesktopSettings
     public ControlCenterSettings ControlCenter { get; set; } = new();
     public List<AppRule> AppRules { get; set; } = new();
     public List<LayoutProfile> Layouts { get; set; } = new();
+    public PersonalLayoutSettings PersonalLayouts { get; set; } = new();
+    public Shamsa.Desktop.Fences.AppIconSettings AppIcons { get; set; } = new();
     public ClipboardSettings Clipboard { get; set; } = new();
     public VoiceSettings Voice { get; set; } = new();
     public WidgetsSettings Widgets { get; set; } = new();
@@ -288,6 +291,8 @@ public sealed class DesktopSettings
         if (Voice.WakeWord is "شمسا" or "shamsa") Voice.WakeWord = "نگار";
         Widgets ??= new(); Fences ??= new(); AutoTheme ??= new(); Plugins ??= new();
         Widgets.Items ??= new(); Fences.Fences ??= new(); Plugins.Disabled ??= new(); Clipboard.IgnoredProcesses ??= new();
+        PersonalLayouts ??= new(); PersonalLayouts.Normalize();
+        AppIcons ??= new(); AppIcons.Normalize();
         Widgets.WorldZones ??= new(Shamsa.Desktop.Widgets.CityClock.Defaults);
         DisplayDevice ??= "";
         if (string.IsNullOrWhiteSpace(Widgets.PrayerWeatherZoneId)) Widgets.PrayerWeatherZoneId = "Iran Standard Time";
@@ -303,6 +308,13 @@ public sealed class DesktopSettings
         {
             if (string.IsNullOrWhiteSpace(f.Id) || !ids.Add(f.Id)) { f.Id = Guid.NewGuid().ToString("N"); ids.Add(f.Id); }
             f.Extensions ??= new(); f.Extensions.RemoveAll(string.IsNullOrWhiteSpace); f.Members ??= new();
+            if (f.Members.Comparer != StringComparer.OrdinalIgnoreCase)
+            {
+                var members = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var (path, name) in f.Members) members[path] = name;
+                f.Members = members;
+            }
+            f.Column?.Normalize(f.Members);
         }
         foreach (var l in Layouts) l.Windows ??= new();
         Clipboard.MaxItems = Math.Clamp(Clipboard.MaxItems, 10, 200);
@@ -320,8 +332,12 @@ public sealed class DesktopSettings
         if (Launcher.History.Count > 50) Launcher.History = Launcher.History.Take(50).ToList();
     }
 
-    public DesktopSettings Clone() =>
-        JsonSerializer.Deserialize<DesktopSettings>(JsonSerializer.Serialize(this, DesktopSettingsStore.Json), DesktopSettingsStore.Json)!;
+    public DesktopSettings Clone()
+    {
+        var copy = JsonSerializer.Deserialize<DesktopSettings>(JsonSerializer.Serialize(this, DesktopSettingsStore.Json), DesktopSettingsStore.Json)!;
+        copy.Normalize();
+        return copy;
+    }
 }
 
 /// <summary>Loads/saves %LocalAppData%\Shamsa\desktop.json and notifies modules of changes.</summary>
@@ -372,10 +388,11 @@ public static class DesktopSettingsStore
         return s;
     }
 
-    public static void Save(DesktopSettings settings)
+    public static void Save(DesktopSettings settings) => Save(settings, requireDisk: false);
+
+    internal static bool Save(DesktopSettings settings, bool requireDisk)
     {
         settings.Normalize();
-        _current = settings;
         try
         {
             Directory.CreateDirectory(AppPaths.DataDir);
@@ -383,7 +400,13 @@ public static class DesktopSettingsStore
             File.WriteAllText(tmp, JsonSerializer.Serialize(settings, Json));
             File.Move(tmp, FilePath, overwrite: true);
         }
-        catch (Exception ex) { AppLog.Error("Saving desktop.json failed", ex); }
+        catch (Exception ex)
+        {
+            AppLog.Error("Saving desktop.json failed", ex);
+            if (requireDisk) return false;
+        }
+        _current = settings;
         Changed?.Invoke(settings);
+        return true;
     }
 }

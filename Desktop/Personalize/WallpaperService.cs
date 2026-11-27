@@ -74,6 +74,8 @@ public static class WallpaperService
         var a = PersonalizeStore.Data.Applied;
         a.WallpaperPath = path; a.WallpaperStyle = fit.ToString(); a.SolidColorHex = null;
         PersonalizeStore.Save();
+        var preset = DesktopThemePresets.All.FirstOrDefault(p => string.Equals(p.WallpaperPath, path, StringComparison.OrdinalIgnoreCase));
+        UpdateIconPalette(preset?.Id, preset?.Accent ?? SampleAccent(path));
     }
 
     internal static void SetStaticWallpaper(string path, WallpaperFit fit)
@@ -95,6 +97,7 @@ public static class WallpaperService
             PersonalizeNative.SPIF_UPDATEINIFILE | PersonalizeNative.SPIF_SENDCHANGE);
         var a = PersonalizeStore.Data.Applied;
         a.SolidColorHex = $"#{c.R:X2}{c.G:X2}{c.B:X2}"; a.WallpaperPath = null;
+        UpdateIconPalette(null, a.SolidColorHex);
         PersonalizeStore.Save();
     }
 
@@ -122,6 +125,48 @@ public static class WallpaperService
         d.OriginalWallpaper = null;
         d.Applied.WallpaperPath = null; d.Applied.SolidColorHex = null;
         PersonalizeStore.Save();
+        UpdateIconPalette(null, null);
+    }
+
+    // A small local thumbnail is enough to choose a recurring colour without reading a full-resolution surface.
+    internal static string? SampleAccent(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var image = new BitmapImage();
+            image.BeginInit(); image.StreamSource = stream; image.CacheOption = BitmapCacheOption.OnLoad;
+            image.DecodePixelWidth = 48; image.DecodePixelHeight = 32; image.EndInit();
+            var source = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+            var pixels = new byte[source.PixelWidth * source.PixelHeight * 4];
+            source.CopyPixels(pixels, source.PixelWidth * 4, 0);
+            var bins = new Dictionary<int, (double Weight, int Count, int R, int G, int B)>();
+            for (int i = 0; i < pixels.Length; i += 4)
+            {
+                if (pixels[i + 3] < 128) continue;
+                int r = pixels[i + 2], g = pixels[i + 1], b = pixels[i];
+                int max = Math.Max(r, Math.Max(g, b)), min = Math.Min(r, Math.Min(g, b));
+                int key = (r >> 5) * 64 + (g >> 5) * 8 + (b >> 5);
+                var bin = bins.GetValueOrDefault(key);
+                double weight = (0.18 + (max - min) / 255.0) * (max < 42 || min > 228 ? 0.2 : 1);
+                bins[key] = (bin.Weight + weight, bin.Count + 1, bin.R + r, bin.G + g, bin.B + b);
+            }
+            if (bins.Count == 0) return null;
+            var best = bins.Values.MaxBy(v => v.Weight);
+            int Lift(int total) => Math.Clamp(32 + total / best.Count * 4 / 5, 0, 255);
+            return $"#{Lift(best.R):X2}{Lift(best.G):X2}{Lift(best.B):X2}";
+        }
+        catch (Exception ex) { AppLog.Warn("Wallpaper colour: " + ex.Message); return null; }
+    }
+
+    private static void UpdateIconPalette(string? presetId, string? accent)
+    {
+        var current = DesktopSettingsStore.Current;
+        if (current.AppIcons.WallpaperPresetId == presetId && current.AppIcons.WallpaperAccentHex == accent) return;
+        var updated = current.Clone();
+        updated.AppIcons.WallpaperPresetId = presetId;
+        updated.AppIcons.WallpaperAccentHex = accent;
+        DesktopSettingsStore.Save(updated);
     }
 
     // ------------------------------------------------------------------ slideshow

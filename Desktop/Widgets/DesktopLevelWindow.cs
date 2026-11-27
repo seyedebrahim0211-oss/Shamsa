@@ -85,19 +85,7 @@ public class DesktopLevelWindow : Window
         MinWidth = 160; MinHeight = 90;
 
         _commitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
-        _commitTimer.Tick += (_, _) =>
-        {
-            _commitTimer.Stop();
-            if (_ready)
-            {
-                FitPrimary();
-                var current = CurrentBounds();
-                if (current == _applied) return;
-                _applied = current;
-                _requested = current;
-                BoundsCommitted?.Invoke(current);
-            }
-        };
+        _commitTimer.Tick += (_, _) => FlushPendingBounds();
         LocationChanged += (_, _) => Touch();
         SizeChanged += (_, _) => Touch();
         Loaded += (_, _) => FitPrimary();
@@ -107,6 +95,18 @@ public class DesktopLevelWindow : Window
             _commitTimer.Stop();
         };
         ContentRendered += (_, _) => _ready = true;
+    }
+
+    internal void FlushPendingBounds()
+    {
+        if (!_commitTimer.IsEnabled) return;
+        _commitTimer.Stop();
+        if (!_ready || _placedArea != Area) return;
+        FitPrimary();
+        var current = CurrentBounds();
+        if (current == _applied) return;
+        _applied = _requested = current;
+        BoundsCommitted?.Invoke(current);
     }
 
     /// <summary>Keeps the window inside the chosen monitor's work area (name kept for existing callers).</summary>

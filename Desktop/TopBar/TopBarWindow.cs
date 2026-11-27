@@ -51,6 +51,7 @@ internal sealed class TopBarWindow : Window
             SourceInitialized += OnSourceInitialized;
         }
         Closed += (_, _) => { _view.Detach(); ReleaseAppBar(); };
+        Closing += (_, _) => ReleaseAppBar();
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
@@ -70,6 +71,8 @@ internal sealed class TopBarWindow : Window
                 return new IntPtr(MA_NOACTIVATE);
             case TopBarNative.WM_DISPLAYCHANGE:
             case TopBarNative.WM_DPICHANGED:
+            case TopBarNative.WM_SETTINGCHANGE when w.ToInt64() == 0x2F:
+            case ShellInterop.AppBarCallback when w.ToInt64() == ShellInterop.AppBarPositionChanged:
                 DisplayChanged?.Invoke();
                 break;
         }
@@ -108,8 +111,8 @@ internal sealed class TopBarWindow : Window
             else
             {
                 ReleaseAppBar();
-                rect = bottom ? new Rect(mon.Left, mon.Bottom - thickness, mon.Width, thickness)
-                              : new Rect(mon.Left, mon.Top, mon.Width, thickness);
+                var work = ShellInterop.GetMonitorRects(Monitor).Work;
+                rect = DesktopBarLayout.Strip(work.IsEmpty ? mon : work, bottom ? "Bottom" : "Top", thickness);
             }
             TopBarNative.SetWindowPos(hwnd, TopBarNative.HWND_TOPMOST, (int)rect.Left, (int)rect.Top, (int)rect.Width, (int)rect.Height,
                 TopBarNative.SWP_NOACTIVATE | TopBarNative.SWP_NOOWNERZORDER);

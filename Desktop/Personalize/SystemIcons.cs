@@ -16,7 +16,7 @@ public sealed record SystemIconDef(string Id, string Name, string Clsid, string 
 }
 
 /// <summary>A built-in generated icon theme.</summary>
-public sealed record IconTheme(string Id, string Name, Color Top, Color Bottom, Color Glyph, Color? Border);
+public sealed record IconTheme(string Id, string Name, Color Top, Color Bottom, Color Glyph, Color? Border, string? Finish = null);
 
 /// <summary>
 /// Desktop system icons: show/hide (HideDesktopIcons\NewStartPanel), change icon (per-user DefaultIcon
@@ -41,6 +41,12 @@ public static class SystemIcons
 
     public static readonly IReadOnlyList<IconTheme> Themes = new[]
     {
+        new IconTheme("enamel3d", "مینای آفتابی", Color.FromRgb(235, 168, 110), Colors.SaddleBrown, Colors.White, Colors.Wheat, "enamel"),
+        new IconTheme("nocturne3d", "شیشهٔ بشرویه در شب", Color.FromRgb(83, 191, 201), Colors.MidnightBlue, Colors.White, Colors.Aquamarine, "prismatic"),
+        new IconTheme("amber3d", "بلور کویری", Color.FromRgb(210, 135, 112), Colors.Sienna, Colors.White, Colors.PeachPuff, "crystal"),
+        new IconTheme("gilded3d", "گره‌چینی زرین", Color.FromRgb(222, 169, 73), Colors.DarkSlateBlue, Colors.White, Colors.Gold, "girih"),
+        new IconTheme("pearl3d", "عدسی مرواریدی", Color.FromRgb(136, 195, 213), Colors.SlateBlue, Colors.White, Colors.Azure, "lens"),
+        new IconTheme("jade3d", "مینای یشمی", Color.FromRgb(104, 173, 148), Colors.DarkSlateGray, Colors.White, Colors.Wheat, "enamel"),
         new IconTheme("field", "زیتونی مات", Color.FromRgb(0xAB, 0xB4, 0x79), Color.FromRgb(0x45, 0x4E, 0x31), Colors.White, Color.FromRgb(0xD9, 0xD8, 0xB3)),
         new IconTheme("turquoise", "کاشی فیروزه‌ای", Color.FromRgb(0x14, 0xB8, 0xA6), Color.FromRgb(0x0F, 0x76, 0x6E), Colors.White, Color.FromRgb(0xE8, 0xC5, 0x6B)),
         new IconTheme("minimal",   "مینیمال",         Color.FromRgb(0xF8, 0xFA, 0xFC), Color.FromRgb(0xE2, 0xE8, 0xF0), Color.FromRgb(0x1F, 0x29, 0x37), Color.FromRgb(0xCB, 0xD5, 0xE1)),
@@ -167,14 +173,19 @@ public static class SystemIcons
             var rect = new Rect(pad, pad, s - 2 * pad, s - 2 * pad);
             var bg = new LinearGradientBrush(t.Top, t.Bottom, 90);
             Pen? pen = t.Border is { } b ? new Pen(new SolidColorBrush(b), Math.Max(1, s * 0.035)) : null;
-            // soft shadow
-            if (size >= 32)
-                dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(0x40, 0, 0, 0)), null,
-                    new Rect(rect.X, rect.Y + s * 0.025, rect.Width, rect.Height), r, r);
-            dc.DrawRoundedRectangle(bg, pen, rect, r, r);
-            // glossy highlight
-            var gloss = new LinearGradientBrush(Color.FromArgb(0x55, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90);
-            dc.DrawRoundedRectangle(gloss, null, new Rect(rect.X, rect.Y, rect.Width, rect.Height * 0.5), r, r);
+            if (t.Finish != null && Fences.FenceIconArt.Plate(t.Finish, t.Top) is { } finish)
+                dc.DrawImage(finish, new Rect(0, 0, s, s));
+            else
+            {
+                // soft shadow
+                if (size >= 32)
+                    dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(0x40, 0, 0, 0)), null,
+                        new Rect(rect.X, rect.Y + s * 0.025, rect.Width, rect.Height), r, r);
+                dc.DrawRoundedRectangle(bg, pen, rect, r, r);
+                // glossy highlight
+                var gloss = new LinearGradientBrush(Color.FromArgb(0x55, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90);
+                dc.DrawRoundedRectangle(gloss, null, new Rect(rect.X, rect.Y, rect.Width, rect.Height * 0.5), r, r);
+            }
 
             var ft = new FormattedText(d.Glyph, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 new Typeface(GlyphFont, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal),
