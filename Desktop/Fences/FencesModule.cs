@@ -184,7 +184,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
     private static IEnumerable<string> SourceFolders(FenceDefinition def)
     {
         if (def.Mode == "manual") yield break;
-        if (def.Mode == "folder")
+        if (def.Mode is "folder" or "recent")
         {
             if (!string.IsNullOrWhiteSpace(def.FolderPath)) yield return def.FolderPath;
             yield break;
@@ -241,6 +241,8 @@ internal sealed class FenceWindow : DesktopLevelWindow
             return def.Members.OrderBy(x => x.Value).Select(x => new FenceItem(x.Key, x.Value, Directory.Exists(x.Key))).ToList();
         }
         var list = new List<FenceItem>();
+        var recent = new List<(DateTime Date, FenceItem Item)>();
+        DateTime cutoff = DateTime.UtcNow.AddDays(-7);
         var exts = new HashSet<string>(def.Extensions.Select(Norm), StringComparer.OrdinalIgnoreCase);
         bool catchAll = def.Mode == "filter" && exts.Contains(FencesModule.AnyExtension);
         var taken = catchAll ? ClaimedItems(s, def.Id) : null;
@@ -262,7 +264,7 @@ internal sealed class FenceWindow : DesktopLevelWindow
                             if (dir ? taken.Contains(".folder") : taken.Contains(Path.GetExtension(path))) continue;
                             if (Path.GetFileName(path).Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
                         }
-                        else if (def.Mode != "folder")
+                        else if (def.Mode is not ("folder" or "recent"))
                         {
                             if (dir) { if (!exts.Contains(".folder")) continue; }
                             else if (!exts.Contains(Path.GetExtension(path))) continue;
@@ -270,13 +272,20 @@ internal sealed class FenceWindow : DesktopLevelWindow
                         string name = dir ? Path.GetFileName(path) : Path.GetFileNameWithoutExtension(path);
                         if (!dir && !Path.GetExtension(path).Equals(".lnk", StringComparison.OrdinalIgnoreCase) && !Path.GetExtension(path).Equals(".url", StringComparison.OrdinalIgnoreCase))
                             name = Path.GetFileName(path);
-                        list.Add(new FenceItem(path, name, dir));
+                        var item = new FenceItem(path, name, dir);
+                        if (def.Mode == "recent")
+                        {
+                            var date = File.GetLastWriteTimeUtc(path);
+                            if (!dir && date >= cutoff) recent.Add((date, item));
+                        }
+                        else list.Add(item);
                     }
                     catch { }
                 }
             }
             catch (Exception ex) { AppLog.Warn("Fence listing: " + ex.Message); }
         }
+        if (def.Mode == "recent") return recent.OrderByDescending(x => x.Date).ThenBy(x => x.Item.Name).Select(x => x.Item).ToList();
         return list.OrderByDescending(i => i.IsSystem).ThenByDescending(i => i.IsDirectory).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
     }
 
@@ -486,6 +495,13 @@ internal sealed class FenceWindow : DesktopLevelWindow
         }
         else { stack.Children.Add(iconHost); stack.Children.Add(name); }
         var tile = new Border { Child = content, CornerRadius = new CornerRadius(8), Background = Brushes.Transparent, ToolTip = preview ? null : item.IsSystem ? item.Name : item.Path };
+        if (!preview && SystemParameters.ClientAreaAnimation)
+        {
+            var lift = new TranslateTransform(); iconHost.RenderTransform = lift;
+            void Lift(double y) => lift.BeginAnimation(TranslateTransform.YProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(y, TimeSpan.FromMilliseconds(135)));
+            tile.MouseEnter += (_, _) => Lift(-2.5); tile.MouseLeave += (_, _) => Lift(0);
+        }
         tile.MouseEnter += (_, _) => tile.Background = TileHover;
         tile.MouseLeave += (_, _) => tile.Background = tile.IsKeyboardFocused ? TileHover : Brushes.Transparent;
         if (!preview)

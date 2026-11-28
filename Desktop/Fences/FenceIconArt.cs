@@ -7,7 +7,7 @@ internal static class FenceIconArt
 {
     internal static readonly (string Id, string Name)[] Styles =
     {
-        ("lens", "عدسی شیشه‌ای"), ("enamel", "مینای برجسته"), ("prismatic", "منشور نئونی"),
+        ("porcelain", "چینی صیقلی"), ("smoke", "شیشهٔ دودی"), ("lens", "عدسی شیشه‌ای"), ("enamel", "مینای برجسته"), ("prismatic", "منشور نئونی"),
         ("crystal", "بلور سه‌بعدی"), ("girih", "قاب گره‌چینی"), ("outline", "خطی مینیمال"),
         ("plate", "کاشی هم‌رنگ تم"), ("glyph", "نماد تک‌رنگ"), ("plain", "آیکون اصلی ویندوز")
     };
@@ -15,7 +15,7 @@ internal static class FenceIconArt
     // The same frozen drawing is shared by all tiles in one group. Only the foreground file icon varies.
     internal static DrawingImage? Plate(string style, Color accent)
     {
-        if (style is not ("crystal" or "girih" or "outline" or "lens" or "enamel" or "prismatic")) return null;
+        if (style is not ("porcelain" or "smoke" or "crystal" or "girih" or "outline" or "lens" or "enamel" or "prismatic")) return null;
         lock (Cache)
         {
             if (Cache.TryGetValue((style, accent), out var cached)) return cached;
@@ -36,7 +36,18 @@ internal static class FenceIconArt
         using (var dc = shape.Open())
         {
             dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, 52, 52));
-            if (style == "lens")
+            if (style is "porcelain" or "smoke")
+            {
+                bool light = style == "porcelain";
+                var top = light ? Color.FromRgb(252, 249, 242) : Color.FromRgb(89, 99, 115);
+                var lip = light ? Color.FromRgb(146, 148, 151) : Color.FromRgb(18, 23, 31);
+                dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(80, 0, 0, 0)), null, new Rect(5, 8, 42, 42), 12, 12);
+                dc.DrawRoundedRectangle(new LinearGradientBrush(top, lip, 84), null, new Rect(4, 4, 44, 44), 12, 12);
+                var glaze = new LinearGradientBrush(top, light ? Color.FromRgb((byte)((accent.R+440)/3), (byte)((accent.G+440)/3), (byte)((accent.B+440)/3)) : dark, 76);
+                dc.DrawRoundedRectangle(glaze, shimmer, new Rect(5, 3, 42, 41), 11, 11);
+                dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(150, accent.R, accent.G, accent.B)), 1.3), new Point(18, 45), new Point(34, 45));
+            }
+            else if (style == "lens")
             {
                 dc.DrawRoundedRectangle(new SolidColorBrush(dark), null, new Rect(4, 7, 44, 42), 14, 14);
                 var glass = new LinearGradientBrush();

@@ -1,5 +1,5 @@
 ﻿#ifndef MyAppVersion
-#define MyAppVersion "3.6.0"
+#define MyAppVersion "3.7.0"
 #endif
 #define AppName "Negarkhaneh"
 

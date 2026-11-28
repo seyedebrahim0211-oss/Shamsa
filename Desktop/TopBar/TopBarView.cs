@@ -73,9 +73,9 @@ internal sealed class TopBarView : Border
         var t = _s.TopBar;
         bool top = !string.Equals(t.Position, "Bottom", StringComparison.OrdinalIgnoreCase);
         double r = Math.Min(_s.Theme.CornerRadius, t.Height / 2.0);
-        Background = DesktopTheme.GlassBrush(_s);
+        Background = t.Islands ? Brushes.Transparent : DesktopTheme.GlassBrush(_s);
         BorderBrush = DesktopTheme.BorderBrush(_s);
-        BorderThickness = top ? new Thickness(0, 0, 0, 1) : new Thickness(0, 1, 0, 0);
+        BorderThickness = t.Islands ? new Thickness(0) : top ? new Thickness(0, 0, 0, 1) : new Thickness(0, 1, 0, 0);
         // Corners only on the inner edge so the bar sits flush against the screen edge.
         CornerRadius = top ? new CornerRadius(0, 0, r * 0.5, r * 0.5) : new CornerRadius(r * 0.5, r * 0.5, 0, 0);
         Height = t.Height;
@@ -109,6 +109,7 @@ internal sealed class TopBarView : Border
             int tray = right.IndexOf("tray");
             if (tray >= 0) right.Insert(tray, "controlcenter"); else right.Add("controlcenter");
         }
+        if (t.ShowNotifications && !Has("notifications")) right.Add("notifications");
         if (_s.Plugins.Enabled && !Has("plugins"))
         {
             var positions = Plugins.TopBarPluginHost.Instance.Active.Select(p => p.Definition.Position).ToHashSet();
@@ -132,7 +133,12 @@ internal sealed class TopBarView : Border
             catch (Exception ex) { AppLog.Warn($"TopBar item {id}: {ex.Message}"); }
             if (item != null) panel.Children.Add(item);
         }
-        var fit = new Viewbox { Child = panel, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+        FrameworkElement content = panel;
+        if (_s.TopBar.Islands && panel.Children.Count > 0)
+            content = new Border { Child = panel, Padding = new Thickness(7, 1, 7, 1), Margin = new Thickness(2),
+                CornerRadius = new CornerRadius(14), Background = DesktopTheme.GlassBrush(_s, 1.12),
+                BorderBrush = DesktopTheme.BorderBrush(_s), BorderThickness = new Thickness(1) };
+        var fit = new Viewbox { Child = content, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
             HorizontalAlignment = align, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(fit, column);
         return fit;
@@ -142,6 +148,7 @@ internal sealed class TopBarView : Border
     {
         "controlcenter" when _s.ControlCenter.Enabled => ControlCenterItem(),
         "launcher" => LauncherItem(),
+        "notifications" when _s.TopBar.ShowNotifications => NoticesItem(),
         "workspaces" when _s.TopBar.ShowWorkspaces => WorkspacesItem(),
         "title" when _s.TopBar.ShowFocusedTitle => TitleItem(),
         "clock" => ClockItem(),
@@ -389,6 +396,33 @@ internal sealed class TopBarView : Border
             Child = new PersianCalendarCard(_s, Widgets.CityClock.Now(_s.Widgets).Date)
         };
         _calendarPopup.IsOpen = true;
+    }
+
+    private FrameworkElement NoticesItem()
+    {
+        Border chip = null!;
+        chip = Chip(Icon(""), () =>
+        {
+            var menu = new ContextMenu { FlowDirection = FlowDirection.RightToLeft, FontFamily = DesktopTheme.Font };
+            var history = Smart.Modes.SmartToast.History();
+            if (history.Length == 0) menu.Items.Add(new MenuItem { Header = "در این اجرا اعلانی ثبت نشده است", IsEnabled = false });
+            foreach (var notice in history)
+            {
+                var labels = new StackPanel { MaxWidth = 320 };
+                labels.Children.Add(Text(D(notice.Created.ToString("HH:mm")) + "   " + notice.Title));
+                var body = Text(notice.Body, true); body.TextWrapping = TextWrapping.Wrap; labels.Children.Add(body);
+                menu.Items.Add(new MenuItem { Header = labels });
+            }
+            if (history.Length > 0)
+            {
+                var clear = new MenuItem { Header = "پاک کردن تاریخچه" };
+                clear.Click += (_, _) => Smart.Modes.SmartToast.ClearHistory(); menu.Items.Add(clear);
+            }
+            var windows = new MenuItem { Header = "اعلان‌های ویندوز" };
+            windows.Click += (_, _) => Open("ms-actioncenter:"); menu.Items.Add(windows);
+            menu.PlacementTarget = chip; menu.IsOpen = true;
+        }, "اعلان‌های نگارخانه");
+        return chip;
     }
 
     private FrameworkElement MediaItem()

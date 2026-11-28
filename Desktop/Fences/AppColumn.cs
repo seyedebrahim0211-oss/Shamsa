@@ -46,7 +46,7 @@ public sealed class AppColumn
         Locations.All(k => other.Locations.TryGetValue(k.Key, out var v) && v == k.Value);
 }
 
-public sealed record AppIconChoice(string Style = "inherit", string? ColorHex = null);
+public sealed record AppIconChoice(string Style = "inherit", string? ColorHex = null, string? ImageId = null);
 
 public sealed class AppIconSettings
 {
@@ -74,7 +74,7 @@ public sealed class AppIconSettings
 internal static class AppIconArt
 {
     internal static readonly (string Id, string Label)[] Models = {
-        ("lens", "عدسی شیشه‌ای"), ("enamel", "مینای برجسته"), ("prismatic", "منشور نئونی"),
+        ("porcelain", "چینی صیقلی"), ("smoke", "شیشهٔ دودی"), ("lens", "عدسی شیشه‌ای"), ("enamel", "مینای برجسته"), ("prismatic", "منشور نئونی"),
         ("crystal", "بلور تراش‌خورده"), ("girih", "گره‌چینی سنتی"), ("outline", "خطی مینیمال"), ("plain", "نشان اصلی")
     };
 
@@ -99,10 +99,39 @@ internal static class AppIconArt
                 "game" or "neon" or "prism" or "city" or "boshrouyeh-night" => "prismatic",
                 "graphite" or "field" => "outline",
                 "boshrouyeh-fort" or "atelier" => "crystal",
-                _ => "lens"
+                var id => DesktopThemePresets.All.FirstOrDefault(p => p.Id == id)?.FenceIconStyle is "porcelain" or "smoke" or "girih" or "lens"
+                    ? DesktopThemePresets.All.First(p => p.Id == id).FenceIconStyle : "lens"
             };
         var color = DesktopTheme.ParseColor(custom?.ColorHex ?? s.AppIcons.Default.ColorHex, DesktopAccent(s));
         return (style, color);
+    }
+
+    internal static System.Windows.Media.Imaging.BitmapSource? CustomImage(DesktopSettings s, string? target)
+    {
+        if (target == null || s.AppIcons.PerApp.Count == 0 || !s.AppIcons.PerApp.TryGetValue(Key(target), out var choice) ||
+            !Guid.TryParseExact(choice.ImageId, "N", out _)) return null;
+        try
+        {
+            string path = Path.Combine(Personalize.PersonalizeStore.IconsDir, choice.ImageId + ".png");
+            if (!File.Exists(path)) return null;
+            var image = new System.Windows.Media.Imaging.BitmapImage();
+            image.BeginInit(); image.DecodePixelWidth = 160; image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            image.UriSource = new Uri(path); image.EndInit(); image.Freeze(); return image;
+        }
+        catch { return null; }
+    }
+
+    internal static string ImportImage(string source)
+    {
+        using var input = File.OpenRead(source);
+        var image = new System.Windows.Media.Imaging.BitmapImage();
+        image.BeginInit(); image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+        image.DecodePixelWidth = 192; image.StreamSource = input; image.EndInit();
+        Directory.CreateDirectory(Personalize.PersonalizeStore.IconsDir);
+        string id = Guid.NewGuid().ToString("N");
+        using var output = File.Create(Path.Combine(Personalize.PersonalizeStore.IconsDir, id + ".png"));
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image)); encoder.Save(output); return id;
     }
 
     internal static Color DesktopAccent(DesktopSettings s) =>

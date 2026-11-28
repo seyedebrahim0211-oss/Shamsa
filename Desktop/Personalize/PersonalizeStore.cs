@@ -52,6 +52,7 @@ public sealed class PersonalizeData
     public List<RegistryOriginal> Originals { get; set; } = new();
     public PersonalizeState Applied { get; set; } = new();
     public SlideshowSettings Slideshow { get; set; } = new();
+    public Dictionary<string, string> WallpaperEdits { get; set; } = new();
     public string? OriginalWallpaper { get; set; }
 }
 
@@ -86,6 +87,7 @@ public static class PersonalizeStore
                 }
                 catch (Exception ex) { AppLog.Warn("personalize.json unreadable: " + ex.Message); _data = new(); }
                 _data.Originals ??= new(); _data.Applied ??= new(); _data.Slideshow ??= new();
+                _data.WallpaperEdits ??= new();
                 _data.Applied.IconFiles ??= new();
                 return _data;
             }

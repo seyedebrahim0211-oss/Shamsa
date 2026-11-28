@@ -19,6 +19,7 @@ public static class DesktopThemePresets
         string Accent, string Tint, int Radius, int Opacity, int DockIcon,
         string IconThemeId, string FenceIconStyle, string AppThemeId, string? Wallpaper = null)
     {
+        public string? DisplayWallpaper => !Personalize.PersonalizeStudioPage.SafePreviewMode && Personalize.PersonalizeStore.Data.WallpaperEdits.TryGetValue(Id, out var path) && File.Exists(path) ? path : WallpaperPath;
         public string? WallpaperPath => Wallpaper == null ? null : Path.Combine(AppContext.BaseDirectory, "Assets", "Wallpapers", Wallpaper);
     }
 
@@ -28,6 +29,16 @@ public static class DesktopThemePresets
         new Preset("mostofi", "بشرویه · خانهٔ مستوفی", "سه بادگیر و حیاط خشتی در نور غروب", "#F2BA82", "#382B29", 14, 85, 48, "enamel3d", "enamel", "PersianTurquoise", "mostofi.jpg"),
         new Preset("boshrouyeh-night", "بشرویه در شب", "دیوار شهربند و گنبدهای فیروزه‌ای در نور کهربایی", "#69D5D8", "#12283C", 13, 85, 48, "nocturne3d", "prismatic", "LapisGlass", "boshrouyeh-night.jpg"),
         new Preset("boshrouyeh-fort", "بشرویه · قلعه‌دختر", "صخره و بقایای قلعه در سپیده‌دم", "#E3A184", "#302A39", 9, 86, 46, "amber3d", "crystal", "AmethystGlass", "boshrouyeh-fort.jpg"),
+        new Preset("oculus", "بشرویه · نورگیر", "هندسهٔ سقف و نور میانی", "#F1D6A4", "#282936", 16, 84, 48, "gilded3d", "girih", "PersianTurquoise", "oculus.jpg"),
+        new Preset("museum", "بشرویه · حیاط موزه", "گچ سفید، سفال و چوب", "#E6D2B7", "#353434", 16, 84, 48, "pearl3d", "porcelain", "PersianTurquoise", "museum.jpg"),
+        new Preset("courtyards", "بشرویه · دو حیاط", "طاق و بام‌های خشتی از بالا", "#DFA281", "#352E30", 16, 84, 48, "amber3d", "smoke", "PersianTurquoise", "courtyards.jpg"),
+        new Preset("square", "بشرویه · میدان شهر", "یادمان سفید در میان فضای سبز", "#8CD8BC", "#19352F", 16, 84, 48, "jade3d", "porcelain", "PersianTurquoise", "square.jpg"),
+        new Preset("domes", "بشرویه · گنبدهای فیروزه‌ای", "نمای روبه‌روی گنبدها در روشنایی عصر", "#66DAD1", "#153C47", 16, 84, 48, "turquoise", "lens", "PersianTurquoise", "domes.jpg"),
+        new Preset("avenue", "بشرویه · بلوار درختان", "محور سبز شهر و طاق‌های ورودی", "#B5D496", "#293729", 16, 84, 48, "jade3d", "smoke", "PersianTurquoise", "avenue.jpg"),
+        new Preset("dunes", "بشرویه · ریگزار", "خط تپه‌ها در روشنایی کویر", "#F2C391", "#372D32", 16, 84, 48, "amber3d", "porcelain", "PersianTurquoise", "dunes.jpg"),
+        new Preset("assembly", "بشرویه · آیین بشرویه", "صف‌های عزاداران در حیاط و گنبدهای فیروزه‌ای", "#8BC8CF", "#172B38", 16, 84, 48, "nocturne3d", "girih", "PersianTurquoise", "assembly.jpg"),
+        new Preset("cotton", "بشرویه · پنبه‌زار", "الیاف پنبه و برگ‌های نقره‌ای", "#CCD7A8", "#2B3932", 16, 84, 48, "pearl3d", "porcelain", "PersianTurquoise", "cotton.jpg"),
+        new Preset("forest", "سپیدهٔ جنگل", "کوه، رود و ساعت درشت فارسی", "#8DDEDC", "#193847", 16, 84, 48, "pearl3d", "porcelain", "PersianTurquoise", "forest.jpg"),
         new Preset("mashhad", "مشهد · حرم امام رضا", "گنبد طلایی و صحن در ساعت آبی", "#F0C66C", "#202C44", 14, 86, 48, "gilded3d", "girih", "LapisGlass", "mashhad.jpg"),
         new Preset("tehran-azadi", "تهران · برج آزادی", "قوس‌های مرمر و نور غروب", "#ACDDE9", "#27384C", 13, 85, 46, "pearl3d", "lens", "LapisGlass", "tehran-azadi.jpg"),
         new Preset("isfahan", "اصفهان · پل خواجو", "طاق‌های روشن و انعکاس آجری روی زاینده‌رود", "#F0A46D", "#30273C", 14, 85, 48, "enamel3d", "enamel", "AmethystGlass", "isfahan.jpg"),
@@ -62,7 +73,8 @@ public static class DesktopThemePresets
         s.Theme.GlassOpacity = p.Opacity;
         s.Theme.ShowBorders = p.Id != "graphite";
         s.Dock.IconSize = p.DockIcon;
-        s.Dock.Enabled = true; s.Dock.Position = "Bottom";
+        s.Dock.Enabled = true; s.Dock.Position = p.Id is "courtyards" or "avenue" ? "Left" : "Bottom";
+        s.TopBar.Islands = p.Id is "forest" or "museum" or "courtyards" or "avenue" or "cotton";
         s.TopBar.Enabled = true; s.TopBar.Position = "Top";
         s.Launcher.Enabled = true;
         s.HideWindowsTaskbar = true;
@@ -86,11 +98,26 @@ public static class DesktopThemePresets
         // Widgets use the glass brush, so they follow automatically; reset widget colours that would clash.
         foreach (var w in s.Widgets.Items.Where(w => w.Kind != "note")) w.ColorHex = null;
 
+        if (p.Id == "forest")
+        {
+            s.Widgets.Enabled = true;
+            if (!s.Widgets.Items.Any(w => w.Kind == "poster"))
+            {
+                var slot = DesktopPlacement.ForNew(s, DesktopDisplay.PlacementArea(s), new Size(330, 200));
+                s.Widgets.Items.Add(new WidgetPlacement { Kind = "poster", Width = slot.Width, Height = slot.Height, X = slot.X, Y = slot.Y });
+            }
+        }
         if (systemIcons && Personalize.SystemIcons.Themes.FirstOrDefault(t => t.Id == p.IconThemeId) is { } iconTheme)
         {
             try { Personalize.SystemIcons.ApplyTheme(iconTheme); }
             catch (Exception ex) { AppLog.Warn("Theme preset system icons: " + ex.Message); }
         }
+        if (s.MatchWindowBorders)
+            Personalize.PersonalizeStore.Transaction(() =>
+            {
+                Personalize.AccentService.SetAccent(DesktopTheme.ParseColor(p.Accent, Colors.Teal));
+                Personalize.AccentService.SetAccentOnTitleBars(true);
+            });
         if (appPalette)
         {
             try
@@ -115,7 +142,7 @@ public static class DesktopThemePresets
             BorderBrush = new SolidColorBrush(current ? accent : Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF)),
             BorderThickness = new Thickness(current ? 2 : 1)
         };
-        if (p.WallpaperPath is { } path && File.Exists(path))
+        if (p.DisplayWallpaper is { } path && File.Exists(path))
         {
             try
             {

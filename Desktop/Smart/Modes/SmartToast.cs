@@ -11,6 +11,10 @@ namespace Shamsa.Desktop.Smart.Modes;
 /// <summary>A calm glass card in the top-right corner (where Persian reading starts) with an optional action button. Never steals focus.</summary>
 public static class SmartToast
 {
+    internal sealed record Notice(DateTime Created, string Title, string Body);
+    private static readonly Queue<Notice> Recent = new();
+    internal static Notice[] History() { lock (Recent) return Recent.Reverse().ToArray(); }
+    internal static void ClearHistory() { lock (Recent) Recent.Clear(); }
     private static Window? _window;
     private static DispatcherTimer? _timer;
 
@@ -20,6 +24,11 @@ public static class SmartToast
     public static void Show(string title, string body, string glyph = "", string? actionText = null, Action? action = null, double seconds = 9)
     {
         if (Captured != null) { Captured.Add(title + " | " + body); return; }
+        lock (Recent)
+        {
+            if (Recent.Count >= 30) Recent.Dequeue();
+            Recent.Enqueue(new Notice(DateTime.Now, title, body));
+        }
         try
         {
             Close();

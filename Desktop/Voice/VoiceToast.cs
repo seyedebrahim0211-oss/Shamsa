@@ -16,7 +16,7 @@ internal static class VoiceToast
     private static TextBlock? _text, _glyph;
     private static DispatcherTimer? _timer;
 
-    public static void Show(string text, bool understood)
+    public static void Show(string text, bool understood, bool listening = false)
     {
         try
         {
@@ -59,7 +59,7 @@ internal static class VoiceToast
             _timer.Stop();
             _timer.Tick -= OnTick;
             _timer.Tick += OnTick;
-            _timer.Start();
+            if (!listening) _timer.Start();
         }
         catch (Exception ex) { AppLog.Warn("Voice toast: " + ex.Message); }
     }

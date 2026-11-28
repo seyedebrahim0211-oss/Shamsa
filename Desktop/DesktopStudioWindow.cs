@@ -266,7 +266,10 @@ public sealed class DesktopStudioView : UserControl
         opts.Children.Add(Opt("آیکون‌های سیستمی ویندوز (این رایانه، سطل بازیافت…)", _systemIcons, v => _systemIcons = v));
         opts.Children.Add(Opt("ظاهر پنجرهٔ نگارخانه", _appPalette, v => _appPalette = v));
         opts.Children.Add(Opt("اعمال پس‌زمینهٔ ثابت تم روی ویندوز", _s.UsePresetWallpaper, v => { _s.UsePresetWallpaper = v; Changed(); }));
+        opts.Children.Add(Opt("رنگ عنوان و حاشیهٔ پنجره‌های ویندوز با تم", _s.MatchWindowBorders, v => { _s.MatchWindowBorders = v; Changed(); }));
         themes.Children.Add(opts);
+        var filter = new TextBox { ToolTip = "جستجوی نام شهر، مکان یا سبک تم", MinWidth = 190, Margin = new Thickness(6) };
+        themes.Children.Add(Labeled("جستجوی تم", filter));
         var gallery = new UniformGrid { Columns = 4 };
         gallery.SizeChanged += (_, e) => gallery.Columns = e.NewSize.Width < 560 ? 2 : e.NewSize.Width < 820 ? 3 : 4;
         foreach (var preset in DesktopThemePresets.All)
@@ -286,7 +289,7 @@ public sealed class DesktopStudioView : UserControl
                 {
                     _s.Enabled = true;
                     DesktopThemePresets.Apply(_s, p, _gatherIcons, _systemIcons, _appPalette);
-                    if (_s.UsePresetWallpaper && p.WallpaperPath is { } path)
+                    if (_s.UsePresetWallpaper && p.DisplayWallpaper is { } path)
                     {
                         try { Personalize.WallpaperService.SetStaticWallpaper(path, Personalize.WallpaperFit.Fill); }
                         catch (Exception ex)
@@ -300,6 +303,11 @@ public sealed class DesktopStudioView : UserControl
                 Changed();
                 SetStatus("تم «" + p.Name + "» روی همه بخش‌ها اعمال شد");
                 ShowPageLater();
+            };
+            filter.TextChanged += (_, _) =>
+            {
+                string query = Launcher.LauncherIndex.Normalize(filter.Text);
+                b.Visibility = Launcher.LauncherIndex.Normalize(p.Name + " " + p.Description).Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             };
             gallery.Children.Add(b);
         }
@@ -401,6 +409,7 @@ public sealed class DesktopStudioView : UserControl
         var c = Card("رفتار");
         c.Children.Add(Toggle("نمایش نوار بالا", null, t.Enabled, v => t.Enabled = v));
         c.Children.Add(Labeled("محل", Combo(new[] { ("Top", "بالای صفحه"), ("Bottom", "پایین صفحه") }, t.Position, v => t.Position = v)));
+        c.Children.Add(Toggle("نوار سه‌بخشی شناور", "کنترل‌ها در سه قاب شیشه‌ای جدا نمایش داده شوند.", t.Islands, v => t.Islands = v));
         c.Children.Add(SliderRow("ارتفاع", 26, 56, t.Height, "{0}px", v => t.Height = v));
         c.Children.Add(Toggle("رزرو فضا", "پنجره‌های بزرگ‌شده زیر نوار نمی‌روند", t.ReserveSpace, v => t.ReserveSpace = v));
         c.Children.Add(Toggle("روی همه نمایشگرها", null, t.AllMonitors, v => t.AllMonitors = v));
@@ -410,6 +419,7 @@ public sealed class DesktopStudioView : UserControl
         var items = Card("اجزای نوار");
         items.Children.Add(Toggle("فضاهای کاری (دسکتاپ‌های مجازی ویندوز)", null, t.ShowWorkspaces, v => { t.ShowWorkspaces = v; SetItem(t, "workspaces", v, t.LeftItems); }));
         items.Children.Add(Toggle("عنوان برنامه فعال", null, t.ShowFocusedTitle, v => { t.ShowFocusedTitle = v; SetItem(t, "title", v, t.LeftItems); }));
+        items.Children.Add(Toggle("اعلان‌های نگارخانه", null, t.ShowNotifications, v => t.ShowNotifications = v));
         items.Children.Add(Toggle("کنترل پخش رسانه", null, t.ShowMedia, v => { t.ShowMedia = v; SetItem(t, "media", v, t.RightItems); }));
         items.Children.Add(Toggle("مصرف پردازنده و حافظه", null, t.ShowSystemStats, v => { t.ShowSystemStats = v; SetItem(t, "stats", v, t.RightItems); }));
         items.Children.Add(Toggle("شبکه", null, t.ShowNetwork, v => { t.ShowNetwork = v; SetItem(t, "network", v, t.RightItems); }));
@@ -840,6 +850,11 @@ public sealed class DesktopStudioView : UserControl
 
     private UIElement HotkeyBox(uint mods, int key, string bindingId, Action<uint, int> set)
     {
+        return ShortcutEditor(mods, key, bindingId, (m, k) => { set(m, k); Changed(); });
+    }
+
+    internal static UIElement ShortcutEditor(uint mods, int key, string bindingId, Action<uint, int> set)
+    {
         var stack = new StackPanel();
         var box = new TextBox
         {
@@ -867,7 +882,7 @@ public sealed class DesktopStudioView : UserControl
             warn.Text = conflict != null ? "⚠ تداخل با " + conflict + " — ترکیب دیگری انتخاب کن."
                        : (m & NativeMethods.MOD_WIN) != 0 ? "توجه: بسیاری از کلیدهای Win در اختیار ویندوز هستند."
                        : layoutSwitch ? "این ترکیب ممکن است زبان صفحه‌کلید را عوض کند." : "";
-            if (conflict == null) { set(m, vk); Changed(); }
+            if (conflict == null) set(m, vk);
         };
         stack.Children.Add(box);
         stack.Children.Add(warn);

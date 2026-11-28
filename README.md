@@ -12,7 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-14B8A6?style=flat-square" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0B1324?style=flat-square" alt="Windows"/>
-  <img src="https://img.shields.io/badge/Version-3.6.0-F6D379?style=flat-square" alt="Version 3.6.0"/>
+  <img src="https://img.shields.io/badge/Version-3.7.0-F6D379?style=flat-square" alt="Version 3.7.0"/>
   <img src="https://img.shields.io/badge/License-MIT-E5B85B?style=flat-square" alt="MIT License"/>
 </p>
 
@@ -104,7 +104,7 @@
 
 **[دریافت آخرین نسخه در GitHub Releases](https://github.com/seyedebrahim0211-oss/Shamsa/releases/latest)**
 
-فایل `Shamsa-Setup-v3.6.0-win-x64.exe` را اجرا کنید. نسخه نصبی
+فایل `Shamsa-Setup-v3.7.0-win-x64.exe` را اجرا کنید. نسخه نصبی
 خودکفا (self-contained) است و نیاز به نصب جداگانه .NET ندارد.
 FFmpeg برای قابلیت تبدیل درصورت نیاز با دکمه داخل اپ دانلود و نصب می‌شود.
 فایل‌ها در مسیر پروفایل کاربر نصب می‌شوند و حذف نصب از Settings ویندوز امکان‌پذیر است.

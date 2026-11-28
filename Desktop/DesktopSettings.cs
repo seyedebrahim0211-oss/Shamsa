@@ -17,6 +17,8 @@ public sealed class DesktopThemeSettings
 
 public sealed class TopBarSettings
 {
+    public bool ShowNotifications { get; set; } = true;
+    public bool Islands { get; set; }
     public bool Enabled { get; set; } = true;
     public string Position { get; set; } = "Top";        // Top | Bottom
     public int Height { get; set; } = 34;                // 26..56 (DIP)
@@ -154,6 +156,8 @@ public sealed class ClipboardSettings
 
 public sealed class VoiceSettings
 {
+    public uint HotkeyModifiers { get; set; } = NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT;
+    public int HotkeyKey { get; set; } = 0x4D; // M
     public bool Enabled { get; set; } = false;           // microphone stays off until opted in
     public string WakeWord { get; set; } = "نگار";
     public bool PreferPersian { get; set; } = true;      // fa-IR recogniser when installed, else Finglish phrases
@@ -261,6 +265,8 @@ public sealed class DesktopSettings
     public string DisplayDevice { get; set; } = "";
     /// <summary>Id of the last whole-desktop theme applied from «حالت‌های آماده» (for the ✓ mark).</summary>
     public string? ThemePresetId { get; set; }
+    public bool MatchWindowBorders { get; set; }
+    public bool AnimateWallpaper { get; set; }
     public bool UsePresetWallpaper { get; set; } = true;
     /// <summary>Empty = embedded Vazirmatn.</summary>
     public string UiFontFamily { get; set; } = "";

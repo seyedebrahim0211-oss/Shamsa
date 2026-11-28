@@ -53,6 +53,7 @@ public static class PersonalizeStudioPage
             Add(IconThemesCard);
             Add(LayoutCard);
             Add(WallpaperCard);
+            Add(PhotoshopCard);
             Add(SlideshowCard);
             Add(LockScreenCard);
             Add(AccentCard);
@@ -393,6 +394,8 @@ public static class PersonalizeStudioPage
             Grid.SetColumn(right, 1);
             grid.Children.Add(right);
             card.Children.Add(grid);
+            card.Children.Add(Toggle("حرکت آرام پس‌زمینه", "در حالت «پر کردن» روی نمایشگر انتخابی فعال است. هنگام بازی تمام‌صفحه یا استفاده از باتری مکث می‌کند.", _s.AnimateWallpaper,
+                enabled => { _s.AnimateWallpaper = enabled; _changed(); }));
             var gallery = new WrapPanel();
             foreach (var p in DesktopThemePresets.All.Where(p => p.Wallpaper != null))
             {
@@ -400,7 +403,7 @@ public static class PersonalizeStudioPage
                 preview.Children.Add(DesktopThemePresets.Swatch(p, false));
                 preview.Children.Add(new TextBlock { Text = p.Name, Margin = new Thickness(2, 4, 2, 0) });
                 var b = Btn(p.Name, () => Do("تغییر تصویر زمینه", () =>
-                    WallpaperService.SetStaticWallpaper(p.WallpaperPath!, (WallpaperFit)((ComboBoxItem)fit.SelectedItem).Tag)));
+                    WallpaperService.SetStaticWallpaper(p.DisplayWallpaper!, (WallpaperFit)((ComboBoxItem)fit.SelectedItem).Tag)));
                 b.Content = preview; b.Width = 150; b.HorizontalContentAlignment = HorizontalAlignment.Stretch;
                 b.ToolTip = p.Description;
                 System.Windows.Automation.AutomationProperties.SetName(b, "انتخاب تصویر زمینهٔ " + p.Name);
@@ -408,6 +411,69 @@ public static class PersonalizeStudioPage
             }
             card.Children.Add(new TextBlock { Text = "پس‌زمینه‌های سه‌بعدی نگارخانه", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 14, 0, 4) });
             card.Children.Add(gallery);
+            return Wrap(card);
+        }
+
+        private UIElement PhotoshopCard()
+        {
+            var card = Card("ویرایش پس‌زمینه در فتوشاپ", "تم را انتخاب کنید و PSD را در فتوشاپ باز کنید. لایه‌های رنگ تم و سایهٔ لبه در آغاز خاموش‌اند. پس از ویرایش، PSD را با Maximize Compatibility ذخیره کنید یا یک PNG بگیرید.");
+            var themes = DesktopThemePresets.All.Where(p => p.Wallpaper != null).ToList();
+            var picker = new ComboBox { ItemsSource = themes, DisplayMemberPath = "Name", MinWidth = 220,
+                HorizontalAlignment = HorizontalAlignment.Left };
+            picker.SelectedItem = themes.FirstOrDefault(p => p.DisplayWallpaper == PersonalizeStore.Data.Applied.WallpaperPath)
+                ?? themes.FirstOrDefault(p => p.Id == _s.ThemePresetId) ?? themes[0];
+            card.Children.Add(picker);
+            var row = new WrapPanel();
+            var status = Muted("");
+            async Task Run(Func<Task> action)
+            {
+                row.IsEnabled = picker.IsEnabled = false;
+                status.Text = "در حال پردازش تصویر…";
+                try { await action(); }
+                catch (Exception ex) { status.Text = "عملیات انجام نشد. " + ex.Message; AppLog.Warn("Wallpaper editor: " + ex.Message); }
+                finally { row.IsEnabled = picker.IsEnabled = true; }
+            }
+            row.Children.Add(Btn("ذخیرهٔ PSD لایه‌دار…", () =>
+            {
+                var preset = (DesktopThemePresets.Preset)picker.SelectedItem;
+                var dlg = new SaveFileDialog { FileName = preset.Id + ".psd", Filter = "Photoshop|*.psd", DefaultExt = ".psd" };
+                if (dlg.ShowDialog(Window.GetWindow(_host)) != true) return;
+                var source = preset.DisplayWallpaper!;
+                var accent = DesktopTheme.ParseColor(preset.Accent, Colors.Teal);
+                _ = Run(async () =>
+                {
+                    await Task.Run(() => WallpaperPsd.Export(source, dlg.FileName, accent));
+                    status.Text = "فایل فتوشاپ ذخیره شد.";
+                });
+            }, "AccentButton"));
+            row.Children.Add(Btn("وارد کردن نسخهٔ ویرایش‌شده…", () =>
+            {
+                var preset = (DesktopThemePresets.Preset)picker.SelectedItem;
+                var dlg = new OpenFileDialog { Filter = "PSD، PNG یا JPEG|*.psd;*.png;*.jpg;*.jpeg" };
+                if (dlg.ShowDialog(Window.GetWindow(_host)) != true) return;
+                _ = Run(async () =>
+                {
+                    var path = await Task.Run(() => WallpaperPsd.Import(dlg.FileName));
+                    PersonalizeStore.Transaction(() => WallpaperService.SetStaticWallpaper(path, WallpaperService.CurrentFit()));
+                    PersonalizeStore.Data.WallpaperEdits[preset.Id] = path;
+                    PersonalizeStore.Save();
+                    Render();
+                });
+            }));
+            var restore = Btn("بازگشت به تصویر اصلی تم", () =>
+            {
+                var preset = (DesktopThemePresets.Preset)picker.SelectedItem;
+                Do("بازگشت به تصویر اصلی", () =>
+                {
+                    WallpaperService.SetStaticWallpaper(preset.WallpaperPath!, WallpaperService.CurrentFit());
+                    PersonalizeStore.Data.WallpaperEdits.Remove(preset.Id);
+                    PersonalizeStore.Save();
+                });
+            });
+            void UpdateRestore() => restore.IsEnabled = picker.SelectedItem is DesktopThemePresets.Preset p
+                && PersonalizeStore.Data.WallpaperEdits.ContainsKey(p.Id);
+            picker.SelectionChanged += (_, _) => { UpdateRestore(); status.Text = ""; };
+            UpdateRestore(); row.Children.Add(restore); card.Children.Add(row); card.Children.Add(status);
             return Wrap(card);
         }
 

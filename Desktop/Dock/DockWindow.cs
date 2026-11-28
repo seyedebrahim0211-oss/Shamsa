@@ -414,7 +414,8 @@ internal sealed class DockWindow : Window
         };
         if (Horizontal) g.VerticalAlignment = AlignToEdgeV(); else g.HorizontalAlignment = AlignToEdgeH();
 
-        var bmp = LoadIcon(item);
+        var custom = item.Kind is DockItemKind.App or DockItemKind.Uri ? Fences.AppIconArt.CustomImage(_s, item.Exe ?? item.Pin ?? item.LaunchTarget) : null;
+        var bmp = custom ?? LoadIcon(item);
         if (bmp != null)
         {
             var img = new Image { Source = bmp, Stretch = Stretch.Uniform, Margin = new Thickness(2), RenderTransform = item.Hop };

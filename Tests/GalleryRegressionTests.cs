@@ -84,7 +84,7 @@ public class GalleryRegressionTests
         DesktopThemeAndClockTests.RunSta(() =>
         {
             var wallpapers = DesktopThemePresets.All.Where(p => p.Wallpaper != null).ToList();
-            Assert.Equal(15, wallpapers.Count);
+            Assert.Equal(25, wallpapers.Count);
             Assert.Equal(wallpapers.Count, wallpapers.Select(p => p.Wallpaper).Distinct().Count());
             foreach (var preset in wallpapers)
             {
@@ -121,6 +121,7 @@ public class GalleryRegressionTests
         });
         Assert.Equal(setup, UpdateService.ReadRelease(release, new Version(3, 4, 0, 0))!.FileName);
         Assert.Equal(setup, UpdateService.ReadRelease(release, new Version(3, 5, 0, 0))!.FileName);
+        Assert.Equal(setup, UpdateService.ReadRelease(release, new Version(3, 6, 0, 0))!.FileName);
         Assert.Null(UpdateService.ReadRelease(release, current));
     }
 

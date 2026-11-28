@@ -31,7 +31,7 @@ public static class FencesStudioPage
                     DockPanel.SetDock(edit, System.Windows.Controls.Dock.Right);
                     row.Children.Add(edit);
                 }
-                string desc = fence.Mode == "manual" ? $"{fence.Members.Count} مورد انتخابی" : fence.Mode == "folder"
+                string desc = fence.Mode == "recent" ? "هفت روز اخیر · " + fence.FolderPath : fence.Mode == "manual" ? $"{fence.Members.Count} مورد انتخابی" : fence.Mode == "folder"
                     ? "پوشه: " + (fence.FolderPath ?? "—")
                     : "پسوندها: " + string.Join(" ", fence.Extensions);
                 var text = new StackPanel();
@@ -104,6 +104,7 @@ public static class FencesStudioPage
         mode.Items.Add(new ComboBoxItem { Content = "انتخاب دستی برنامه‌ها و میانبرها", Tag = "manual" });
         mode.Items.Add(new ComboBoxItem { Content = "فایل‌های دسکتاپ با پسوند مشخص", Tag = "filter" });
         mode.Items.Add(new ComboBoxItem { Content = "محتوای یک پوشه (درگاه)", Tag = "folder" });
+        mode.Items.Add(new ComboBoxItem { Content = "پوشهٔ هوشمند · تغییرات هفت روز اخیر", Tag = "recent" });
         mode.SelectedIndex = 0;
         var exts = new TextBox { Text = ".pdf .docx", MinWidth = 260, FlowDirection = FlowDirection.LeftToRight, HorizontalAlignment = HorizontalAlignment.Left, ToolTip = "با فاصله یا کاما جدا کن؛ «folder» برای پوشه‌ها" };
         var folderPath = new TextBox { MinWidth = 260, FlowDirection = FlowDirection.LeftToRight, IsReadOnly = true };
@@ -120,7 +121,7 @@ public static class FencesStudioPage
         folderLabeled.Visibility = extsRow.Visibility = Visibility.Collapsed;
         mode.SelectionChanged += (_, _) =>
         {
-            bool folder = (mode.SelectedItem as ComboBoxItem)?.Tag as string == "folder";
+            bool folder = (mode.SelectedItem as ComboBoxItem)?.Tag is "folder" or "recent";
             extsRow.Visibility = (mode.SelectedItem as ComboBoxItem)?.Tag as string == "filter" ? Visibility.Visible : Visibility.Collapsed;
             folderLabeled.Visibility = folder ? Visibility.Visible : Visibility.Collapsed;
         };
@@ -133,7 +134,7 @@ public static class FencesStudioPage
         {
             string m = (mode.SelectedItem as ComboBoxItem)?.Tag as string ?? "filter";
             var def = new FenceDefinition { Title = string.IsNullOrWhiteSpace(title.Text) ? "گروه" : title.Text.Trim(), Mode = m };
-            if (m == "folder")
+            if (m is "folder" or "recent")
             {
                 if (!Directory.Exists(folderPath.Text)) { status.Text = "اول یک پوشه موجود انتخاب کن."; return; }
                 def.FolderPath = folderPath.Text;

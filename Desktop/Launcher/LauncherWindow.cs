@@ -284,12 +284,25 @@ public sealed class LauncherWindow : Window
     private List<LauncherResult> RecentFromHistory()
     {
         var list = new List<LauncherResult>();
+        if (Categories[_category].Kind == LauncherKind.App && _settings.Launcher.SearchApps)
+            return _index.Apps.OrderBy(r => r.Title, StringComparer.CurrentCultureIgnoreCase).Take(64).ToList();
+        if (Categories[_category].Kind != null) return list;
+        if (_settings.Launcher.SearchApps)
+            foreach (var target in _settings.Dock.Pinned.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase).Take(8))
+            {
+                var entry = _index.Apps.FirstOrDefault(r => string.Equals(r.Target, target, StringComparison.OrdinalIgnoreCase));
+                if (entry != null) list.Add(entry);
+                else if (File.Exists(target) || Directory.Exists(target))
+                    list.Add(new LauncherResult { Title = Path.GetFileNameWithoutExtension(target), Subtitle = "سنجاق‌شده در داک",
+                        Target = target, IconPath = target, Kind = LauncherKind.App });
+            }
         foreach (var target in _settings.Launcher.History.Take(6))
         {
             var hit = _index.Search(Path.GetFileNameWithoutExtension(target.Split('\\').Last()), _settings.Launcher, null)
                             .FirstOrDefault(r => string.Equals(r.Target, target, StringComparison.OrdinalIgnoreCase));
-            if (hit != null) list.Add(hit);
+            if (hit != null && !list.Any(r => r.Target.Equals(hit.Target, StringComparison.OrdinalIgnoreCase))) list.Add(hit);
         }
+        if (list.Count == 0 && _settings.Launcher.SearchApps) list.AddRange(_index.Apps.Take(8));
         return list;
     }
 

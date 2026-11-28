@@ -135,7 +135,7 @@ internal sealed class FenceBrowser : DockPanel
             {
                 var bitmap = await _host!.Worker.RunAsync(() => item.SystemDef is { } sys
                     ? Personalize.SystemIcons.LoadIcon(Personalize.SystemIcons.CurrentIconLocation(sys), pixels)
-                    : ShellThumbnailService.TryGetShellImage(item.Path, pixels));
+                    : (AppIconArt.IsApp(item.Path) ? AppIconArt.CustomImage(_settings, item.Path) : null) ?? ShellThumbnailService.TryGetShellImage(item.Path, pixels));
                 if (revision != _revision || !IsLoaded) return;
                 if (bitmap != null) { image.Source = bitmap; fallback.Visibility = Visibility.Collapsed; }
             }

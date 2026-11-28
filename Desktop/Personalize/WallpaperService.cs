@@ -74,7 +74,7 @@ public static class WallpaperService
         var a = PersonalizeStore.Data.Applied;
         a.WallpaperPath = path; a.WallpaperStyle = fit.ToString(); a.SolidColorHex = null;
         PersonalizeStore.Save();
-        var preset = DesktopThemePresets.All.FirstOrDefault(p => string.Equals(p.WallpaperPath, path, StringComparison.OrdinalIgnoreCase));
+        var preset = DesktopThemePresets.All.FirstOrDefault(p => string.Equals(p.DisplayWallpaper, path, StringComparison.OrdinalIgnoreCase));
         UpdateIconPalette(preset?.Id, preset?.Accent ?? SampleAccent(path));
     }
 

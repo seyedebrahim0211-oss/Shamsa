@@ -17,6 +17,7 @@ public static class WidgetViews
         ("weather", "آب‌وهوا", ""),
         ("note", "یادداشت", ""),
         ("world", "ساعت جهانی", ""),
+        ("poster", "ساعت دیواری فارسی", ""),
         ("clock", "ساعت", ""),
     };
 
@@ -28,6 +29,7 @@ public static class WidgetViews
         "prayer" => (260, 300),
         "weather" => (280, 230),
         "note" => (240, 220),
+        "poster" => (330, 200),
         "clock" => (280, 150),
         _ => (260, 220),
     };
@@ -75,6 +77,7 @@ public static class WidgetViews
         "prayer" => new PrayerWidget(s),
         "weather" => new WeatherWidget(s),
         "note" => new NoteWidget(p.Text ?? "", noteChanged),
+        "poster" => new PosterClock(s),
         "clock" => new ClockWidget(s.Widgets),
         "world" => new WorldClock(s.Widgets),
         _ => Text("ویجت ناشناخته"),
@@ -372,6 +375,33 @@ public static class WidgetViews
     }
 
     // ------------------------------------------------------------------ clock
+
+    private sealed class PosterClock : StackPanel
+    {
+        public PosterClock(DesktopSettings s)
+        {
+            VerticalAlignment = VerticalAlignment.Center; HorizontalAlignment = HorizontalAlignment.Center;
+            var day = Text("", 31, FontWeights.Bold);
+            var date = Text("", 14, brush: DesktopTheme.MutedBrush);
+            var time = Text("", 42, FontWeights.Light);
+            var rail = new Border { Height = 2, Width = 142, Background = new SolidColorBrush(Color.FromArgb(55, 255, 255, 255)),
+                Margin = new Thickness(0, 5, 0, 8), FlowDirection = FlowDirection.LeftToRight };
+            var elapsed = new Border { Height = 2, HorizontalAlignment = HorizontalAlignment.Left, Background = DesktopTheme.AccentBrush(s) };
+            rail.Child = elapsed;
+            foreach (var label in new[] { day, date, time }) label.TextAlignment = TextAlignment.Center;
+            Children.Add(day); Children.Add(date); Children.Add(rail); Children.Add(time);
+            void Tick()
+            {
+                var now = CityClock.Now(s.Widgets);
+                day.Text = PersianDate.Days[(int)now.DayOfWeek];
+                date.Text = PersianDate.Short(now, true) + "  ·  " + D(PersianDate.Parts(now).Year.ToString());
+                time.Text = D(now.ToString("HH:mm")); elapsed.Width = 142 * now.Second / 60.0;
+            }
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            timer.Tick += (_, _) => Tick();
+            Loaded += (_, _) => { Tick(); timer.Start(); }; Unloaded += (_, _) => timer.Stop(); Tick();
+        }
+    }
 
     private sealed class ClockWidget : StackPanel
     {

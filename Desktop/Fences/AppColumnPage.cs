@@ -145,20 +145,23 @@ internal static class AppColumnPage
         var icon = new Image { Width = 64, Height = 64, Margin = new Thickness(8), FlowDirection = FlowDirection.LeftToRight };
         var glyph = new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 25,
             Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var mark = new Image { Width = 38, Height = 38 };
         var preview = new Grid { Width = 84, Height = 84 };
-        preview.Children.Add(icon); preview.Children.Add(glyph);
+        preview.Children.Add(icon); preview.Children.Add(glyph); preview.Children.Add(mark);
         DockPanel.SetDock(preview, System.Windows.Controls.Dock.Left); host.Children.Add(preview);
         var form = new StackPanel();
         void Draw()
         {
             var resolved = AppIconArt.Resolve(s, target);
             icon.Source = FenceIconArt.Plate(resolved.Style, resolved.Color);
+            mark.Source = AppIconArt.CustomImage(s, target);
+            glyph.Visibility = mark.Source == null ? Visibility.Visible : Visibility.Collapsed;
         }
         void Save(AppIconChoice value)
         {
             choice = value;
             if (key == null) s.AppIcons.Default = value;
-            else if (value.Style == "inherit" && value.ColorHex == null) s.AppIcons.PerApp.Remove(key);
+            else if (value.Style == "inherit" && value.ColorHex == null && value.ImageId == null) s.AppIcons.PerApp.Remove(key);
             else s.AppIcons.PerApp[key] = value;
             Draw(); changed();
         }
@@ -174,6 +177,17 @@ internal static class AppColumnPage
         });
         colors.Children.Add(swatch);
         colors.Children.Add(StudioUi.Button(key == null ? "رنگ خودکار تم" : "رنگ عمومی برنامه‌ها", () => Save(choice with { ColorHex = null })));
+        if (key != null)
+        {
+            colors.Children.Add(StudioUi.Button("تصویر دلخواه…", () =>
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "آیکون و تصویر|*.png;*.ico;*.jpg;*.jpeg" };
+                if (dlg.ShowDialog() != true) return;
+                try { Save(choice with { ImageId = AppIconArt.ImportImage(dlg.FileName) }); }
+                catch (Exception ex) { MessageBox.Show("تصویر باز نشد. " + ex.Message, "نگارخانه"); }
+            }));
+            colors.Children.Add(StudioUi.Button("نشان اصلی برنامه", () => Save(choice with { ImageId = null })));
+        }
         form.Children.Add(colors); host.Children.Add(form); Draw();
         return host;
     }

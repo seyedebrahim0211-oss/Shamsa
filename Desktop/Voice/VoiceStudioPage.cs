@@ -14,6 +14,9 @@ public static class VoiceStudioPage
         root.Children.Add(StudioUi.Title("فرمان صوتی فارسی"));
         root.Children.Add(StudioUi.Muted("دکمه را نگه دارید، فرمان را بگویید و رها کنید. تشخیص روی همین رایانه انجام می‌شود."));
         var card = StudioUi.Card(root, "فرمان صوتی");
+        card.Children.Add(StudioUi.Toggle("فعال‌سازی میانبر سراسری میکروفون", "یک بار بزنید و صحبت کنید؛ دوباره بزنید تا فرمان اجرا شود. ضبط پس از ۳۰ ثانیه پایان می‌یابد.", v.Enabled, x => { v.Enabled = x; changed(); }));
+        card.Children.Add(DesktopStudioView.ShortcutEditor(v.HotkeyModifiers, v.HotkeyKey, VoiceModule.Shortcut,
+            (mods, key) => { v.HotkeyModifiers = mods; v.HotkeyKey = key; changed(); }));
         var wake = new TextBox { Text = v.WakeWord, Width = 180, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(6, 4, 6, 4) };
         wake.TextChanged += (_, _) => { v.WakeWord = wake.Text.Trim(); changed(); };
         card.Children.Add(StudioUi.Labeled("کلمه بیدارباش", wake));
